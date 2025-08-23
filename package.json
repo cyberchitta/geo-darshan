@@ -1,0 +1,24 @@
+{
+  "name": "geo-darshan",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "frontend:dev": "bunx serve frontend"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "leaflet": "^1.9.4",
+    "leaflet-draw": "^1.0.4",
+    "geotiff": "^2.1.3",
+    "@turf/turf": "^7.2.0",
+    "axios": "^1.7.7",
+    "mercantile": "^2.0.0"
+  }
+}
