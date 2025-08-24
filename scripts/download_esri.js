@@ -1,15 +1,33 @@
 import { mkdir, writeFile } from "fs/promises";
 import SphericalMercator from "sphericalmercator";
 
-const ROI = [79.808, 12.0045, 79.8125, 12.009]; // [minLng, minLat, maxLng, maxLat]
-const ZOOM = 18; // ~1m resolution
-const OUTPUT_DIR = "./data/esri_tiles";
+const args = process.argv.slice(2);
+const roiName = args[0];
+const customRoi = args[1] ? JSON.parse(args[1]) : null;
+
+const CONFIG = {
+  rois: {
+    test: [79.808, 12.0045, 79.8125, 12.009],
+    full: [79.676, 11.872, 79.946, 12.142],
+  },
+  zoom: 18, // ~1m resolution
+  batchSize: 10,
+  batchDelayMs: 500,
+  maxRetries: 3,
+  baseRetryDelayMs: 1000,
+};
+
+const ROI = customRoi || CONFIG.rois[roiName];
+if (!ROI) {
+  console.error(
+    `Unknown ROI: ${roiName}. Available: ${Object.keys(CONFIG.rois).join(", ")}`
+  );
+  process.exit(1);
+}
+
+const OUTPUT_DIR = `./data/esri_tiles_${roiName}`;
 const ESRI_URL =
   "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-const BATCH_SIZE = 10;
-const BATCH_DELAY_MS = 500;
-const MAX_RETRIES = 3;
-const BASE_RETRY_DELAY_MS = 1000;
 
 const merc = new SphericalMercator({ size: 256 });
 
@@ -54,8 +72,10 @@ async function ensureOutputDir() {
   }
 }
 
-const tiles = getTilesForBbox(ROI[0], ROI[1], ROI[2], ROI[3], ZOOM);
-console.log(`Fetching ${tiles.length} tiles for zoom ${ZOOM}...`);
+const tiles = getTilesForBbox(ROI[0], ROI[1], ROI[2], ROI[3], CONFIG.zoom);
+console.log(
+  `Fetching ${tiles.length} tiles for ROI '${roiName}' at zoom ${CONFIG.zoom}...`
+);
 
 async function fetchTileWithRetry(tile, attempt = 1) {
   const url = ESRI_URL.replace("{z}", tile.z)
@@ -65,16 +85,16 @@ async function fetchTileWithRetry(tile, attempt = 1) {
     const response = await fetch(url);
     if (!response.ok) {
       if (response.status === 429 || response.status === 503) {
-        if (attempt <= MAX_RETRIES) {
-          const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+        if (attempt <= CONFIG.maxRetries) {
+          const delay = CONFIG.baseRetryDelayMs * Math.pow(2, attempt - 1);
           console.warn(
-            `Rate limit or server error for tile ${tile.x}/${tile.y}/${tile.z}. Retrying (${attempt}/${MAX_RETRIES}) after ${delay}ms...`
+            `Rate limit or server error for tile ${tile.x}/${tile.y}/${tile.z}. Retrying (${attempt}/${CONFIG.maxRetries}) after ${delay}ms...`
           );
           await new Promise((resolve) => setTimeout(resolve, delay));
           return fetchTileWithRetry(tile, attempt + 1);
         }
         throw new Error(
-          `Failed tile ${tile.x}/${tile.y}/${tile.z} after ${MAX_RETRIES} retries: ${response.status}`
+          `Failed tile ${tile.x}/${tile.y}/${tile.z} after ${CONFIG.maxRetries} retries: ${response.status}`
         );
       }
       throw new Error(
@@ -89,38 +109,43 @@ async function fetchTileWithRetry(tile, attempt = 1) {
     console.error(
       `Error fetching tile ${tile.x}/${tile.y}/${tile.z}: ${error.message}`
     );
-    if (attempt <= MAX_RETRIES) {
-      const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
-      console.warn(`Retrying (${attempt}/${MAX_RETRIES}) after ${delay}ms...`);
+    if (attempt <= CONFIG.maxRetries) {
+      const delay = CONFIG.baseRetryDelayMs * Math.pow(2, attempt - 1);
+      console.warn(
+        `Retrying (${attempt}/${CONFIG.maxRetries}) after ${delay}ms...`
+      );
       await new Promise((resolve) => setTimeout(resolve, delay));
       return fetchTileWithRetry(tile, attempt + 1);
     }
     console.error(
-      `Gave up on tile ${tile.x}/${tile.y}/${tile.z} after ${MAX_RETRIES} retries.`
+      `Gave up on tile ${tile.x}/${tile.y}/${tile.z} after ${CONFIG.maxRetries} retries.`
     );
   }
 }
 
 async function fetchTilesInBatches(tiles) {
-  for (let i = 0; i < tiles.length; i += BATCH_SIZE) {
-    const batch = tiles.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < tiles.length; i += CONFIG.batchSize) {
+    const batch = tiles.slice(i, i + CONFIG.batchSize);
     console.log(
-      `Processing batch ${Math.floor(i / BATCH_SIZE) + 1} of ${Math.ceil(
-        tiles.length / BATCH_SIZE
+      `Processing batch ${Math.floor(i / CONFIG.batchSize) + 1} of ${Math.ceil(
+        tiles.length / CONFIG.batchSize
       )}...`
     );
     await Promise.all(batch.map((tile) => fetchTileWithRetry(tile)));
-    if (i + BATCH_SIZE < tiles.length) {
-      console.log(`Waiting ${BATCH_DELAY_MS}ms before next batch...`);
-      await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
+    if (i + CONFIG.batchSize < tiles.length) {
+      console.log(`Waiting ${CONFIG.batchDelayMs}ms before next batch...`);
+      await new Promise((resolve) => setTimeout(resolve, CONFIG.batchDelayMs));
     }
   }
 }
 
 (async () => {
+  console.log(`ROI: ${roiName} ${JSON.stringify(ROI)}`);
   await ensureOutputDir();
   await fetchTilesInBatches(tiles);
   console.log(
-    "Tile download complete. Run `python scripts/stitch_esri.py` to create COG."
+    `Tile download complete for '${roiName}'. Run 'bun run stitch-tiles${
+      roiName !== "test" ? ":" + roiName : ""
+    }' to create COG.`
   );
 })();

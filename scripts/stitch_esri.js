@@ -3,8 +3,11 @@ import { readdirSync, existsSync, unlinkSync } from "fs";
 import { join } from "path";
 import SphericalMercator from "sphericalmercator";
 
-const TILE_DIR = "./data/esri_tiles";
-const OUTPUT_COG = "./data/esri_test_roi_cog.tif";
+const args = process.argv.slice(2);
+const roiName = args[0] || "test";
+
+const TILE_DIR = `./data/esri_tiles_${roiName}`;
+const OUTPUT_COG = `./data/esri_${roiName}_roi_cog.tif`;
 
 const merc = new SphericalMercator({ size: 256 });
 
@@ -53,11 +56,13 @@ function georeferenceTile(tile) {
 
 function stitchTiles() {
   if (!existsSync(TILE_DIR)) {
-    console.error(`Tile directory ${TILE_DIR} not found`);
+    console.error(
+      `Tile directory ${TILE_DIR} not found. Run download script for '${roiName}' first.`
+    );
     process.exit(1);
   }
   const files = readdirSync(TILE_DIR).filter((f) => f.endsWith(".png"));
-  console.log(`Found ${files.length} tiles`);
+  console.log(`Found ${files.length} tiles for ROI '${roiName}'`);
   const tiles = files.map(getTileInfo).filter(Boolean);
   const georefTiles = [];
   for (const tile of tiles) {
@@ -72,7 +77,8 @@ function stitchTiles() {
     console.error("No tiles could be georeferenced");
     process.exit(1);
   }
-  const vrtFile = "./data/esri_test_roi.vrt";
+
+  const vrtFile = `./data/esri_${roiName}_roi.vrt`;
   try {
     console.log("Creating VRT and COG...");
     execSync(
@@ -104,4 +110,5 @@ function stitchTiles() {
   }
 }
 
+console.log(`Stitching tiles for ROI: ${roiName}`);
 stitchTiles();
