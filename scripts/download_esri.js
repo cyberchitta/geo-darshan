@@ -8,7 +8,7 @@ const customRoi = args[1] ? JSON.parse(args[1]) : null;
 const CONFIG = {
   rois: {
     test: [79.808, 12.0045, 79.8125, 12.009],
-    full: [79.676, 11.872, 79.946, 12.142],
+    full: [79.76525, 11.96175, 79.85525, 12.05175],
   },
   zoom: 18, // ~1m resolution
   batchSize: 10,
