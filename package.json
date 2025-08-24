@@ -6,9 +6,11 @@
   "scripts": {
     "frontend:dev": "bunx serve frontend",
     "download-tiles": "bun run scripts/download_esri.js test",
-    "download-tiles:full": "bun run scripts/download_esri.js full",
+    "download-tiles:3.5k": "bun run scripts/download_esri.js 3.5k",
+    "download-tiles:5k": "bun run scripts/download_esri.js 5k",
     "stitch-tiles": "bun run scripts/stitch_esri.js test",
-    "stitch-tiles:full": "bun run scripts/stitch_esri.js full"
+    "stitch-tiles:3.5k": "bun run scripts/stitch_esri.js 3.5k",
+    "stitch-tiles:5k": "bun run scripts/stitch_esri.js 5k"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.8.1"
