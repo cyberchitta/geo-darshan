@@ -12,11 +12,7 @@
     "stitch-tiles:3.5k": "bun run scripts/stitch_esri.js 3.5k",
     "stitch-tiles:5k": "bun run scripts/stitch_esri.js 5k"
   },
-  "devDependencies": {
-    "@tauri-apps/cli": "^2.8.1"
-  },
   "dependencies": {
-    "@tauri-apps/api": "^2.8.0",
     "@turf/turf": "^7.2.0",
     "axios": "^1.11.0",
     "geotiff": "^2.1.3",
