@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "fs/promises";
 import SphericalMercator from "sphericalmercator";
 
 const ROI = [79.808, 12.0045, 79.8125, 12.009]; // [minLng, minLat, maxLng, maxLat]
-const ZOOM = 16; // ~1m resolution
+const ZOOM = 18; // ~1m resolution
 const OUTPUT_DIR = "./data/esri_tiles";
 const ESRI_URL =
   "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
