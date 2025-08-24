@@ -4,7 +4,6 @@
     "": {
       "name": "geo-darshan",
       "dependencies": {
-        "@mapbox/tilebelt": "^2.0.2",
         "@tauri-apps/api": "^2.8.0",
         "@turf/turf": "^7.2.0",
         "axios": "^1.11.0",
@@ -19,8 +18,6 @@
     },
   },
   "packages": {
-    "@mapbox/tilebelt": ["@mapbox/tilebelt@2.0.2", "", {}, "sha512-pzFgrmsCUjOAAeYns1MKJ1dJICYdEC+sYwtWLdxO7iJwmDlepGrEXDqP9ejApO/YUVctA/SYKDS4Oc0mBNNLZw=="],
-
     "@petamoriken/float16": ["@petamoriken/float16@3.9.2", "", {}, "sha512-VgffxawQde93xKxT3qap3OH+meZf7VaSB5Sqd4Rqc+FP5alWbpOyan/7tRbOAvynjpG3GpdtAuGU/NdhQpmrog=="],
 
     "@tauri-apps/api": ["@tauri-apps/api@2.8.0", "", {}, "sha512-ga7zdhbS2GXOMTIZRT0mYjKJtR9fivsXzsyq5U3vjDL0s6DTMwYRm0UHNjzTY5dh4+LSC68Sm/7WEiimbQNYlw=="],

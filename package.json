@@ -10,7 +10,7 @@
     "frontend:dev": "bunx serve frontend",
     "download-tiles": "bun run scripts/download_esri.js",
     "stitch-tiles": "uv run python scripts/stitch_esri.py"
-    },
+  },
   "devDependencies": {
     "@tauri-apps/cli": "^2.8.1"
   },
