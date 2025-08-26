@@ -1,6 +1,7 @@
 ---
 jupyter:
   jupytext:
+    formats: ipynb,md
     text_representation:
       extension: .md
       format_name: markdown
@@ -19,24 +20,22 @@ jupyter:
 from pathlib import Path
 import numpy as np
 
-# Import our library
 from alpha_bhu.data import load_aef_embeddings, validate_embedding_quality, reshape_for_clustering
 from alpha_bhu.clustering import (
-    cluster_embeddings_adaptive, 
-    labels_to_raster, 
-    cluster_aef_to_polygons_enhanced
+   cluster_embeddings_simple, 
+   labels_to_raster, 
+   cluster_aef_to_polygons_simple
 )
 from alpha_bhu.classification import (
-    PrototypeLibrary,
-    create_prototypes_from_labels,
-    classify_with_prototypes,
-    load_labels_geojson,
-    enhanced_classification_pipeline
+   PrototypeLibrary,
+   create_prototypes_from_labels,
+   classify_with_prototypes,
+   load_labels_geojson,
+   enhanced_classification_pipeline
 )
 from alpha_bhu.visualization import (
-    plot_k_selection_results, 
-    plot_cluster_raster,
-    plot_classification_results
+   plot_cluster_raster,
+   plot_classification_results
 )
 from alpha_bhu.config import TEST_ROI, FULL_ROI, CLASSES
 
@@ -46,10 +45,9 @@ print("✅ All imports successful")
 ## Data Paths Setup
 
 ```python
-# Set up data paths
 DATA_DIR = Path("../data")
-AEF_PATH = DATA_DIR / "aef_test_roi_cog.tif"  # or aef_full_roi_cog.tif
-LABELS_PATH = DATA_DIR / "geo_darshan_polygons_test.geojson"  # from Geo-Darshan
+AEF_PATH = DATA_DIR / "aef_3.5k_roi_cog.tif"
+LABELS_PATH = DATA_DIR / "geo_darshan_polygons_test.geojson"
 OUTPUT_DIR = DATA_DIR / "results"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -61,7 +59,6 @@ print(f"Output Dir: {OUTPUT_DIR}")
 ## 1. Load and Inspect AEF Embeddings
 
 ```python
-# Load AEF embeddings
 embeddings, metadata = load_aef_embeddings(AEF_PATH)
 
 print("=== AEF Embeddings Loaded ===")
@@ -70,16 +67,16 @@ print(f"CRS: {metadata['crs']}")
 print(f"Bounds: {metadata['bounds']}")
 print(f"Transform: {metadata['transform']}")
 
-# Quality assessment
 quality = validate_embedding_quality(embeddings)
 print(f"\n=== Quality Report ===")
 print(f"Total pixels: {quality['total_pixels']:,}")
 print(f"Memory usage: {quality['memory_mb']:.1f} MB")
+print(f"NaN pixels: {quality['nan_pixels']:,}")
+print(f"Inf pixels: {quality['inf_pixels']:,}")
 print(f"Valid pixels: {quality['valid_pixels']:,}")
 print(f"Value range: [{quality['min_value']:.3f}, {quality['max_value']:.3f}]")
 print(f"Mean: {quality['mean_value']:.3f} ± {quality['std_value']:.3f}")
 
-# Show per-band statistics (first 5 bands)
 print(f"\n=== First 5 Band Statistics ===")
 for band_stat in quality['band_statistics'][:5]:
     print(f"Band {band_stat['band']:2d}: mean={band_stat['mean']:6.3f}, std={band_stat['std']:6.3f}")
@@ -88,24 +85,22 @@ for band_stat in quality['band_statistics'][:5]:
 ## 2. Adaptive Clustering with Auto-K
 
 ```python
-# Reshape for clustering
 embeddings_flat = reshape_for_clustering(embeddings)
 print(f"Reshaped to: {embeddings_flat.shape}")
 
-# Run adaptive clustering with automatic K selection
-labels, cluster_metadata = cluster_embeddings_adaptive(
-    embeddings_flat,
-    auto_k=True,
-    k_range=(3, 12),
-    sample_for_k=5000,
-    random_state=42
+# Run simple clustering with 18 clusters (EE-style)
+labels, cluster_metadata = cluster_embeddings_simple(
+   embeddings_flat,
+   n_clusters=18,
+   algorithm="kmeans",
+   n_samples=1000,
+   random_state=42
 )
 
 print(f"\n=== Clustering Results ===")
 print(f"Clusters found: {cluster_metadata['n_clusters_found']}")
 print(f"Sample size used: {cluster_metadata['sample_size']:,}")
 print(f"Silhouette score: {cluster_metadata['silhouette_score']:.3f}")
-print(f"Calinski-Harabasz score: {cluster_metadata['calinski_score']:.1f}")
 
 # Convert to spatial raster
 cluster_raster = labels_to_raster(labels, metadata['shape'])
@@ -115,19 +110,12 @@ print(f"Cluster raster shape: {cluster_raster.shape}")
 ## 3. Visualize K Selection and Clustering
 
 ```python
-# Plot K selection analysis
-if cluster_metadata['k_selection']:
-    print("Displaying K selection analysis...")
-    k_chart = plot_k_selection_results(cluster_metadata['k_selection'])
-    k_chart.show()
-
-# Plot spatial clustering results
-print("Displaying cluster raster...")
-cluster_chart = plot_cluster_raster(
-    cluster_raster, 
-    f"AEF Clustering Results (K={cluster_metadata['n_clusters_found']})"
+cluster_map = plot_cluster_raster(
+    cluster_raster,
+    metadata,
+    title=f"AEF Clustering Results (K={cluster_metadata['n_clusters_found']})"
 )
-cluster_chart.show()
+cluster_map
 ```
 
 ## 4. Vectorize Clusters to Polygons
