@@ -232,3 +232,5 @@ class AnimationController {
     console.log("AnimationController destroyed");
   }
 }
+
+export { AnimationController };

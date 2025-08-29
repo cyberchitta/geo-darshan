@@ -1,3 +1,7 @@
+import { DataLoader } from "./data-loader.js";
+import { MapManager } from "./map.js";
+import { AnimationController } from "./animation.js";
+
 class ClusterViewer {
   constructor() {
     this.dataLoader = null;
@@ -9,19 +13,12 @@ class ClusterViewer {
   async initialize() {
     try {
       console.log("Initializing Cluster Viewer...");
-
-      // Initialize components
       this.dataLoader = new DataLoader();
       this.mapManager = new MapManager("map");
       this.animationController = new AnimationController();
-
-      // Setup event listeners
       this.setupEventListeners();
       this.setupKeyboardShortcuts();
-
-      // Initialize map
       await this.mapManager.initialize();
-
       this.isInitialized = true;
       console.log("✅ Cluster Viewer initialized");
     } catch (error) {
@@ -30,46 +27,33 @@ class ClusterViewer {
     }
   }
 
-  // Replace the existing setupEventListeners method in viewer.js
   setupEventListeners() {
-    // File loading (existing code...)
     document.getElementById("load-data-btn").addEventListener("click", () => {
       document.getElementById("file-input").click();
     });
-
     document.getElementById("file-input").addEventListener("change", (e) => {
       this.handleFileSelect(e.target.files);
     });
-
-    // Animation controls - enhanced
     document.getElementById("play-pause").addEventListener("click", () => {
       if (this.animationController.canPlay()) {
         this.animationController.togglePlayPause();
       }
     });
-
     document.getElementById("step-back").addEventListener("click", () => {
       this.animationController.stepBack();
     });
-
     document.getElementById("step-forward").addEventListener("click", () => {
       this.animationController.stepForward();
     });
-
-    // Speed control
     document.getElementById("speed-slider").addEventListener("input", (e) => {
       const speed = parseFloat(e.target.value);
       this.animationController.setSpeed(speed);
       document.getElementById("speed-value").textContent = `${speed}x`;
     });
-
-    // K-value navigation - enhanced
     document.getElementById("k-slider").addEventListener("input", (e) => {
       const frameIndex = parseInt(e.target.value);
       this.animationController.goToFrame(frameIndex);
     });
-
-    // Opacity control (existing code...)
     document.getElementById("opacity-slider").addEventListener("input", (e) => {
       const opacity = parseFloat(e.target.value);
       this.mapManager.setOverlayOpacity(opacity);
@@ -77,8 +61,6 @@ class ClusterViewer {
         opacity * 100
       )}%`;
     });
-
-    // Animation events - enhanced
     this.animationController.on(
       "frameChanged",
       (frameIndex, kValue, overlay) => {
@@ -86,38 +68,29 @@ class ClusterViewer {
         this.mapManager.showFrame(frameIndex, overlay);
       }
     );
-
     this.animationController.on("frameInfo", (info) => {
       this.updateDetailedInfo(info);
     });
-
     this.animationController.on("playStateChanged", (isPlaying) => {
       this.updatePlayButton(isPlaying);
       this.updateControlStates(isPlaying);
     });
-
     this.animationController.on("framesReady", (frameCount) => {
       this.updateControlStates(false);
       console.log(`Animation ready with ${frameCount} frames`);
     });
-
-    // Data loading events (existing code...)
     this.dataLoader.on("loadProgress", (loaded, total) => {
       this.updateLoadingProgress(loaded, total);
     });
-
     this.dataLoader.on("loadComplete", (manifest, overlays) => {
       this.handleDataLoaded(manifest, overlays);
     });
-
     this.dataLoader.on("loadError", (error) => {
       this.handleLoadError(error);
     });
   }
 
-  // Add these new methods to viewer.js
   updateDetailedInfo(info) {
-    // Update progress in loading status area
     document.getElementById("loading-status").textContent = `Frame ${
       info.index + 1
     }/${info.total} (${info.progress.toFixed(1)}%)`;
@@ -126,7 +99,6 @@ class ClusterViewer {
   updateControlStates(isPlaying) {
     const canStep = this.animationController.canStepBack();
     const canPlay = this.animationController.canPlay();
-
     document.getElementById("step-back").disabled = !canStep || isPlaying;
     document.getElementById("step-forward").disabled = !canStep || isPlaying;
     document.getElementById("play-pause").disabled = !canPlay;
@@ -149,17 +121,13 @@ class ClusterViewer {
   }
 
   async handleFileSelect(files) {
-    const manifestFile = Array.from(files).find(
-      (f) => f.name === "manifest.json"
-    );
-    if (!manifestFile) {
-      this.showError("Please select a manifest.json file");
+    if (!files || files.length === 0) {
+      this.showError("Please select a folder containing cluster data");
       return;
     }
-
     try {
       this.showLoading(true);
-      await this.dataLoader.loadFromManifest(manifestFile);
+      await this.dataLoader.loadFromFolder(files);
     } catch (error) {
       console.error("Failed to load data:", error);
       this.showError("Failed to load clustering data");
@@ -170,27 +138,17 @@ class ClusterViewer {
   async handleDataLoaded(manifest, overlays) {
     console.log("=== DATA LOADING START ===");
     console.log("Overlays received:", overlays.length);
-
-    // Debug the first overlay bounds
     if (overlays.length > 0) {
       console.log("First overlay bounds:", overlays[0].bounds);
       console.log("Manifest bounds:", manifest.metadata.bounds);
     }
-
-    // Set overlays in map first
+    this.mapManager.setDataLoader(this.dataLoader);
     this.mapManager.setOverlays(overlays);
     this.mapManager.fitBounds(manifest.metadata.bounds);
-
-    // Set frames in animation (won't trigger display yet)
     this.animationController.setFrames(manifest.k_values, overlays);
-
-    // Update UI
     this.updateDataInfo(manifest);
     this.setupSliders(manifest.k_values);
-
-    // NOW show the initial frame (both have data)
     this.animationController.showInitialFrame();
-
     this.showLoading(false);
     console.log("✅ Data loading complete");
   }
@@ -214,7 +172,6 @@ class ClusterViewer {
 
   updateDataInfo(manifest) {
     const { metadata, k_values, processing_stats } = manifest;
-
     document.getElementById(
       "data-status"
     ).textContent = `${k_values.length} frames loaded`;
@@ -255,11 +212,8 @@ class ClusterViewer {
   }
 }
 
-// Initialize when page loads
 document.addEventListener("DOMContentLoaded", async () => {
   const viewer = new ClusterViewer();
   await viewer.initialize();
-
-  // Make viewer globally accessible for debugging
   window.clusterViewer = viewer;
 });
