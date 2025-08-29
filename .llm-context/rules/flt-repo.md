@@ -1,5 +1,4 @@
 ---
-name: filters
 description: "Exclude inessential files and IDE configs"
 overview: "full"
 compose:
@@ -8,7 +7,9 @@ gitignores:
   full-files:
     - ".vscode/**"
     - ".python-version"
+    - "data/"
   outline-files:
     - ".vscode/**"
     - ".python-version"
+    - "data/"
 ---
