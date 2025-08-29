@@ -22,6 +22,7 @@ class MapManager {
         {
           attribution: "Tiles © Esri",
           maxZoom: 19,
+          zIndex: 1,
         }
       );
       this.baseLayers.osm = L.tileLayer(
@@ -29,6 +30,7 @@ class MapManager {
         {
           attribution: "© OpenStreetMap contributors",
           maxZoom: 19,
+          zIndex: 1,
         }
       );
       this.baseLayers.esri.addTo(this.map);
@@ -41,11 +43,65 @@ class MapManager {
         { position: "topright" }
       );
       layerControl.addTo(this.map);
-      console.log("✅ Map initialized with base layers");
+      console.log("✅ Map initialized with base layers and z-index control");
     } catch (error) {
       console.error("Failed to initialize map:", error);
       throw error;
     }
+  }
+
+  async createGeoRasterLayer(overlayData) {
+    const { georaster, kValue } = overlayData;
+    const layer = new GeoRasterLayer({
+      georaster: georaster,
+      opacity: this.currentOpacity,
+      resolution: this.getOptimalResolution(georaster),
+      pixelValuesToColorFn: (values) =>
+        this.dataLoader.pixelValuesToColorFn(values, kValue),
+      maxNativeZoom: 20,
+      updateWhenIdle: true,
+      updateWhenZooming: false,
+      keepBuffer: 2,
+      zIndex: 1000,
+    });
+    layer._kValue = kValue;
+    layer._bounds = georaster.bounds;
+    layer.on("add", () => {
+      if (layer.getContainer && layer.getContainer()) {
+        layer.getContainer().style.zIndex = "1000";
+      }
+    });
+    return layer;
+  }
+
+  setBaseLayer(layerName) {
+    if (this.baseLayers[layerName]) {
+      Object.values(this.baseLayers).forEach((layer) => {
+        if (this.map.hasLayer(layer)) {
+          this.map.removeLayer(layer);
+        }
+      });
+      const newBaseLayer = this.baseLayers[layerName];
+      newBaseLayer.addTo(this.map);
+      newBaseLayer.on("add", () => {
+        if (newBaseLayer.getContainer && newBaseLayer.getContainer()) {
+          newBaseLayer.getContainer().style.zIndex = "1";
+        }
+      });
+      console.log(`Switched to base layer: ${layerName} with z-index 1`);
+      if (this.currentOverlay) {
+        this.map.removeLayer(this.currentOverlay);
+        this.currentOverlay.addTo(this.map);
+      }
+    }
+  }
+
+  setOverlayOpacity(opacity) {
+    this.currentOpacity = Math.max(0, Math.min(1, opacity));
+    if (this.currentOverlay && this.currentOverlay.setOpacity) {
+      this.currentOverlay.setOpacity(this.currentOpacity);
+    }
+    console.log(`Overlay opacity set to ${this.currentOpacity}`);
   }
 
   setDataLoader(dataLoader) {
@@ -84,24 +140,6 @@ class MapManager {
     console.log("✅ All layer preprocessing complete");
   }
 
-  async createGeoRasterLayer(overlayData) {
-    const { georaster, kValue } = overlayData;
-    const layer = new GeoRasterLayer({
-      georaster: georaster,
-      opacity: this.currentOpacity,
-      resolution: this.getOptimalResolution(georaster),
-      pixelValuesToColorFn: (values) =>
-        this.dataLoader.pixelValuesToColorFn(values, kValue),
-      maxNativeZoom: 20,
-      updateWhenIdle: true,
-      updateWhenZooming: false,
-      keepBuffer: 2,
-    });
-    layer._kValue = kValue;
-    layer._bounds = georaster.bounds;
-    return layer;
-  }
-
   getOptimalResolution(georaster) {
     const totalPixels = georaster.width * georaster.height;
     if (totalPixels > 100_000_000) return 128;
@@ -129,17 +167,22 @@ class MapManager {
     try {
       let layer = this.geoRasterLayers.get(frameIndex);
       if (!layer) {
-        console.log(
-          `Layer not ready for frame ${frameIndex}, creating immediately...`
-        );
+        console.log(`Layer not ready for frame ${frameIndex}, creating...`);
         const overlayData = this.overlays[frameIndex];
-        layer = this.createGeoRasterLayerSync(overlayData);
-        if (layer) {
-          this.geoRasterLayers.set(frameIndex, layer);
-        }
-      }
-      if (!layer) {
-        console.error(`Failed to create layer for frame ${frameIndex}`);
+        this.createGeoRasterLayer(overlayData)
+          .then((newLayer) => {
+            this.geoRasterLayers.set(frameIndex, newLayer);
+            if (this.animationController.currentFrame === frameIndex) {
+              newLayer.addTo(this.map);
+              this.currentOverlay = newLayer;
+            }
+          })
+          .catch((error) => {
+            console.error(
+              `Failed to create layer for frame ${frameIndex}:`,
+              error
+            );
+          });
         return;
       }
       layer.addTo(this.map);
@@ -148,38 +191,6 @@ class MapManager {
     } catch (error) {
       console.error(`Failed to show frame ${frameIndex}:`, error);
     }
-  }
-
-  createGeoRasterLayerSync(overlayData) {
-    try {
-      const { georaster, kValue } = overlayData;
-      const layer = new GeoRasterLayer({
-        georaster: georaster,
-        opacity: this.currentOpacity,
-        resolution: this.getOptimalResolution(georaster),
-        pixelValuesToColorFn: (values) =>
-          this.dataLoader.pixelValuesToColorFn(values, kValue),
-        maxNativeZoom: 20,
-        updateWhenIdle: true,
-        updateWhenZooming: false,
-        keepBuffer: 2,
-      });
-      layer._kValue = kValue;
-      layer._bounds = georaster.bounds;
-      console.log(`✅ Created georaster layer for k=${kValue}`);
-      return layer;
-    } catch (error) {
-      console.error(`Failed to create georaster layer sync:`, error);
-      return null;
-    }
-  }
-
-  setOverlayOpacity(opacity) {
-    this.currentOpacity = Math.max(0, Math.min(1, opacity));
-    if (this.currentOverlay && this.currentOverlay.setOpacity) {
-      this.currentOverlay.setOpacity(this.currentOpacity);
-    }
-    console.log(`Overlay opacity set to ${this.currentOpacity}`);
   }
 
   fitBounds(bounds) {
@@ -220,18 +231,6 @@ class MapManager {
     if (!this.map) return null;
     const center = this.map.getCenter();
     return [center.lat, center.lng];
-  }
-
-  setBaseLayer(layerName) {
-    if (this.baseLayers[layerName]) {
-      Object.values(this.baseLayers).forEach((layer) => {
-        if (this.map.hasLayer(layer)) {
-          this.map.removeLayer(layer);
-        }
-      });
-      this.baseLayers[layerName].addTo(this.map);
-      console.log(`Switched to base layer: ${layerName}`);
-    }
   }
 
   preloadFrames(startIndex = 0, count = 3) {
