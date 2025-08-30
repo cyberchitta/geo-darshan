@@ -1,9 +1,16 @@
+import { RasterDataHandler } from './raster-handler.js';
+
 class DataLoader {
-  constructor() {
+  constructor(rasterHandler = null) {
     this.listeners = {};
     this.loadedOverlays = new Map();
     this.colorMapping = null;
-    console.log("DataLoader initialized with georaster");
+    this.rasterHandler = rasterHandler;
+    if (this.rasterHandler) {
+      console.log(`DataLoader initialized with ${this.rasterHandler.name}`);
+    } else {
+      console.log('DataLoader initialized (waiting for raster handler injection)');
+    }
   }
 
   on(event, callback) {
@@ -137,14 +144,14 @@ class DataLoader {
   async loadGeoRasterFromFile(file) {
     try {
       const arrayBuffer = await this.readFileAsArrayBuffer(file);
-      const georaster = await parseGeoraster(arrayBuffer);
-      console.log("Georaster parsed:", {
-        width: georaster.width,
-        height: georaster.height,
-        bands: georaster.numberOfRasters,
-        bounds: georaster.bounds,
+      const rasterData = await this.rasterHandler.parseGeoTIFF(arrayBuffer);
+      console.log("Raster parsed:", {
+        width: rasterData.width,
+        height: rasterData.height,
+        bands: rasterData.numberOfRasters,
+        bounds: rasterData.bounds,
       });
-      return georaster;
+      return rasterData;
     } catch (error) {
       console.error(`Error processing GeoTIFF ${file.name}:`, error);
       throw new Error(

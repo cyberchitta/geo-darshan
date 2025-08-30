@@ -13,8 +13,15 @@ class ClusterViewer {
   async initialize() {
     try {
       console.log("Initializing Cluster Viewer...");
-      this.dataLoader = new DataLoader();
-      this.mapManager = new MapManager("map");
+
+      // Get raster handler from global scope (injected from HTML)
+      const rasterHandler = window.rasterHandler;
+      if (!rasterHandler) {
+        throw new Error("Raster handler not found. Make sure it's injected from HTML.");
+      }
+
+      this.dataLoader = new DataLoader(rasterHandler);
+      this.mapManager = new MapManager("map", rasterHandler);
       this.animationController = new AnimationController();
       this.setupEventListeners();
       this.setupKeyboardShortcuts();
@@ -217,3 +224,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   await viewer.initialize();
   window.clusterViewer = viewer;
 });
+
+export {ClusterViewer};

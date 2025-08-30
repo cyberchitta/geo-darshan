@@ -1,5 +1,5 @@
 class MapManager {
-  constructor(containerId) {
+  constructor(containerId, rasterHandler) {
     this.containerId = containerId;
     this.map = null;
     this.overlays = [];
@@ -8,7 +8,14 @@ class MapManager {
     this.baseLayers = {};
     this.geoRasterLayers = new Map();
     this.dataLoader = null;
-    console.log("MapManager initialized for georaster");
+    this.rasterHandler = rasterHandler;
+    if (this.rasterHandler) {
+      console.log(`MapManager initialized with ${this.rasterHandler.name}`);
+    } else {
+      console.log(
+        "MapManager initialized (waiting for raster handler injection)"
+      );
+    }
   }
 
   async initialize() {
@@ -52,25 +59,15 @@ class MapManager {
 
   async createGeoRasterLayer(overlayData) {
     const { georaster, kValue } = overlayData;
-    const layer = new GeoRasterLayer({
-      georaster: georaster,
+    const layer = this.rasterHandler.createMapLayer(georaster, {
       opacity: this.currentOpacity,
       resolution: this.getOptimalResolution(georaster),
       pixelValuesToColorFn: (values) =>
         this.dataLoader.pixelValuesToColorFn(values, kValue),
-      maxNativeZoom: 20,
-      updateWhenIdle: true,
-      updateWhenZooming: false,
-      keepBuffer: 2,
       zIndex: 1000,
     });
     layer._kValue = kValue;
     layer._bounds = georaster.bounds;
-    layer.on("add", () => {
-      if (layer.getContainer && layer.getContainer()) {
-        layer.getContainer().style.zIndex = "1000";
-      }
-    });
     return layer;
   }
 
@@ -172,10 +169,14 @@ class MapManager {
         this.createGeoRasterLayer(overlayData)
           .then((newLayer) => {
             this.geoRasterLayers.set(frameIndex, newLayer);
-            if (this.animationController.currentFrame === frameIndex) {
-              newLayer.addTo(this.map);
-              this.currentOverlay = newLayer;
+            if (this.currentOverlay) {
+              this.map.removeLayer(this.currentOverlay);
             }
+            newLayer.addTo(this.map);
+            this.currentOverlay = newLayer;
+            console.log(
+              `✅ Created and displayed layer for frame ${frameIndex}`
+            );
           })
           .catch((error) => {
             console.error(

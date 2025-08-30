@@ -63,9 +63,17 @@
             <div id="progress-fill" class="progress-fill"></div>
         </div>
     </div>
-    <script type="module" src="js/data-loader.js"></script>
-    <script type="module" src="js/map.js"></script>
-    <script type="module" src="js/animation.js"></script>
+    <script type="module">
+        import { GeoRasterAdapter } from './js/raster-handler.js';
+        import { DataLoader } from './js/data-loader.js';
+        import { MapManager } from './js/map.js';
+        import { AnimationController } from './js/animation.js';
+        import { ClusterViewer } from './js/viewer.js';
+
+        const rasterHandler = new GeoRasterAdapter();
+        window.rasterHandler = rasterHandler;
+        window.GeoRasterAdapter = GeoRasterAdapter;
+    </script>
     <script type="module" src="js/viewer.js"></script>
 </body>
 
