@@ -173,6 +173,9 @@ class MapManager {
               this.map.removeLayer(this.currentOverlay);
             }
             newLayer.addTo(this.map);
+            if (newLayer.setOpacity) {
+              newLayer.setOpacity(this.currentOpacity);
+            }
             this.currentOverlay = newLayer;
             console.log(
               `✅ Created and displayed layer for frame ${frameIndex}`
@@ -187,6 +190,9 @@ class MapManager {
         return;
       }
       layer.addTo(this.map);
+      if (layer.setOpacity) {
+        layer.setOpacity(this.currentOpacity);
+      }
       this.currentOverlay = layer;
       console.log(`✅ Displayed frame ${frameIndex} (k=${layer._kValue})`);
     } catch (error) {
