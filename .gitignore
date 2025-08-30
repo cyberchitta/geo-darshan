@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 
 data/
+output/
 
 *.ipynb
 .ipynb_checkpoints/
