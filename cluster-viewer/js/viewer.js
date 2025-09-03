@@ -164,7 +164,10 @@ class ClusterViewer {
     this.currentClusterData = this.extractClusterData(overlays, manifest);
     this.mapManager.setDataLoader(this.dataLoader);
     this.mapManager.setOverlays(overlays);
-    this.mapManager.fitBounds(manifest.metadata.bounds);
+    await new Promise((resolve) => {
+      this.mapManager.fitBounds(manifest.metadata.bounds);
+      this.mapManager.map.whenReady(() => resolve());
+    });
     this.animationController.setFrames(manifest.segmentation_keys, overlays);
     this.updateDataInfo(manifest);
     this.setupSliders(manifest.segmentation_keys);

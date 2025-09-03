@@ -63,7 +63,7 @@ class MapManager {
     const { georaster } = overlayData;
     const segmentationKey = overlayData.segmentationKey;
     const layer = this.rasterHandler.createMapLayer(georaster, {
-      opacity: this.currentOpacity,
+      opacity: 0,
       resolution: this.getOptimalResolution(georaster),
       pixelValuesToColorFn: (values) =>
         this.dataLoader.pixelValuesToColorFn(values, segmentationKey),
@@ -123,6 +123,7 @@ class MapManager {
       return;
     }
     console.log("Preprocessing georaster layers...");
+    this.geoRasterLayers.clear();
     for (let i = 0; i < this.overlays.length; i++) {
       const overlayData = this.overlays[i];
       try {
@@ -130,13 +131,17 @@ class MapManager {
           `Loading ${overlayData.filename} (${overlayData.segmentationKey})...`
         );
         const geoRasterLayer = await this.createGeoRasterLayer(overlayData);
+        geoRasterLayer.addTo(this.map);
         this.geoRasterLayers.set(i, geoRasterLayer);
-        console.log(`✅ Preprocessed layer ${i + 1}/${this.overlays.length}`);
+        console.log(
+          `✅ Preprocessed and added layer ${i + 1}/${this.overlays.length}`
+        );
         if (i === 0) {
           this.emit("firstLayerReady");
         }
       } catch (error) {
         console.error(`Failed to preprocess layer ${i}:`, error);
+        throw error;
       }
     }
     console.log("✅ All layer preprocessing complete");
@@ -162,44 +167,24 @@ class MapManager {
       );
       return;
     }
-    if (this.currentOverlay) {
-      this.map.removeLayer(this.currentOverlay);
-      this.currentOverlay = null;
-    }
     try {
-      let layer = this.geoRasterLayers.get(frameIndex);
+      this.geoRasterLayers.forEach((layer) => {
+        if (layer.setOpacity) {
+          layer.setOpacity(0);
+        }
+      });
+      const layer = this.geoRasterLayers.get(frameIndex);
       if (!layer) {
-        console.log(`Layer not ready for frame ${frameIndex}, creating...`);
-        const overlayData = this.overlays[frameIndex];
-        this.createGeoRasterLayer(overlayData)
-          .then((newLayer) => {
-            this.geoRasterLayers.set(frameIndex, newLayer);
-            if (this.currentOverlay) {
-              this.map.removeLayer(this.currentOverlay);
-            }
-            newLayer.addTo(this.map);
-            if (newLayer.setOpacity) {
-              newLayer.setOpacity(this.currentOpacity);
-            }
-            this.currentOverlay = newLayer;
-            console.log(
-              `✅ Created and displayed layer for frame ${frameIndex}`
-            );
-          })
-          .catch((error) => {
-            console.error(
-              `Failed to create layer for frame ${frameIndex}:`,
-              error
-            );
-          });
+        console.error(`No preprocessed layer for frame ${frameIndex}`);
         return;
       }
-      layer.addTo(this.map);
       if (layer.setOpacity) {
         layer.setOpacity(this.currentOpacity);
       }
       this.currentOverlay = layer;
-      console.log(`✅ Displayed frame ${frameIndex} (k=${layer._kValue})`);
+      console.log(
+        `✅ Displayed frame ${frameIndex} (k=${layer._segmentationKey})`
+      );
     } catch (error) {
       console.error(`Failed to show frame ${frameIndex}:`, error);
     }
