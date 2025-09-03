@@ -171,15 +171,16 @@ class ClusterViewer {
   extractClusterData(overlays, manifest) {
     const clusterData = {};
     overlays.forEach((overlay, index) => {
-      const kValue = overlay.kValue;
+      const segmentationKey = manifest.segmentation_keys[index];
       const clusters = [];
       const colors = new Map();
-      const numClusters = kValue || Math.floor(Math.random() * 15) + 5;
+      const numericK = this.extractKValue(segmentationKey);
+      const numClusters = numericK || Math.floor(Math.random() * 15) + 5;
       for (let i = 0; i < numClusters; i++) {
         clusters.push({
           id: i,
           pixelCount: Math.floor(Math.random() * 2000) + 100,
-          kValue: kValue,
+          segmentationKey: segmentationKey,
           area_ha: ((Math.random() * 2000 + 100) * 0.01).toFixed(2),
         });
         const hue = (i * 137.508) % 360;
@@ -187,17 +188,17 @@ class ClusterViewer {
         const lightness = 50 + (i % 2) * 20;
         colors.set(i, `hsl(${hue}, ${saturation}%, ${lightness}%)`);
       }
-      clusterData[kValue] = { clusters, colors };
+      clusterData[segmentationKey] = { clusters, colors };
     });
     return clusterData;
   }
 
-  updateLegendForFrame(frameIndex, kValue) {
-    if (!this.currentClusterData || !this.currentClusterData[kValue]) {
-      console.warn(`No cluster data for k=${kValue}`);
+  updateLegendForFrame(frameIndex, segmentationKey) {
+    if (!this.currentClusterData || !this.currentClusterData[segmentationKey]) {
+      console.warn(`No cluster data for segmentation key: ${segmentationKey}`);
       return;
     }
-    const { clusters, colors } = this.currentClusterData[kValue];
+    const { clusters, colors } = this.currentClusterData[segmentationKey];
     this.legendPanel.updateClusters(clusters, colors);
   }
 
@@ -209,7 +210,7 @@ class ClusterViewer {
         JSON.stringify({
           labels: labels,
           timestamp: new Date().toISOString(),
-          kValue: this.getCurrentKValue(),
+          segmentationKey: this.getCurrentSegmentationKey(),
         })
       );
       console.log("✅ Labels saved to localStorage");
@@ -218,9 +219,14 @@ class ClusterViewer {
     }
   }
 
-  getCurrentKValue() {
+  getCurrentSegmentationKey() {
     const frameInfo = this.animationController.getCurrentFrameInfo();
-    return frameInfo.kValue;
+    return frameInfo.segmentationKey;
+  }
+
+  extractKValue(segmentationKey) {
+    const match = segmentationKey.match(/k(\d+)/);
+    return match ? parseInt(match[1]) : null;
   }
 
   handleLoadError(error) {
@@ -229,8 +235,9 @@ class ClusterViewer {
     this.showLoading(false);
   }
 
-  updateUI(frameIndex, kValue) {
-    document.getElementById("current-k").textContent = kValue;
+  updateUI(frameIndex, segmentationKey) {
+    const numericK = this.extractKValue(segmentationKey);
+    document.getElementById("current-k").textContent = numericK;
     document.getElementById("k-slider").value = frameIndex;
   }
 

@@ -25,14 +25,7 @@ class GeoRasterAdapter extends RasterDataHandler {
 
   async parseGeoTIFF(arrayBuffer) {
     try {
-      const georaster = await parseGeoraster(arrayBuffer);
-      console.log("GeoRaster parsed:", {
-        width: georaster.width,
-        height: georaster.height,
-        bands: georaster.numberOfRasters,
-        bounds: georaster.bounds,
-      });
-      return georaster;
+      return await parseGeoraster(arrayBuffer);
     } catch (error) {
       console.error("GeoRaster parsing failed:", error);
       throw error;

@@ -58,15 +58,16 @@ class MapManager {
   }
 
   async createGeoRasterLayer(overlayData) {
-    const { georaster, kValue } = overlayData;
+    const { georaster } = overlayData;
+    const segmentationKey = overlayData.segmentationKey;
     const layer = this.rasterHandler.createMapLayer(georaster, {
       opacity: this.currentOpacity,
       resolution: this.getOptimalResolution(georaster),
       pixelValuesToColorFn: (values) =>
-        this.dataLoader.pixelValuesToColorFn(values, kValue),
+        this.dataLoader.pixelValuesToColorFn(values, segmentationKey),
       zIndex: 1000,
     });
-    layer._kValue = kValue;
+    layer._segmentationKey = segmentationKey;
     layer._bounds = georaster.bounds;
     return layer;
   }

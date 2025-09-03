@@ -120,7 +120,7 @@ class DataLoader {
     console.log(`Loading ${total} GeoTIFF files using georaster...`);
     for (let i = 0; i < manifest.files.length; i++) {
       const filename = manifest.files[i];
-      const kValue = manifest.k_values[i];
+      const segmentationKey = manifest.segmentation_keys[i];
       const stats = manifest.processing_stats
         ? manifest.processing_stats[i]
         : null;
@@ -130,13 +130,13 @@ class DataLoader {
       }
       try {
         console.log(
-          `Loading ${filename} (k=${kValue}, ${stats?.file_size_mb.toFixed(
+          `Loading ${filename} (${segmentationKey}, ${stats?.file_size_mb.toFixed(
             2
           )}MB)...`
         );
         const georaster = await this.loadGeoRasterFromFile(file);
         overlays.push({
-          kValue,
+          segmentationKey,
           filename,
           georaster,
           bounds: manifest.metadata.bounds,
@@ -157,14 +157,7 @@ class DataLoader {
   async loadGeoRasterFromFile(file) {
     try {
       const arrayBuffer = await this.readFileAsArrayBuffer(file);
-      const rasterData = await this.rasterHandler.parseGeoTIFF(arrayBuffer);
-      console.log("Raster parsed:", {
-        width: rasterData.width,
-        height: rasterData.height,
-        bands: rasterData.numberOfRasters,
-        bounds: rasterData.bounds,
-      });
-      return rasterData;
+      return await this.rasterHandler.parseGeoTIFF(arrayBuffer);
     } catch (error) {
       console.error(`Error processing GeoTIFF ${file.name}:`, error);
       throw new Error(
