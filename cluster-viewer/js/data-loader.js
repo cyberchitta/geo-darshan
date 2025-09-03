@@ -166,66 +166,6 @@ class DataLoader {
     }
   }
 
-  pixelValuesToColorFn(values, kValue) {
-    if (!values || values.some((v) => v === null || v === undefined)) {
-      return null;
-    }
-    if (values.length === 1) {
-      const clusterValue = values[0];
-      const color = this.mapClusterValueToColor(clusterValue);
-      return `rgba(${color.r},${color.g},${color.b},${color.a / 255})`;
-    }
-    if (values.length >= 3) {
-      return `rgb(${Math.round(values[0])},${Math.round(
-        values[1]
-      )},${Math.round(values[2])})`;
-    }
-    return null;
-  }
-
-  mapClusterValueToColor(clusterValue) {
-    if (this.colorMapping && this.colorMapping.colors_rgb) {
-      const colors = this.colorMapping.colors_rgb;
-      if (clusterValue === 0) {
-        return { r: 0, g: 0, b: 0, a: 0 };
-      }
-      const colorIndex = (clusterValue - 1) % colors.length;
-      const color = colors[colorIndex];
-      if (color && color.length >= 3) {
-        return {
-          r: Math.round(color[0] * 255),
-          g: Math.round(color[1] * 255),
-          b: Math.round(color[2] * 255),
-          a: 255,
-        };
-      }
-    }
-    if (clusterValue === 0) {
-      return { r: 0, g: 0, b: 0, a: 0 };
-    }
-    const hue = (clusterValue * 137.508) % 360;
-    const saturation = 70 + (clusterValue % 3) * 10;
-    const lightness = 50 + (clusterValue % 2) * 20;
-    return this.hslToRgb(hue, saturation, lightness);
-  }
-
-  hslToRgb(h, s, l) {
-    h /= 360;
-    s /= 100;
-    l /= 100;
-    const a = s * Math.min(l, 1 - l);
-    const f = (n) => {
-      const k = (n + h * 12) % 12;
-      return l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    };
-    return {
-      r: Math.round(f(0) * 255),
-      g: Math.round(f(8) * 255),
-      b: Math.round(f(4) * 255),
-      a: 255,
-    };
-  }
-
   readFileAsText(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
