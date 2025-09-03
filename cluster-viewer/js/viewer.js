@@ -99,6 +99,15 @@ class ClusterViewer {
     this.dataLoader.on("loadError", (error) => {
       this.handleLoadError(error);
     });
+    this.mapManager.on("clusterClicked", (clusterValue, latlng) => {
+      this.handleClusterClicked(clusterValue, latlng);
+    });
+    this.mapManager.on("backgroundClicked", (latlng) => {
+      this.handleBackgroundClicked(latlng);
+    });
+    this.legendPanel.onClusterSelected = (clusterId) => {
+      this.handleLegendClusterSelected(clusterId);
+    };
     this.legendPanel.onLabelsChanged = (labels) => {
       this.onLabelsChanged(labels);
     };
@@ -152,10 +161,6 @@ class ClusterViewer {
   async handleDataLoaded(manifest, overlays) {
     console.log("=== DATA LOADING START ===");
     console.log("Overlays received:", overlays.length);
-    if (overlays.length > 0) {
-      console.log("First overlay bounds:", overlays[0].bounds);
-      console.log("Manifest bounds:", manifest.metadata.bounds);
-    }
     this.currentClusterData = this.extractClusterData(overlays, manifest);
     this.mapManager.setDataLoader(this.dataLoader);
     this.mapManager.setOverlays(overlays);
@@ -163,9 +168,55 @@ class ClusterViewer {
     this.animationController.setFrames(manifest.segmentation_keys, overlays);
     this.updateDataInfo(manifest);
     this.setupSliders(manifest.segmentation_keys);
-    this.animationController.showInitialFrame();
+    this.mapManager.on("firstLayerReady", () => {
+      this.animationController.showInitialFrame();
+      console.log("✅ Initial frame displayed after preprocessing");
+    });
     this.showLoading(false);
     console.log("✅ Data loading complete");
+  }
+
+  handleClusterClicked(clusterValue, latlng) {
+    console.log(
+      `Map click: cluster ${clusterValue} at ${latlng.lat.toFixed(
+        6
+      )}, ${latlng.lng.toFixed(6)}`
+    );
+    this.legendPanel.selectCluster(clusterValue);
+    this.showClickFeedback(latlng);
+  }
+
+  handleBackgroundClicked(latlng) {
+    console.log(
+      `Background clicked at ${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`
+    );
+    this.legendPanel.clearSelection();
+  }
+
+  handleLegendClusterSelected(clusterId) {
+    console.log(`Legend selection: cluster ${clusterId}`);
+    // TODO: Highlight cluster on map (next phase)
+    // this.mapManager.highlightCluster(clusterId);
+  }
+
+  showClickFeedback(latlng) {
+    if (this.clickMarker) {
+      this.mapManager.map.removeLayer(this.clickMarker);
+    }
+    this.clickMarker = L.circleMarker(latlng, {
+      radius: 5,
+      fillColor: "#ff0000",
+      color: "#ff0000",
+      weight: 2,
+      opacity: 0.8,
+      fillOpacity: 0.3,
+    }).addTo(this.mapManager.map);
+    setTimeout(() => {
+      if (this.clickMarker) {
+        this.mapManager.map.removeLayer(this.clickMarker);
+        this.clickMarker = null;
+      }
+    }, 2000);
   }
 
   extractClusterData(overlays, manifest) {

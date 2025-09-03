@@ -440,6 +440,7 @@ input[type="range"]::-moz-range-thumb {
 .legend-stats {
   color: #666;
   font-size: 12px;
+  font-weight: 500;
 }
 
 .legend-controls {
@@ -487,9 +488,109 @@ input[type="range"]::-moz-range-thumb {
 .legend-cluster-item {
   margin-bottom: 12px;
   padding: 10px;
+  transition: all 0.2s ease;
+  cursor: pointer;
   border: 1px solid #eee;
   border-radius: 6px;
   background: #fafafa;
+}
+
+.legend-cluster-item:hover {
+  background: #f0f8ff;
+  border-color: rgba(0, 123, 255, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.legend-cluster-item.selected {
+  background: rgba(0, 123, 255, 0.1);
+  border-color: #007bff;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.legend-cluster-item.selected:hover {
+  background: rgba(0, 123, 255, 0.15);
+}
+
+.legend-cluster-item.backgrounded {
+  opacity: 0.35;
+  background: #f5f5f5;
+  transform: none;
+}
+
+.legend-cluster-item.backgrounded:hover {
+  opacity: 0.5;
+  transform: none;
+}
+
+.legend-cluster-item.labeled {
+  background: #f8f9fa;
+  border-color: #dee2e6;
+  opacity: 0.7;
+}
+
+.legend-cluster-item.labeled .cluster-color-swatch {
+  opacity: 0.6;
+  filter: grayscale(20%);
+}
+
+.legend-cluster-item.labeled .cluster-id,
+.legend-cluster-item.labeled .cluster-stats {
+  color: #6c757d;
+}
+
+.legend-cluster-item.labeled.selected {
+  background: rgba(40, 167, 69, 0.1);
+  border-color: #28a745;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.25);
+  opacity: 1;
+}
+
+.legend-cluster-item.labeled.selected .cluster-color-swatch {
+  opacity: 1;
+  filter: none;
+}
+
+.legend-cluster-item.labeled.selected .cluster-id,
+.legend-cluster-item.labeled.selected .cluster-stats {
+  color: inherit;
+}
+
+.legend-cluster-item.selected .land-use-dropdown {
+  border-color: #007bff;
+  outline: 0;
+  box-shadow: 0 0 0 0.1rem rgba(0, 123, 255, 0.15);
+}
+
+.legend-cluster-item.labeled .land-use-dropdown {
+  background-color: rgba(248, 249, 250, 0.8);
+}
+
+.legend-cluster-item.labeled.selected .land-use-dropdown {
+  background-color: white;
+  border-color: #28a745;
+  box-shadow: 0 0 0 0.1rem rgba(40, 167, 69, 0.15);
+}
+
+.legend-cluster-item.backgrounded.labeled {
+  opacity: 0.25;
+}
+
+.legend-cluster-item.click-feedback {
+  animation: clickPulse 0.2s ease-out;
+}
+
+@keyframes clickPulse {
+  0% {
+    transform: translateY(-1px) scale(1);
+  }
+  50% {
+    transform: translateY(-2px) scale(1.01);
+  }
+  100% {
+    transform: translateY(-1px) scale(1);
+  }
 }
 
 .cluster-info {

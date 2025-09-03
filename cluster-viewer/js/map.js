@@ -9,6 +9,7 @@ class MapManager {
     this.geoRasterLayers = new Map();
     this.dataLoader = null;
     this.rasterHandler = rasterHandler;
+    this.listeners = {};
     if (this.rasterHandler) {
       console.log(`MapManager initialized with ${this.rasterHandler.name}`);
     } else {
@@ -50,7 +51,8 @@ class MapManager {
         { position: "topright" }
       );
       layerControl.addTo(this.map);
-      console.log("✅ Map initialized with base layers and z-index control");
+      this.setupMapClickHandler();
+      console.log("✅ Map initialized with click handling");
     } catch (error) {
       console.error("Failed to initialize map:", error);
       throw error;
@@ -124,13 +126,15 @@ class MapManager {
     for (let i = 0; i < this.overlays.length; i++) {
       const overlayData = this.overlays[i];
       try {
+        console.log(
+          `Loading ${overlayData.filename} (${overlayData.segmentationKey})...`
+        );
         const geoRasterLayer = await this.createGeoRasterLayer(overlayData);
         this.geoRasterLayers.set(i, geoRasterLayer);
-        console.log(
-          `✅ Preprocessed layer ${i + 1}/${this.overlays.length} (k=${
-            overlayData.kValue
-          })`
-        );
+        console.log(`✅ Preprocessed layer ${i + 1}/${this.overlays.length}`);
+        if (i === 0) {
+          this.emit("firstLayerReady");
+        }
       } catch (error) {
         console.error(`Failed to preprocess layer ${i}:`, error);
       }
@@ -298,6 +302,78 @@ class MapManager {
       `Frame switch to ${frameIndex} took ${switchTime.toFixed(2)}ms`
     );
     return switchTime;
+  }
+
+  setupMapClickHandler() {
+    this.map.on("click", (e) => {
+      this.handleMapClick(e.latlng);
+    });
+  }
+
+  async handleMapClick(latlng) {
+    if (!this.currentOverlay || !this.currentOverlay.georasters[0]) {
+      console.log("No active overlay to sample");
+      return;
+    }
+    try {
+      const clusterValue = await this.samplePixelAtCoordinate(latlng);
+      if (
+        clusterValue !== null &&
+        clusterValue !== undefined &&
+        clusterValue > 0
+      ) {
+        console.log(
+          `Clicked cluster ${clusterValue} at ${latlng.lat.toFixed(
+            6
+          )}, ${latlng.lng.toFixed(6)}`
+        );
+        this.emit("clusterClicked", clusterValue, latlng);
+      } else {
+        console.log("Clicked on background/no-data area");
+        this.emit("backgroundClicked", latlng);
+      }
+    } catch (error) {
+      console.error("Failed to sample pixel at click:", error);
+    }
+  }
+
+  async samplePixelAtCoordinate(latlng) {
+    const georaster = this.currentOverlay.georasters[0];
+    console.log("Sampling pixel at:", latlng.lat, latlng.lng);
+    const x = (latlng.lng - georaster.xmin) / georaster.pixelWidth;
+    const y = (georaster.ymax - latlng.lat) / georaster.pixelHeight;
+    console.log("Pixel coordinates:", x, y);
+    console.log("Georaster size:", georaster.width, georaster.height);
+    if (x < 0 || x >= georaster.width || y < 0 || y >= georaster.height) {
+      console.log("Click outside raster bounds");
+      return null;
+    }
+    const pixelX = Math.floor(x);
+    const pixelY = Math.floor(y);
+    console.log("Array indices:", pixelX, pixelY);
+    try {
+      const pixelValue = georaster.values[0][pixelY][pixelX];
+      console.log("Sampled pixel value:", pixelValue);
+      return pixelValue;
+    } catch (error) {
+      console.error("Error accessing pixel value:", error);
+      return null;
+    }
+  }
+
+  emit(event, ...args) {
+    if (!this.listeners) this.listeners = {};
+    if (this.listeners[event]) {
+      this.listeners[event].forEach((callback) => callback(...args));
+    }
+  }
+
+  on(event, callback) {
+    if (!this.listeners) this.listeners = {};
+    if (!this.listeners[event]) {
+      this.listeners[event] = [];
+    }
+    this.listeners[event].push(callback);
   }
 }
 

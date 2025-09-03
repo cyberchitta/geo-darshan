@@ -91,6 +91,13 @@ class LegendPanel {
   createClusterItem(cluster) {
     const item = document.createElement("div");
     item.className = "legend-cluster-item";
+    item.dataset.clusterId = cluster.id;
+    if (
+      this.clusterLabels.has(cluster.id) &&
+      this.clusterLabels.get(cluster.id) !== "unlabeled"
+    ) {
+      item.classList.add("labeled");
+    }
     item.innerHTML = `
       <div class="cluster-info">
         <div class="cluster-color-swatch" style="background-color: ${
@@ -103,6 +110,10 @@ class LegendPanel {
         cluster.id
       }"></div>
     `;
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.selectCluster(cluster.id);
+    });
     const dropdown = new LandUseDropdown(
       cluster.id,
       this.hierarchyData,
@@ -122,6 +133,16 @@ class LegendPanel {
 
   onClusterLabeled(clusterId, selectedOption) {
     this.clusterLabels.set(clusterId, selectedOption.path);
+    const clusterItem = this.container.querySelector(
+      `[data-cluster-id="${clusterId}"]`
+    );
+    if (clusterItem) {
+      if (selectedOption.path !== "unlabeled") {
+        clusterItem.classList.add("labeled");
+      } else {
+        clusterItem.classList.remove("labeled");
+      }
+    }
     this.updateProgressStats();
     if (this.onLabelsChanged) {
       this.onLabelsChanged(this.getLabelsAsObject());
@@ -199,6 +220,49 @@ class LegendPanel {
       this.onLabelsChanged({});
     }
     console.log("✅ All labels cleared");
+  }
+
+  selectCluster(clusterId) {
+    this.clearSelection();
+    const clusterItem = this.container.querySelector(
+      `[data-cluster-id="${clusterId}"]`
+    );
+    if (clusterItem) {
+      clusterItem.classList.add("selected");
+      this.selectedClusterId = clusterId;
+      clusterItem.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      this.backgroundOtherClusters(clusterId);
+      if (this.onClusterSelected) {
+        this.onClusterSelected(clusterId);
+      }
+      console.log(`Selected cluster ${clusterId} in legend`);
+    } else {
+      console.warn(`Cluster ${clusterId} not found in legend`);
+    }
+  }
+
+  clearSelection() {
+    if (this.selectedClusterId) {
+      const selected = this.container.querySelector(
+        `[data-cluster-id="${this.selectedClusterId}"]`
+      );
+      if (selected) {
+        selected.classList.remove("selected");
+      }
+      this.selectedClusterId = null;
+    }
+    this.container.querySelectorAll(".legend-cluster-item").forEach((item) => {
+      item.classList.remove("backgrounded");
+    });
+  }
+
+  backgroundOtherClusters(selectedClusterId) {
+    this.container.querySelectorAll(".legend-cluster-item").forEach((item) => {
+      const clusterId = parseInt(item.dataset.clusterId);
+      if (clusterId !== selectedClusterId) {
+        item.classList.add("backgrounded");
+      }
+    });
   }
 }
 
