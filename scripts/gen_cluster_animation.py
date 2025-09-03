@@ -147,29 +147,38 @@ def generate_cluster_animation(
         verbose=config.verbose,
     )
 
-    # 3. Export animation GeoTIFFs
+    # 3. Export animation GeoTIFFs (raw cluster rasters + color legend)
     results = export_animation_geotiffs(
         segset,
         color_mapper,
         metadata,
         config.output_dir,
-        color_meta=color_meta,
         verbose=config.verbose,
     )
 
     # 4. Generate web integration config
     web_config = {
+        "format_version": "1.0",
+        "data_type": "cluster_animation",
         "data_bounds": metadata["bounds"],
         "data_crs": str(metadata["crs"]),
-        "files": results["manifest"]["files"],
+        "cluster_files": [f.name for f in results["exported_files"].values()],
+        "color_legend_file": "color_legend.json",
+        "manifest_file": "manifest.json",
         "k_values": config.k_range,
+        "nodata_value": -1,
+        "color_method": "hierarchical",
+        "n_color_families": config.n_color_families,
         "generated": results["manifest"]["generated"],
     }
+
     with open(config.output_dir / "web_config.json", "w") as f:
         json.dump(web_config, f, indent=2)
 
     if config.verbose:
         print("✅ Clustering animation generation complete!")
+        print(f"📁 {len(results['exported_files'])} cluster rasters")
+        print(f"🎨 1 color legend file")
         print(f"🌐 Web config: {config.output_dir}/web_config.json")
 
 
@@ -197,7 +206,7 @@ def generate_land_cover_animation(
         verbose=config.verbose,
     )
 
-    # 2. Discover, color, and export cores
+    # 2. Discover, color, and export cores (raw cluster rasters + color legend)
     results = export_cores_for_labeling(
         segset,
         metadata,
@@ -210,17 +219,30 @@ def generate_land_cover_animation(
 
     # 3. Generate web integration config
     web_config = {
+        "format_version": "1.0",
+        "data_type": "land_cover_candidates",
         "data_bounds": metadata["bounds"],
         "data_crs": str(metadata["crs"]),
-        "files": list(results.get("exported_files", {}).values()),
-        "cores_metadata_file": str(results.get("metadata_path", "")),
-        "n_cores": results.get("metadata", {}).get("n_cores", 0),
+        "core_files": [f.name for f in results["exported_files"].values()],
+        "color_legend_file": "color_legend.json",
+        "cores_metadata_file": results["metadata_path"].name,
+        "nodata_value": -1,
+        "color_method": "geometry_based",
+        "n_cores": results["metadata"]["n_cores"],
+        "discovery_parameters": {
+            "k_values": config.k_values,
+            "min_area": config.min_area,
+            "min_coherence": config.min_coherence,
+        },
     }
+
     with open(config.output_dir / "web_config.json", "w") as f:
-        json.dump(web_config, f, indent=2, default=str)
+        json.dump(web_config, f, indent=2)
 
     if config.verbose:
         print("✅ Land cover core discovery complete!")
+        print(f"📁 {len(results['exported_files'])} core rasters")
+        print(f"🎨 1 color legend file")
         print(f"🌐 Web config: {config.output_dir}/web_config.json")
 
 
@@ -261,6 +283,13 @@ def main():
 
         if verbose:
             print("\n🎉 All generation tasks complete!")
+            print(f"\nOutput directories:")
+            print(f"  📊 Clustering: {CLUSTER_ANIMATION_CONFIG.output_dir}")
+            print(f"  🎯 Land cover: {LAND_COVER_CONFIG.output_dir}")
+            print(f"\nEach directory contains:")
+            print(f"  • Raw cluster GeoTIFFs (int16, single band)")
+            print(f"  • color_legend.json (RGB/hex color mappings)")
+            print(f"  • web_config.json (client integration info)")
 
     except Exception as e:
         print(f"❌ An error occurred: {e}")
