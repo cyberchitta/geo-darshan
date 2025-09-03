@@ -1,4 +1,4 @@
-import { RasterDataHandler } from './raster-handler.js';
+import { RasterDataHandler } from "./raster-handler.js";
 
 class DataLoader {
   constructor(rasterHandler = null) {
@@ -9,7 +9,9 @@ class DataLoader {
     if (this.rasterHandler) {
       console.log(`DataLoader initialized with ${this.rasterHandler.name}`);
     } else {
-      console.log('DataLoader initialized (waiting for raster handler injection)');
+      console.log(
+        "DataLoader initialized (waiting for raster handler injection)"
+      );
     }
   }
 
@@ -52,29 +54,43 @@ class DataLoader {
   }
 
   validateManifest(manifest) {
-    const required = ["k_values", "files", "metadata"];
+    const required = ["segmentation_keys", "files", "metadata"];
     for (const field of required) {
       if (!manifest[field]) {
         throw new Error(`Missing required field: ${field}`);
       }
     }
-    if (!Array.isArray(manifest.k_values) || manifest.k_values.length === 0) {
-      throw new Error("k_values must be a non-empty array");
+    if (
+      !Array.isArray(manifest.segmentation_keys) ||
+      manifest.segmentation_keys.length === 0
+    ) {
+      throw new Error("segmentation_keys must be a non-empty array");
     }
     if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
       throw new Error("files must be a non-empty array");
     }
-    if (manifest.k_values.length !== manifest.files.length) {
-      throw new Error("k_values and files arrays must have same length");
-    }
-    if (!manifest.metadata.bounds || !Array.isArray(manifest.metadata.bounds)) {
+    if (manifest.segmentation_keys.length !== manifest.files.length) {
       throw new Error(
-        "metadata.bounds must be an array [minx, miny, maxx, maxy]"
+        "segmentation_keys and files arrays must have same length"
       );
     }
-    if (manifest.metadata.bounds.length !== 4) {
+    const k_values = manifest.segmentation_keys
+      .map((key) => {
+        const match = key.match(/k(\d+)/);
+        return match ? parseInt(match[1]) : null;
+      })
+      .filter((k) => k !== null)
+      .sort((a, b) => a - b);
+    manifest.k_values = k_values;
+    if (manifest.metadata.bounds && Array.isArray(manifest.metadata.bounds)) {
+      if (manifest.metadata.bounds.length !== 4) {
+        throw new Error(
+          "metadata.bounds must have exactly 4 values [minx, miny, maxx, maxy]"
+        );
+      }
+    } else {
       throw new Error(
-        "metadata.bounds must have exactly 4 values [minx, miny, maxx, maxy]"
+        "metadata.bounds must be an array [minx, miny, maxx, maxy]"
       );
     }
     if (manifest.color_mapping) {
@@ -85,16 +101,13 @@ class DataLoader {
         throw new Error("color_mapping.colors_rgb must be an array");
       }
       console.log(`✅ Color mapping found: ${manifest.color_mapping.method}`);
-      console.log(
-        `Colors: ${manifest.color_mapping.colors_rgb.length} defined`
-      );
       this.colorMapping = manifest.color_mapping;
     }
     console.log("✅ Manifest validation passed");
     console.log(
-      `Found ${manifest.k_values.length} k-values: ${manifest.k_values.join(
-        ", "
-      )}`
+      `Found ${
+        manifest.segmentation_keys.length
+      } segmentations: ${manifest.segmentation_keys.join(", ")}`
     );
     console.log(
       `Bounds: ${manifest.metadata.bounds.map((b) => b.toFixed(6)).join(", ")}`
