@@ -3,7 +3,7 @@ import { MapManager } from "./map.js";
 import { AnimationController } from "./animation.js";
 import { LegendPanel } from "./legend.js";
 import { LabeledRegionsLayer } from "./labeled-regions.js";
-import { extractKValue } from './utils.js';
+import { extractKValue } from "./utils.js";
 
 class ClusterViewer {
   constructor() {
@@ -87,10 +87,13 @@ class ClusterViewer {
     });
     this.animationController.on(
       "frameChanged",
-      (frameIndex, kValue, overlay) => {
-        this.updateUI(frameIndex, kValue);
+      (frameIndex, segmentationKey, overlay) => {
+        this.updateUI(frameIndex, segmentationKey);
         this.mapManager.showFrame(frameIndex, overlay);
-        this.updateLegendForFrame(frameIndex, kValue);
+        this.updateLegendForFrame(frameIndex, segmentationKey);
+        const currentLabels =
+          this.legendPanel.getAllLabelsAsObject()[segmentationKey] || {};
+        this.mapManager.updateClusterLabels(currentLabels, segmentationKey);
       }
     );
     this.animationController.on("frameInfo", (info) => {
@@ -262,9 +265,10 @@ class ClusterViewer {
     this.animationController.setFrames(manifest.segmentation_keys, overlays);
     this.updateDataInfo(manifest);
     this.setupSliders(manifest.segmentation_keys);
-    setTimeout(() => {
+    setTimeout(async () => {
+      await this.loadSavedLabels();
       this.animationController.showInitialFrame();
-      console.log("✅ Initial frame displayed after preprocessing");
+      console.log("✅ Initial frame displayed with saved labels");
       setTimeout(() => this.switchToLegendPanel(), 500);
     }, 100);
     if (this.labeledRegionsLayer && this.legendPanel.hierarchyData) {
@@ -358,27 +362,49 @@ class ClusterViewer {
     }
     const { clusters, colors } = this.currentClusterData[segmentationKey];
     this.legendPanel.updateClusters(clusters, colors);
+    this.legendPanel.switchToSegmentation(segmentationKey);
   }
 
-  onLabelsChanged(labels) {
-    console.log("Cluster labels changed:", labels);
+  onLabelsChanged(allLabels) {
+    console.log("Cluster labels changed:", allLabels);
     try {
       localStorage.setItem(
         "cluster-labels",
         JSON.stringify({
-          labels: labels,
+          labels: allLabels,
           timestamp: new Date().toISOString(),
-          segmentationKey: this.getCurrentSegmentationKey(),
         })
       );
       console.log("✅ Labels saved to localStorage");
     } catch (error) {
       console.warn("Failed to save labels to localStorage:", error);
     }
-    this.mapManager.updateClusterLabels(labels);
+    const currentSegmentationKey = this.getCurrentSegmentationKey();
+    const currentLabels = allLabels[currentSegmentationKey] || {};
+    this.mapManager.updateClusterLabels(currentLabels, currentSegmentationKey);
     if (this.labeledRegionsLayer) {
-      const currentSegmentationKey = this.getCurrentSegmentationKey();
-      this.labeledRegionsLayer.updateLabels(labels, currentSegmentationKey);
+      this.labeledRegionsLayer.updateLabels(
+        currentLabels,
+        currentSegmentationKey
+      );
+    }
+  }
+
+  async loadSavedLabels() {
+    try {
+      const saved = localStorage.getItem("cluster-labels");
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.labels && this.legendPanel) {
+          const blob = new Blob([JSON.stringify(data.labels)], {
+            type: "application/json",
+          });
+          const file = new File([blob], "saved-labels.json");
+          await this.legendPanel.loadLabels(file);
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to load saved labels:", error);
     }
   }
 

@@ -94,6 +94,7 @@ class MapManager {
       }
       const baseColor = this.mapClusterValueToColor(clusterValue, colorMapping);
       if (
+        this.currentSegmentationLabels === segmentationKey &&
         this.clusterLabels.has(clusterValue) &&
         this.clusterLabels.get(clusterValue) !== "unlabeled"
       ) {
@@ -438,11 +439,13 @@ class MapManager {
     }
   }
 
-  updateClusterLabels(labels) {
+  updateClusterLabels(labels, segmentationKey) {
     this.clusterLabels.clear();
+    this.currentSegmentationLabels = segmentationKey;
     Object.entries(labels).forEach(([clusterId, label]) => {
       this.clusterLabels.set(parseInt(clusterId), label);
     });
+    console.log(`Updated cluster labels for segmentation: ${segmentationKey}`);
     this.forceRedraw();
   }
 

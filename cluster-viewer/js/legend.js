@@ -7,7 +7,8 @@ class LegendPanel {
     this.container = document.getElementById(containerId);
     this.hierarchyData = null;
     this.clusterDropdowns = new Map();
-    this.clusterLabels = new Map();
+    this.clusterLabelsBySegmentation = new Map(); // segmentationKey -> Map(clusterId -> label)
+    this.currentSegmentationKey = null;
     this.clusterColors = new Map();
     this.onLabelsChanged = null;
     this.labeledRegionsLayer = null;
@@ -117,24 +118,28 @@ class LegendPanel {
     const item = document.createElement("div");
     item.className = "legend-cluster-item";
     item.dataset.clusterId = cluster.id;
-    if (
-      this.clusterLabels.has(cluster.id) &&
-      this.clusterLabels.get(cluster.id) !== "unlabeled"
-    ) {
+    const currentLabels = this.currentSegmentationKey
+      ? this.clusterLabelsBySegmentation.get(this.currentSegmentationKey)
+      : null;
+    const hasLabel =
+      currentLabels &&
+      currentLabels.has(cluster.id) &&
+      currentLabels.get(cluster.id) !== "unlabeled";
+    if (hasLabel) {
       item.classList.add("labeled");
     }
     item.innerHTML = `
-      <div class="cluster-info">
-        <div class="cluster-color-swatch" style="background-color: ${
-          this.clusterColors.get(cluster.id) || "#ccc"
-        }"></div>
-        <span class="cluster-id">Cluster ${cluster.id}</span>
-        <span class="cluster-stats">(${cluster.pixelCount || 0} pixels)</span>
-      </div>
-      <div class="cluster-dropdown-container" id="cluster-dropdown-${
-        cluster.id
+    <div class="cluster-info">
+      <div class="cluster-color-swatch" style="background-color: ${
+        this.clusterColors.get(cluster.id) || "#ccc"
       }"></div>
-    `;
+      <span class="cluster-id">Cluster ${cluster.id}</span>
+      <span class="cluster-stats">(${cluster.pixelCount || 0} pixels)</span>
+    </div>
+    <div class="cluster-dropdown-container" id="cluster-dropdown-${
+      cluster.id
+    }"></div>
+  `;
     item.addEventListener("click", (e) => {
       e.stopPropagation();
       this.selectCluster(cluster.id);
@@ -150,21 +155,41 @@ class LegendPanel {
     );
     dropdownContainer.appendChild(dropdown.element);
     this.clusterDropdowns.set(cluster.id, dropdown);
-    if (this.clusterLabels.has(cluster.id)) {
-      dropdown.setSelection(this.clusterLabels.get(cluster.id));
+    if (currentLabels && currentLabels.has(cluster.id)) {
+      dropdown.setSelection(currentLabels.get(cluster.id));
+    } else {
+      dropdown.setSelection("unlabeled");
     }
     return item;
   }
 
   onClusterLabeled(clusterId, selectedOption) {
-    this.clusterLabels.set(clusterId, selectedOption.path);
+    if (!this.currentSegmentationKey) {
+      console.warn("No current segmentation key set");
+      return;
+    }
+    const currentLabels = this.clusterLabelsBySegmentation.get(
+      this.currentSegmentationKey
+    );
+    currentLabels.set(clusterId, selectedOption.path);
+    this.updateClusterItemAppearance(clusterId, selectedOption.path);
+    this.updateProgressStats();
+    if (this.onLabelsChanged) {
+      this.onLabelsChanged(this.getAllLabelsAsObject());
+    }
+    console.log(
+      `Cluster ${clusterId} in ${this.currentSegmentationKey} labeled as: ${selectedOption.displayPath}`
+    );
+  }
+
+  updateClusterItemAppearance(clusterId, label) {
     const clusterItem = this.container.querySelector(
       `[data-cluster-id="${clusterId}"]`
     );
     if (clusterItem) {
       const colorSwatch = clusterItem.querySelector(".cluster-color-swatch");
       const originalColor = this.clusterColors.get(clusterId);
-      if (selectedOption.path !== "unlabeled") {
+      if (label !== "unlabeled") {
         clusterItem.classList.add("labeled");
         if (originalColor && colorSwatch) {
           const colorObj = rgbStringToObject(originalColor);
@@ -180,28 +205,32 @@ class LegendPanel {
         }
       }
     }
-    this.updateProgressStats();
-    if (this.onLabelsChanged) {
-      this.onLabelsChanged(this.getLabelsAsObject());
-    }
-    console.log(
-      `Cluster ${clusterId} labeled as: ${selectedOption.displayPath}`
-    );
   }
 
   updateProgressStats() {
+    if (!this.currentSegmentationKey) return;
     const total = this.clusterDropdowns.size;
-    const labeled = Array.from(this.clusterLabels.values()).filter(
-      (label) => label !== "unlabeled"
-    ).length;
+    const currentLabels = this.clusterLabelsBySegmentation.get(
+      this.currentSegmentationKey
+    );
+    const labeled = currentLabels
+      ? Array.from(currentLabels.values()).filter(
+          (label) => label !== "unlabeled"
+        ).length
+      : 0;
     document.getElementById(
       "legend-progress"
     ).textContent = `${labeled} of ${total} labeled`;
   }
 
   getLabelsAsObject() {
+    if (!this.currentSegmentationKey) return {};
+    const currentLabels = this.clusterLabelsBySegmentation.get(
+      this.currentSegmentationKey
+    );
+    if (!currentLabels) return {};
     const labels = {};
-    this.clusterLabels.forEach((path, clusterId) => {
+    currentLabels.forEach((path, clusterId) => {
       if (path !== "unlabeled") {
         labels[clusterId] = path;
       }
@@ -209,9 +238,25 @@ class LegendPanel {
     return labels;
   }
 
+  getAllLabelsAsObject() {
+    const allLabels = {};
+    this.clusterLabelsBySegmentation.forEach((labelsMap, segmentationKey) => {
+      const segmentationLabels = {};
+      labelsMap.forEach((path, clusterId) => {
+        if (path !== "unlabeled") {
+          segmentationLabels[clusterId] = path;
+        }
+      });
+      if (Object.keys(segmentationLabels).length > 0) {
+        allLabels[segmentationKey] = segmentationLabels;
+      }
+    });
+    return allLabels;
+  }
+
   saveLabels() {
-    const labels = this.getLabelsAsObject();
-    const dataStr = JSON.stringify(labels, null, 2);
+    const allLabels = this.getAllLabelsAsObject();
+    const dataStr = JSON.stringify(allLabels, null, 2);
     const dataBlob = new Blob([dataStr], { type: "application/json" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(dataBlob);
@@ -219,44 +264,29 @@ class LegendPanel {
       new Date().toISOString().split("T")[0]
     }.json`;
     link.click();
-    console.log("✅ Labels saved:", labels);
+    console.log("✅ Labels saved:", allLabels);
   }
 
   async loadLabels(file) {
     if (!file) return;
     try {
       const text = await file.text();
-      const labels = JSON.parse(text);
-      Object.entries(labels).forEach(([clusterId, path]) => {
-        const id = parseInt(clusterId);
-        this.clusterLabels.set(id, path);
-        const dropdown = this.clusterDropdowns.get(id);
-        if (dropdown) {
-          dropdown.setSelection(path);
-        }
-        const clusterItem = this.container.querySelector(
-          `[data-cluster-id="${id}"]`
-        );
-        if (clusterItem) {
-          const colorSwatch = clusterItem.querySelector(
-            ".cluster-color-swatch"
-          );
-          const originalColor = this.clusterColors.get(id);
-          if (path !== "unlabeled" && originalColor && colorSwatch) {
-            clusterItem.classList.add("labeled");
-            const colorObj = rgbStringToObject(originalColor);
-            if (colorObj) {
-              const grayColor = convertToGrayscale(colorObj);
-              colorSwatch.style.backgroundColor = `rgb(${grayColor.r}, ${grayColor.g}, ${grayColor.b})`;
-            }
-          }
-        }
+      const allLabels = JSON.parse(text);
+      this.clusterLabelsBySegmentation.clear();
+      Object.entries(allLabels).forEach(([segmentationKey, labels]) => {
+        const labelsMap = new Map();
+        Object.entries(labels).forEach(([clusterId, path]) => {
+          labelsMap.set(parseInt(clusterId), path);
+        });
+        this.clusterLabelsBySegmentation.set(segmentationKey, labelsMap);
       });
-      this.updateProgressStats();
-      if (this.onLabelsChanged) {
-        this.onLabelsChanged(labels);
+      if (this.currentSegmentationKey) {
+        this.switchToSegmentation(this.currentSegmentationKey);
       }
-      console.log("✅ Labels loaded:", labels);
+      if (this.onLabelsChanged) {
+        this.onLabelsChanged(allLabels);
+      }
+      console.log("✅ Labels loaded:", allLabels);
     } catch (error) {
       console.error("Failed to load labels:", error);
       alert("Failed to load labels file");
@@ -264,27 +294,17 @@ class LegendPanel {
   }
 
   clearAllLabels() {
-    if (!confirm("Clear all cluster labels?")) return;
+    if (!confirm("Clear all cluster labels for ALL segmentations?")) return;
+    this.clusterLabelsBySegmentation.clear();
     this.clusterDropdowns.forEach((dropdown, clusterId) => {
       dropdown.setSelection("unlabeled");
-      const clusterItem = this.container.querySelector(
-        `[data-cluster-id="${clusterId}"]`
-      );
-      if (clusterItem) {
-        clusterItem.classList.remove("labeled");
-        const colorSwatch = clusterItem.querySelector(".cluster-color-swatch");
-        const originalColor = this.clusterColors.get(clusterId);
-        if (originalColor && colorSwatch) {
-          colorSwatch.style.backgroundColor = originalColor;
-        }
-      }
+      this.updateClusterItemAppearance(clusterId, "unlabeled");
     });
-    this.clusterLabels.clear();
     this.updateProgressStats();
     if (this.onLabelsChanged) {
       this.onLabelsChanged({});
     }
-    console.log("✅ All labels cleared");
+    console.log("✅ All labels cleared for all segmentations");
   }
 
   selectCluster(clusterId) {
@@ -368,6 +388,22 @@ class LegendPanel {
       this.toggleLabeledRegions(true);
     }
     this.setLabeledRegionsOpacity(savedOpacity);
+  }
+
+  switchToSegmentation(segmentationKey) {
+    if (this.currentSegmentationKey === segmentationKey) return;
+    this.currentSegmentationKey = segmentationKey;
+    if (!this.clusterLabelsBySegmentation.has(segmentationKey)) {
+      this.clusterLabelsBySegmentation.set(segmentationKey, new Map());
+    }
+    const currentLabels = this.clusterLabelsBySegmentation.get(segmentationKey);
+    this.clusterDropdowns.forEach((dropdown, clusterId) => {
+      const label = currentLabels.get(clusterId) || "unlabeled";
+      dropdown.setSelection(label);
+      this.updateClusterItemAppearance(clusterId, label);
+    });
+    this.updateProgressStats();
+    console.log(`Switched to segmentation: ${segmentationKey}`);
   }
 }
 
