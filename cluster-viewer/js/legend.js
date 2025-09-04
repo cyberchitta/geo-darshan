@@ -9,6 +9,7 @@ class LegendPanel {
     this.clusterLabels = new Map();
     this.clusterColors = new Map();
     this.onLabelsChanged = null;
+    this.labeledRegionsLayer = null;
     this.initializePanel();
     this.loadHierarchyData();
   }
@@ -43,11 +44,24 @@ class LegendPanel {
         <input type="file" id="load-labels-input" accept=".json" style="display: none;">
         <button id="clear-labels-btn" class="legend-btn secondary">Clear All</button>
       </div>
+      <div class="labeled-regions-controls">
+        <div class="layer-control-group">
+          <label class="layer-toggle">
+            <input type="checkbox" id="labeled-regions-toggle">
+            <span class="toggle-slider"></span>
+            Show Labeled Regions
+          </label>
+          <div class="opacity-control" id="labeled-regions-opacity-control" style="display: none;">
+            <label for="labeled-regions-opacity">Opacity:</label>
+            <input type="range" id="labeled-regions-opacity" min="0" max="1" step="0.1" value="0.7">
+            <span id="labeled-regions-opacity-value">70%</span>
+          </div>
+        </div>
+      </div>
       <div id="legend-clusters" class="legend-clusters-container">
         <div class="legend-placeholder">Load cluster data to see legend</div>
       </div>
     `;
-
     this.setupEventListeners();
   }
 
@@ -63,11 +77,21 @@ class LegendPanel {
       .addEventListener("change", (e) => {
         this.loadLabels(e.target.files[0]);
       });
-
     document
       .getElementById("clear-labels-btn")
       .addEventListener("click", () => {
         this.clearAllLabels();
+      });
+    document
+      .getElementById("labeled-regions-toggle")
+      .addEventListener("change", (e) => {
+        this.toggleLabeledRegions(e.target.checked);
+      });
+    document
+      .getElementById("labeled-regions-opacity")
+      .addEventListener("input", (e) => {
+        const opacity = parseFloat(e.target.value);
+        this.setLabeledRegionsOpacity(opacity);
       });
   }
 
@@ -145,6 +169,9 @@ class LegendPanel {
     }
     this.updateProgressStats();
     if (this.onLabelsChanged) {
+      this.onLabelsChanged(this.getLabelsAsObject());
+    }
+    if (this.labeledRegionsLayer && this.onLabelsChanged) {
       this.onLabelsChanged(this.getLabelsAsObject());
     }
     console.log(
@@ -263,6 +290,46 @@ class LegendPanel {
         item.classList.add("backgrounded");
       }
     });
+  }
+
+  toggleLabeledRegions(visible) {
+    if (this.labeledRegionsLayer) {
+      this.labeledRegionsLayer.setVisible(visible);
+      const opacityControl = document.getElementById(
+        "labeled-regions-opacity-control"
+      );
+      opacityControl.style.display = visible ? "block" : "none";
+      localStorage.setItem("labeledRegionsVisible", visible.toString());
+      console.log(`Labeled regions layer ${visible ? "enabled" : "disabled"}`);
+    }
+  }
+
+  setLabeledRegionsOpacity(opacity) {
+    if (this.labeledRegionsLayer) {
+      this.labeledRegionsLayer.setOpacity(opacity);
+      document.getElementById(
+        "labeled-regions-opacity-value"
+      ).textContent = `${Math.round(opacity * 100)}%`;
+      localStorage.setItem("labeledRegionsOpacity", opacity.toString());
+      console.log(`Labeled regions opacity set to ${opacity}`);
+    }
+  }
+
+  setLabeledRegionsLayer(layer) {
+    this.labeledRegionsLayer = layer;
+    const savedVisible =
+      localStorage.getItem("labeledRegionsVisible") === "true";
+    const savedOpacity =
+      parseFloat(localStorage.getItem("labeledRegionsOpacity")) || 0.7;
+    document.getElementById("labeled-regions-toggle").checked = savedVisible;
+    document.getElementById("labeled-regions-opacity").value = savedOpacity;
+    document.getElementById(
+      "labeled-regions-opacity-value"
+    ).textContent = `${Math.round(savedOpacity * 100)}%`;
+    if (savedVisible) {
+      this.toggleLabeledRegions(true);
+    }
+    this.setLabeledRegionsOpacity(savedOpacity);
   }
 }
 

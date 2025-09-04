@@ -715,3 +715,76 @@ input[type="range"]::-moz-range-thumb {
   animation: spin 1s linear infinite;
   z-index: 1000;
 }
+
+.labeled-regions-controls {
+  margin: 10px 0;
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  border-top: 1px solid #ddd;
+}
+
+.layer-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.layer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.layer-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 40px;
+  height: 20px;
+  background: #ccc;
+  border-radius: 20px;
+  transition: background 0.3s;
+}
+
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.3s;
+}
+
+.layer-toggle input:checked + .toggle-slider {
+  background: #4caf50;
+}
+
+.layer-toggle input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.opacity-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 48px;
+  font-size: 12px;
+}
+
+.opacity-control input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+}
+
+.opacity-control span {
+  min-width: 30px;
+  text-align: right;
+}

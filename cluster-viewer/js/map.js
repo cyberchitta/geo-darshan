@@ -10,6 +10,7 @@ class MapManager {
     this.dataLoader = null;
     this.rasterHandler = rasterHandler;
     this.listeners = {};
+    this.overlayLayers = {};
     if (this.rasterHandler) {
       console.log(`MapManager initialized with ${this.rasterHandler.name}`);
     } else {
@@ -42,7 +43,7 @@ class MapManager {
         }
       );
       this.baseLayers.esri.addTo(this.map);
-      const layerControl = L.control.layers(
+      this.layerControl = L.control.layers(
         {
           "Satellite (Esri)": this.baseLayers.esri,
           "Street Map (OSM)": this.baseLayers.osm,
@@ -50,7 +51,8 @@ class MapManager {
         {},
         { position: "topright" }
       );
-      layerControl.addTo(this.map);
+      this.layerControl.addTo(this.map);
+      console.log("✅ Map initialized with enhanced layer control");
       this.setupMapClickHandler();
       console.log("✅ Map initialized with click handling");
     } catch (error) {
@@ -174,7 +176,7 @@ class MapManager {
   setOverlays(overlays) {
     this.overlays = overlays;
     this.geoRasterLayers.clear();
-    console.log(`✅ Set ${overlays.length} overlays for map display`);
+    this.animationLayerControlName = "Animation Layer";
     this.preprocessOverlays().catch((error) => {
       console.error("Preprocessing failed:", error);
     });
@@ -207,6 +209,16 @@ class MapManager {
         throw error;
       }
     }
+    const animationLayerGroup = L.layerGroup();
+    this.geoRasterLayers.forEach((layer) => {
+      animationLayerGroup.addLayer(layer);
+    });
+    this.addOverlayLayer(
+      this.animationLayerControlName,
+      animationLayerGroup,
+      true
+    );
+    console.log("✅ Animation layer added to layer control");
     console.log("✅ All layer preprocessing complete");
   }
 
@@ -245,6 +257,10 @@ class MapManager {
         layer.setOpacity(this.currentOpacity);
       }
       this.currentOverlay = layer;
+      if (this.currentOverlay && this.currentOverlay._segmentationKey) {
+        const kValue = this.extractKValue(this.currentOverlay._segmentationKey);
+        this.updateAnimationLayerName(`Animation (K=${kValue})`);
+      }
       console.log(
         `✅ Displayed frame ${frameIndex} (k=${layer._segmentationKey})`
       );
@@ -416,6 +432,44 @@ class MapManager {
       this.listeners[event] = [];
     }
     this.listeners[event].push(callback);
+  }
+
+  addOverlayLayer(name, layer, visible = false) {
+    this.overlayLayers[name] = layer;
+    this.layerControl.addOverlay(layer, name);
+    if (visible) {
+      layer.addTo(this.map);
+    }
+    console.log(`Added overlay layer: ${name} (visible: ${visible})`);
+  }
+
+  removeOverlayLayer(name) {
+    const layer = this.overlayLayers[name];
+    if (layer) {
+      this.layerControl.removeLayer(layer);
+      if (this.map.hasLayer(layer)) {
+        this.map.removeLayer(layer);
+      }
+      delete this.overlayLayers[name];
+      console.log(`Removed overlay layer: ${name}`);
+    }
+  }
+
+  updateAnimationLayerName(newName) {
+    if (
+      this.animationLayerControlName &&
+      this.overlayLayers[this.animationLayerControlName]
+    ) {
+      const layer = this.overlayLayers[this.animationLayerControlName];
+      this.removeOverlayLayer(this.animationLayerControlName);
+      this.addOverlayLayer(newName, layer, true);
+      this.animationLayerControlName = newName;
+    }
+  }
+
+  extractKValue(segmentationKey) {
+    const match = segmentationKey.match(/k(\d+)/);
+    return match ? parseInt(match[1]) : 0;
   }
 }
 

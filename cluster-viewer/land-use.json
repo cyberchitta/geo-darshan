@@ -1,0 +1,169 @@
+{
+  "forest": {
+    "_color": "#228B22",
+    "natural_forest": {
+      "_color": "#006400",
+      "_description": "Dry deciduous remnants"
+    },
+    "planted_forest": {
+      "_color": "#32CD32",
+      "_description": "Reforestation areas"
+    },
+    "bamboo_groves": {
+      "_color": "#7CFC00",
+      "_description": "Bamboo plantations"
+    }
+  },
+  "agriculture": {
+    "_color": "#9ACD32",
+    "orchards": {
+      "_color": "#ADFF2F",
+      "mango": {
+        "_color": "#FFD700",
+        "_description": "Mango plantations"
+      },
+      "coconut": {
+        "_color": "#F0E68C",
+        "_description": "Coconut groves"
+      },
+      "cashew": {
+        "_color": "#DDA0DD",
+        "_description": "Cashew plantations"
+      },
+      "mixed_fruit": {
+        "_color": "#98FB98",
+        "_description": "Polyculture orchards"
+      }
+    },
+    "field_crops": {
+      "_color": "#DAA520",
+      "rice_paddies": {
+        "_color": "#F5DEB3",
+        "_description": "Wetland rice cultivation"
+      },
+      "dryland_crops": {
+        "_color": "#D2B48C",
+        "_description": "Groundnut, millets"
+      },
+      "sugarcane": {
+        "_color": "#DEB887",
+        "_description": "Irrigated sugarcane"
+      }
+    },
+    "agroforestry": {
+      "_color": "#6B8E23",
+      "permaculture": {
+        "_color": "#556B2F",
+        "_description": "Auroville systems"
+      },
+      "food_forests": {
+        "_color": "#808000",
+        "_description": "Multi-story cultivation"
+      },
+      "mixed_cultivation": {
+        "_color": "#8FBC8F",
+        "_description": "Trees + crops"
+      }
+    }
+  },
+  "built_environment": {
+    "_color": "#696969",
+    "residential": {
+      "_color": "#A9A9A9",
+      "auroville_settlements": {
+        "_color": "#F5F5DC",
+        "_description": "Auroville communities"
+      },
+      "village_settlements": {
+        "_color": "#CD853F",
+        "_description": "Traditional Tamil villages"
+      },
+      "urban_fringe": {
+        "_color": "#778899",
+        "_description": "Pondicherry periphery"
+      }
+    },
+    "institutional": {
+      "_color": "#708090",
+      "auroville_centers": {
+        "_color": "#B0C4DE",
+        "_description": "Community centers, workshops"
+      },
+      "schools": {
+        "_color": "#87CEEB",
+        "_description": "Educational institutions"
+      },
+      "community_buildings": {
+        "_color": "#D3D3D3",
+        "_description": "Religious, cultural facilities"
+      }
+    }
+  },
+  "water": {
+    "_color": "#4169E1",
+    "permanent_water": {
+      "_color": "#0000CD",
+      "_description": "Rivers, permanent ponds"
+    },
+    "seasonal_tanks": {
+      "_color": "#1E90FF",
+      "_description": "Traditional water storage"
+    },
+    "constructed_wetlands": {
+      "_color": "#00CED1",
+      "_description": "Engineered water treatment"
+    }
+  },
+  "degraded_barren": {
+    "_color": "#A0522D",
+    "eroded_land": {
+      "_color": "#8B4513",
+      "_description": "Severely eroded areas"
+    },
+    "quarries": {
+      "_color": "#696969",
+      "_description": "Stone quarries"
+    },
+    "construction_sites": {
+      "_color": "#F4A460",
+      "_description": "Active construction"
+    }
+  },
+  "scrubland": {
+    "_color": "#8FBC8F",
+    "dense_scrub": {
+      "_color": "#66CDAA",
+      "_description": "Dense shrubland"
+    },
+    "sparse_scrub": {
+      "_color": "#BDB76B",
+      "_description": "Open shrubland"
+    },
+    "thorny_scrub": {
+      "_color": "#9ACD32",
+      "_description": "Acacia and thorny vegetation"
+    }
+  },
+  "grassland": {
+    "_color": "#32CD32",
+    "grazing_land": {
+      "_color": "#90EE90",
+      "_description": "Livestock grazing areas"
+    },
+    "maintained_grass": {
+      "_color": "#ADFF2F",
+      "_description": "Managed grassland"
+    }
+  },
+  "infrastructure": {
+    "_color": "#2F4F4F",
+    "roads": {
+      "_color": "#696969",
+      "_description": "Highways, streets, paths"
+    },
+    "industrial": {
+      "_color": "#36454F",
+      "_description": "Small-scale industries"
+    }
+  }
+}

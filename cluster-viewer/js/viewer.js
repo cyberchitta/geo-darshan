@@ -2,6 +2,7 @@ import { DataLoader } from "./data-loader.js";
 import { MapManager } from "./map.js";
 import { AnimationController } from "./animation.js";
 import { LegendPanel } from "./legend.js";
+import { LabeledRegionsLayer } from "./labeled-regions.js";
 
 class ClusterViewer {
   constructor() {
@@ -11,6 +12,7 @@ class ClusterViewer {
     this.legendPanel = null;
     this.isInitialized = false;
     this.currentClusterData = null;
+    this.labeledRegionsLayer = null;
   }
 
   async initialize() {
@@ -30,6 +32,17 @@ class ClusterViewer {
       this.setupKeyboardShortcuts();
       await this.mapManager.initialize();
       this.isInitialized = true;
+      this.labeledRegionsLayer = new LabeledRegionsLayer(
+        this.legendPanel.hierarchyData,
+        this.mapManager
+      );
+      this.legendPanel.setLabeledRegionsLayer(this.labeledRegionsLayer);
+      this.mapManager.addOverlayLayer(
+        "Labeled Regions",
+        this.labeledRegionsLayer.layerGroup,
+        false
+      );
+      console.log("✅ Labeled regions layer initialized");
       console.log("✅ Cluster Viewer initialized");
     } catch (error) {
       console.error("Failed to initialize viewer:", error);
@@ -246,6 +259,9 @@ class ClusterViewer {
       console.log("✅ Initial frame displayed after preprocessing");
       setTimeout(() => this.switchToLegendPanel(), 500);
     });
+    if (this.labeledRegionsLayer && this.legendPanel.hierarchyData) {
+      this.labeledRegionsLayer.hierarchyData = this.legendPanel.hierarchyData;
+    }
     this.showLoading(false);
     console.log("✅ Data loading complete");
   }
@@ -341,6 +357,10 @@ class ClusterViewer {
       console.log("✅ Labels saved to localStorage");
     } catch (error) {
       console.warn("Failed to save labels to localStorage:", error);
+    }
+    if (this.labeledRegionsLayer) {
+      const currentSegmentationKey = this.getCurrentSegmentationKey();
+      this.labeledRegionsLayer.updateLabels(labels, currentSegmentationKey);
     }
   }
 
