@@ -1,4 +1,5 @@
-import { LandUseHierarchy, LandUseDropdown } from "./land-use-hierarchy.js";
+import { LandUseDropdown } from "./land-use-hierarchy.js";
+import { convertToGrayscale, rgbStringToObject } from "./utils.js";
 
 class LegendPanel {
   constructor(containerId) {
@@ -161,17 +162,26 @@ class LegendPanel {
       `[data-cluster-id="${clusterId}"]`
     );
     if (clusterItem) {
+      const colorSwatch = clusterItem.querySelector(".cluster-color-swatch");
+      const originalColor = this.clusterColors.get(clusterId);
       if (selectedOption.path !== "unlabeled") {
         clusterItem.classList.add("labeled");
+        if (originalColor && colorSwatch) {
+          const colorObj = rgbStringToObject(originalColor);
+          if (colorObj) {
+            const grayColor = convertToGrayscale(colorObj);
+            colorSwatch.style.backgroundColor = `rgb(${grayColor.r}, ${grayColor.g}, ${grayColor.b})`;
+          }
+        }
       } else {
         clusterItem.classList.remove("labeled");
+        if (originalColor && colorSwatch) {
+          colorSwatch.style.backgroundColor = originalColor;
+        }
       }
     }
     this.updateProgressStats();
     if (this.onLabelsChanged) {
-      this.onLabelsChanged(this.getLabelsAsObject());
-    }
-    if (this.labeledRegionsLayer && this.onLabelsChanged) {
       this.onLabelsChanged(this.getLabelsAsObject());
     }
     console.log(
@@ -224,6 +234,23 @@ class LegendPanel {
         if (dropdown) {
           dropdown.setSelection(path);
         }
+        const clusterItem = this.container.querySelector(
+          `[data-cluster-id="${id}"]`
+        );
+        if (clusterItem) {
+          const colorSwatch = clusterItem.querySelector(
+            ".cluster-color-swatch"
+          );
+          const originalColor = this.clusterColors.get(id);
+          if (path !== "unlabeled" && originalColor && colorSwatch) {
+            clusterItem.classList.add("labeled");
+            const colorObj = rgbStringToObject(originalColor);
+            if (colorObj) {
+              const grayColor = convertToGrayscale(colorObj);
+              colorSwatch.style.backgroundColor = `rgb(${grayColor.r}, ${grayColor.g}, ${grayColor.b})`;
+            }
+          }
+        }
       });
       this.updateProgressStats();
       if (this.onLabelsChanged) {
@@ -238,10 +265,21 @@ class LegendPanel {
 
   clearAllLabels() {
     if (!confirm("Clear all cluster labels?")) return;
-    this.clusterLabels.clear();
-    this.clusterDropdowns.forEach((dropdown) => {
+    this.clusterDropdowns.forEach((dropdown, clusterId) => {
       dropdown.setSelection("unlabeled");
+      const clusterItem = this.container.querySelector(
+        `[data-cluster-id="${clusterId}"]`
+      );
+      if (clusterItem) {
+        clusterItem.classList.remove("labeled");
+        const colorSwatch = clusterItem.querySelector(".cluster-color-swatch");
+        const originalColor = this.clusterColors.get(clusterId);
+        if (originalColor && colorSwatch) {
+          colorSwatch.style.backgroundColor = originalColor;
+        }
+      }
     });
+    this.clusterLabels.clear();
     this.updateProgressStats();
     if (this.onLabelsChanged) {
       this.onLabelsChanged({});

@@ -3,6 +3,7 @@ import { MapManager } from "./map.js";
 import { AnimationController } from "./animation.js";
 import { LegendPanel } from "./legend.js";
 import { LabeledRegionsLayer } from "./labeled-regions.js";
+import { extractKValue } from './utils.js';
 
 class ClusterViewer {
   constructor() {
@@ -324,7 +325,7 @@ class ClusterViewer {
       const colors = new Map();
       const colorMapping =
         this.dataLoader.getColorMappingForSegmentation(segmentationKey);
-      const numericK = this.extractKValue(segmentationKey);
+      const numericK = extractKValue(segmentationKey);
       const numClusters = numericK || Math.floor(Math.random() * 15) + 5;
       for (let i = 0; i < numClusters; i++) {
         clusters.push({
@@ -386,11 +387,6 @@ class ClusterViewer {
     return frameInfo.segmentationKey;
   }
 
-  extractKValue(segmentationKey) {
-    const match = segmentationKey.match(/k(\d+)/);
-    return match ? parseInt(match[1]) : null;
-  }
-
   handleLoadError(error) {
     console.error("Load error:", error);
     this.showError(`Failed to load data: ${error.message}`);
@@ -398,7 +394,7 @@ class ClusterViewer {
   }
 
   updateUI(frameIndex, segmentationKey) {
-    const numericK = this.extractKValue(segmentationKey);
+    const numericK = extractKValue(segmentationKey);
     document.getElementById("current-k").textContent = numericK;
     document.getElementById("k-slider").value = frameIndex;
   }

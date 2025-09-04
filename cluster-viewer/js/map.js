@@ -1,3 +1,5 @@
+import { convertToGrayscale } from "./utils.js";
+
 class MapManager {
   constructor(containerId, rasterHandler) {
     this.containerId = containerId;
@@ -95,7 +97,7 @@ class MapManager {
         this.clusterLabels.has(clusterValue) &&
         this.clusterLabels.get(clusterValue) !== "unlabeled"
       ) {
-        const grayColor = this.convertToGrayscale(baseColor);
+        const grayColor = convertToGrayscale(baseColor);
         return `rgba(${grayColor.r},${grayColor.g},${grayColor.b},${
           grayColor.a / 255
         })`;
@@ -132,18 +134,6 @@ class MapManager {
       };
     }
     throw new Error(`No color defined for cluster ${clusterValue} in mapping`);
-  }
-
-  convertToGrayscale(color) {
-    const gray = Math.round(
-      0.299 * color.r + 0.587 * color.g + 0.114 * color.b
-    );
-    return {
-      r: gray,
-      g: gray,
-      b: gray,
-      a: color.a,
-    };
   }
 
   setBaseLayer(layerName) {
@@ -446,11 +436,6 @@ class MapManager {
       delete this.overlayLayers[name];
       console.log(`Removed overlay layer: ${name}`);
     }
-  }
-
-  extractKValue(segmentationKey) {
-    const match = segmentationKey.match(/k(\d+)/);
-    return match ? parseInt(match[1]) : 0;
   }
 
   updateClusterLabels(labels) {

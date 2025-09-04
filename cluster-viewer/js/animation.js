@@ -1,3 +1,5 @@
+import { compareSegmentationKeys } from "./utils.js";
+
 class AnimationController {
   constructor() {
     this.listeners = {};
@@ -28,7 +30,7 @@ class AnimationController {
   setFrames(segmentationKeys, overlays) {
     const sortedData = segmentationKeys
       .map((key, index) => ({ key, overlay: overlays[index] }))
-      .sort((a, b) => this.compareSegmentationKeys(a.key, b.key));
+      .sort((a, b) => compareSegmentationKeys(a.key, b.key));
     this.frames = sortedData.map((item) => item.key);
     this.overlays = sortedData.map((item) => item.overlay);
     this.currentFrame = 0;
@@ -199,19 +201,6 @@ class AnimationController {
     this.overlays = [];
     this.listeners = {};
     console.log("AnimationController destroyed");
-  }
-
-  compareSegmentationKeys(a, b) {
-    const extractK = (str) => {
-      const match = str.match(/k(\d+)/);
-      return match ? parseInt(match[1]) : 0;
-    };
-    return extractK(a) - extractK(b);
-  }
-
-  extractKValue(segmentationKey) {
-    const match = segmentationKey.match(/k(\d+)/);
-    return match ? parseInt(match[1]) : null;
   }
 }
 
