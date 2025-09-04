@@ -36,9 +36,18 @@ class DataLoader {
       if (!manifestFile) {
         throw new Error("manifest.json not found in selected files");
       }
+      const colorLegendFile = Array.from(files).find(
+        (f) => f.name === "color_legend.json"
+      );
+      if (!colorLegendFile) {
+        throw new Error("color_legend.json not found in selected files");
+      }
       const manifestText = await this.readFileAsText(manifestFile);
       const manifest = JSON.parse(manifestText);
+      const colorLegendText = await this.readFileAsText(colorLegendFile);
+      const colorLegend = JSON.parse(colorLegendText);
       this.validateManifest(manifest);
+      this.processColorLegend(colorLegend, manifest);
       const fileMap = new Map();
       Array.from(files).forEach((file) => {
         if (file.name.endsWith(".tif") || file.name.endsWith(".tiff")) {
@@ -51,6 +60,34 @@ class DataLoader {
       console.error("Failed to load from folder:", error);
       this.emit("loadError", error);
     }
+  }
+
+  processColorLegend(colorLegend, manifest) {
+    this.colorMappings = new Map();
+    manifest.segmentation_keys.forEach((segKey) => {
+      if (colorLegend.segmentations[segKey]) {
+        const clusters = colorLegend.segmentations[segKey].clusters;
+        const colorArray = [];
+        Object.entries(clusters).forEach(([clusterId, clusterData]) => {
+          const index = parseInt(clusterId);
+          colorArray[index] = clusterData.rgb_255.map((c) => c / 255);
+        });
+        this.colorMappings.set(segKey, {
+          method: "cluster_specific",
+          colors_rgb: colorArray,
+          nodata_value: colorLegend.nodata_value || -1,
+        });
+      } else {
+        console.warn(`No color mapping found for segmentation: ${segKey}`);
+      }
+    });
+    console.log(
+      `✅ Processed color mappings for ${this.colorMappings.size} segmentations`
+    );
+  }
+
+  getColorMappingForSegmentation(segmentationKey) {
+    return this.colorMappings.get(segmentationKey);
   }
 
   validateManifest(manifest) {

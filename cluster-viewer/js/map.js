@@ -69,7 +69,7 @@ class MapManager {
       opacity: 0,
       resolution: this.getOptimalResolution(georaster),
       pixelValuesToColorFn: (values) =>
-        this.convertPixelsToColor(values, overlayData),
+        this.convertPixelsToColor(values, segmentationKey),
       zIndex: 1000,
     });
     layer._segmentationKey = segmentationKey;
@@ -77,13 +77,19 @@ class MapManager {
     return layer;
   }
 
-  convertPixelsToColor(values, overlayData) {
+  convertPixelsToColor(values, segmentationKey) {
     if (!values || values.some((v) => v === null || v === undefined)) {
       return null;
     }
     if (values.length === 1) {
       const clusterValue = values[0];
-      const colorMapping = this.dataLoader?.colorMapping;
+      const colorMapping =
+        this.dataLoader?.getColorMappingForSegmentation(segmentationKey);
+      if (!colorMapping) {
+        throw new Error(
+          `Color mapping not found for segmentation: ${segmentationKey}`
+        );
+      }
       const baseColor = this.mapClusterValueToColor(clusterValue, colorMapping);
       if (
         this.clusterLabels.has(clusterValue) &&
@@ -107,46 +113,25 @@ class MapManager {
   }
 
   mapClusterValueToColor(clusterValue, colorMapping) {
-    if (colorMapping && colorMapping.colors_rgb) {
-      const colors = colorMapping.colors_rgb;
-      if (clusterValue === 0) {
-        return { r: 0, g: 0, b: 0, a: 0 };
-      }
-      const colorIndex = (clusterValue - 1) % colors.length;
-      const color = colors[colorIndex];
-      if (color && color.length >= 3) {
-        return {
-          r: Math.round(color[0] * 255),
-          g: Math.round(color[1] * 255),
-          b: Math.round(color[2] * 255),
-          a: 255,
-        };
-      }
+    if (!colorMapping || !colorMapping.colors_rgb) {
+      throw new Error(
+        "Color mapping is required but missing - check data pipeline"
+      );
     }
-    if (clusterValue === 0) {
+    const colors = colorMapping.colors_rgb;
+    if (clusterValue === 0 || clusterValue === colorMapping.nodata_value) {
       return { r: 0, g: 0, b: 0, a: 0 };
     }
-    const hue = (clusterValue * 137.508) % 360;
-    const saturation = 70 + (clusterValue % 3) * 10;
-    const lightness = 50 + (clusterValue % 2) * 20;
-    return this.hslToRgb(hue, saturation, lightness);
-  }
-
-  hslToRgb(h, s, l) {
-    h /= 360;
-    s /= 100;
-    l /= 100;
-    const a = s * Math.min(l, 1 - l);
-    const f = (n) => {
-      const k = (n + h * 12) % 12;
-      return l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    };
-    return {
-      r: Math.round(f(0) * 255),
-      g: Math.round(f(8) * 255),
-      b: Math.round(f(4) * 255),
-      a: 255,
-    };
+    const color = colors[clusterValue];
+    if (color && color.length >= 3) {
+      return {
+        r: Math.round(color[0] * 255),
+        g: Math.round(color[1] * 255),
+        b: Math.round(color[2] * 255),
+        a: 255,
+      };
+    }
+    throw new Error(`No color defined for cluster ${clusterValue} in mapping`);
   }
 
   convertToGrayscale(color) {

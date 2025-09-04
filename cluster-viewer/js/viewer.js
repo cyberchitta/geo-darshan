@@ -251,8 +251,8 @@ class ClusterViewer {
   async handleDataLoaded(manifest, overlays) {
     console.log("=== DATA LOADING START ===");
     console.log("Overlays received:", overlays.length);
-    this.currentClusterData = this.extractClusterData(overlays, manifest);
     this.mapManager.setDataLoader(this.dataLoader);
+    this.currentClusterData = this.extractClusterData(overlays, manifest);
     this.mapManager.setOverlays(overlays);
     await new Promise((resolve) => {
       this.mapManager.fitBounds(manifest.metadata.bounds);
@@ -322,6 +322,8 @@ class ClusterViewer {
       const segmentationKey = manifest.segmentation_keys[index];
       const clusters = [];
       const colors = new Map();
+      const colorMapping =
+        this.dataLoader.getColorMappingForSegmentation(segmentationKey);
       const numericK = this.extractKValue(segmentationKey);
       const numClusters = numericK || Math.floor(Math.random() * 15) + 5;
       for (let i = 0; i < numClusters; i++) {
@@ -331,10 +333,17 @@ class ClusterViewer {
           segmentationKey: segmentationKey,
           area_ha: ((Math.random() * 2000 + 100) * 0.01).toFixed(2),
         });
-        const hue = (i * 137.508) % 360;
-        const saturation = 70 + (i % 3) * 10;
-        const lightness = 50 + (i % 2) * 20;
-        colors.set(i, `hsl(${hue}, ${saturation}%, ${lightness}%)`);
+        if (colorMapping && colorMapping.colors_rgb[i]) {
+          const rgb = colorMapping.colors_rgb[i];
+          const r = Math.round(rgb[0] * 255);
+          const g = Math.round(rgb[1] * 255);
+          const b = Math.round(rgb[2] * 255);
+          colors.set(i, `rgb(${r}, ${g}, ${b})`);
+        } else {
+          throw new Error(
+            `No color mapping found for cluster ${i} in segmentation ${segmentationKey}`
+          );
+        }
       }
       clusterData[segmentationKey] = { clusters, colors };
     });
