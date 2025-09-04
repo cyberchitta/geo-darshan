@@ -1,5 +1,5 @@
 import { LandUseDropdown } from "./land-use-hierarchy.js";
-import { convertToGrayscale, rgbStringToObject } from "./utils.js";
+import { convertToGrayscale, rgbStringToObject, STORAGE_KEYS } from "./utils.js";
 
 class LegendPanel {
   constructor(containerId) {
@@ -357,7 +357,7 @@ class LegendPanel {
         "labeled-regions-opacity-control"
       );
       opacityControl.style.display = visible ? "block" : "none";
-      localStorage.setItem("labeledRegionsVisible", visible.toString());
+      localStorage.setItem(STORAGE_KEYS.LABELED_REGIONS_VISIBLE, visible.toString());
       console.log(`Labeled regions layer ${visible ? "enabled" : "disabled"}`);
     }
   }
@@ -368,7 +368,7 @@ class LegendPanel {
       document.getElementById(
         "labeled-regions-opacity-value"
       ).textContent = `${Math.round(opacity * 100)}%`;
-      localStorage.setItem("labeledRegionsOpacity", opacity.toString());
+      localStorage.setItem(STORAGE_KEYS.LABELED_REGIONS_OPACITY, opacity.toString());
       console.log(`Labeled regions opacity set to ${opacity}`);
     }
   }
@@ -376,9 +376,9 @@ class LegendPanel {
   setLabeledRegionsLayer(layer) {
     this.labeledRegionsLayer = layer;
     const savedVisible =
-      localStorage.getItem("labeledRegionsVisible") === "true";
+      localStorage.getItem(STORAGE_KEYS.LABELED_REGIONS_VISIBLE) === "true";
     const savedOpacity =
-      parseFloat(localStorage.getItem("labeledRegionsOpacity")) || 0.7;
+      parseFloat(localStorage.getItem(STORAGE_KEYS.LABELED_REGIONS_OPACITY)) || 0.7;
     document.getElementById("labeled-regions-toggle").checked = savedVisible;
     document.getElementById("labeled-regions-opacity").value = savedOpacity;
     document.getElementById(

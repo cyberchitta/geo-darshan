@@ -23,3 +23,11 @@ export function rgbStringToObject(rgbString) {
       }
     : null;
 }
+
+export const STORAGE_KEYS = {
+  CLUSTER_LABELS: "cluster-labels-v2",
+  ACTIVE_PANEL: "activePanel-v1",
+  DATASET_INFO_COLLAPSED: "datasetInfoCollapsed-v1",
+  LABELED_REGIONS_VISIBLE: "labeledRegionsVisible-v1",
+  LABELED_REGIONS_OPACITY: "labeledRegionsOpacity-v1",
+};

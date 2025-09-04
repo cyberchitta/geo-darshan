@@ -3,7 +3,7 @@ import { MapManager } from "./map.js";
 import { AnimationController } from "./animation.js";
 import { LegendPanel } from "./legend.js";
 import { LabeledRegionsLayer } from "./labeled-regions.js";
-import { extractKValue } from "./utils.js";
+import { extractKValue, STORAGE_KEYS } from "./utils.js";
 
 class ClusterViewer {
   constructor() {
@@ -160,11 +160,11 @@ class ClusterViewer {
         tab.classList.add("active");
         panels.forEach((p) => p.classList.remove("active"));
         document.getElementById(`${panelId}-panel`).classList.add("active");
-        localStorage.setItem("activePanel", panelId);
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_PANEL, panelId);
         console.log(`Switched to ${panelId} panel`);
       });
     });
-    const savedPanel = localStorage.getItem("activePanel");
+    const savedPanel = localStorage.getItem(STORAGE_KEYS.ACTIVE_PANEL);
     const hasData = this.currentClusterData !== null;
     let initialPanel;
     if (hasData && savedPanel && ["legend", "data"].includes(savedPanel)) {
@@ -184,10 +184,10 @@ class ClusterViewer {
     toggle.addEventListener("click", () => {
       const isCollapsed = toggle.classList.toggle("collapsed");
       content.classList.toggle("collapsed", isCollapsed);
-      localStorage.setItem("datasetInfoCollapsed", isCollapsed);
+      localStorage.setItem(STORAGE_KEYS.DATASET_INFO_COLLAPSED, isCollapsed);
     });
     const isCollapsed =
-      localStorage.getItem("datasetInfoCollapsed") !== "false";
+      localStorage.getItem(STORAGE_KEYS.DATASET_INFO_COLLAPSED) !== "false";
     if (isCollapsed) {
       toggle.classList.add("collapsed");
       content.classList.add("collapsed");
@@ -369,7 +369,7 @@ class ClusterViewer {
     console.log("Cluster labels changed:", allLabels);
     try {
       localStorage.setItem(
-        "cluster-labels",
+        STORAGE_KEYS.CLUSTER_LABELS,
         JSON.stringify({
           labels: allLabels,
           timestamp: new Date().toISOString(),
@@ -392,7 +392,7 @@ class ClusterViewer {
 
   async loadSavedLabels() {
     try {
-      const saved = localStorage.getItem("cluster-labels");
+      const saved = localStorage.getItem(STORAGE_KEYS.CLUSTER_LABELS);
       if (saved) {
         const data = JSON.parse(saved);
         if (data.labels && this.legendPanel) {
