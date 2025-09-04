@@ -261,11 +261,11 @@ class ClusterViewer {
     this.animationController.setFrames(manifest.segmentation_keys, overlays);
     this.updateDataInfo(manifest);
     this.setupSliders(manifest.segmentation_keys);
-    this.mapManager.on("firstLayerReady", () => {
+    setTimeout(() => {
       this.animationController.showInitialFrame();
       console.log("✅ Initial frame displayed after preprocessing");
       setTimeout(() => this.switchToLegendPanel(), 500);
-    });
+    }, 100);
     if (this.labeledRegionsLayer && this.legendPanel.hierarchyData) {
       this.labeledRegionsLayer.hierarchyData = this.legendPanel.hierarchyData;
     }
