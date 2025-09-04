@@ -6,23 +6,19 @@ class LandUseHierarchy {
 
   flattenHierarchy(obj = this.hierarchy, currentPath = [], result = []) {
     for (const [key, value] of Object.entries(obj)) {
+      if (key.startsWith("_")) continue;
       const newPath = [...currentPath, key];
-      if (typeof value === "string") {
-        result.push({
-          path: newPath.join("."),
-          displayPath: newPath.join(" > "),
-          level: newPath.length - 1,
-          description: value,
-          isLeaf: true,
-        });
-      } else if (typeof value === "object") {
-        result.push({
-          path: newPath.join("."),
-          displayPath: newPath.join(" > "),
-          level: newPath.length - 1,
-          description: `${key} (category)`,
-          isLeaf: false,
-        });
+      const hasSubcategories = Object.keys(value).some(
+        (k) => !k.startsWith("_")
+      );
+      result.push({
+        path: newPath.join("."),
+        displayPath: newPath.join(" > "),
+        level: newPath.length - 1,
+        description: key,
+        isLeaf: !hasSubcategories,
+      });
+      if (hasSubcategories) {
         this.flattenHierarchy(value, newPath, result);
       }
     }
