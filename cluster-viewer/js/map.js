@@ -189,6 +189,7 @@ class MapManager {
     }
     console.log("Preprocessing georaster layers...");
     this.geoRasterLayers.clear();
+    this.animationLayerGroup = L.layerGroup();
     for (let i = 0; i < this.overlays.length; i++) {
       const overlayData = this.overlays[i];
       try {
@@ -197,6 +198,8 @@ class MapManager {
         );
         const geoRasterLayer = await this.createGeoRasterLayer(overlayData);
         geoRasterLayer.addTo(this.map);
+        this.animationLayerGroup.addLayer(geoRasterLayer);
+        geoRasterLayer.setOpacity(0);
         this.geoRasterLayers.set(i, geoRasterLayer);
         console.log(
           `✅ Preprocessed and added layer ${i + 1}/${this.overlays.length}`
@@ -209,13 +212,9 @@ class MapManager {
         throw error;
       }
     }
-    const animationLayerGroup = L.layerGroup();
-    this.geoRasterLayers.forEach((layer) => {
-      animationLayerGroup.addLayer(layer);
-    });
     this.addOverlayLayer(
       this.animationLayerControlName,
-      animationLayerGroup,
+      this.animationLayerGroup,
       true
     );
     console.log("✅ Animation layer added to layer control");
@@ -243,27 +242,14 @@ class MapManager {
       return;
     }
     try {
-      this.geoRasterLayers.forEach((layer) => {
+      this.geoRasterLayers.forEach((layer, index) => {
+        const opacity = index === frameIndex ? this.currentOpacity : 0;
         if (layer.setOpacity) {
-          layer.setOpacity(0);
+          layer.setOpacity(opacity);
         }
       });
-      const layer = this.geoRasterLayers.get(frameIndex);
-      if (!layer) {
-        console.error(`No preprocessed layer for frame ${frameIndex}`);
-        return;
-      }
-      if (layer.setOpacity) {
-        layer.setOpacity(this.currentOpacity);
-      }
-      this.currentOverlay = layer;
-      if (this.currentOverlay && this.currentOverlay._segmentationKey) {
-        const kValue = this.extractKValue(this.currentOverlay._segmentationKey);
-        this.updateAnimationLayerName(`Animation (K=${kValue})`);
-      }
-      console.log(
-        `✅ Displayed frame ${frameIndex} (k=${layer._segmentationKey})`
-      );
+      this.currentOverlay = this.geoRasterLayers.get(frameIndex);
+      console.log(`✅ Displayed frame ${frameIndex} (opacity switch only)`);
     } catch (error) {
       console.error(`Failed to show frame ${frameIndex}:`, error);
     }
@@ -452,18 +438,6 @@ class MapManager {
       }
       delete this.overlayLayers[name];
       console.log(`Removed overlay layer: ${name}`);
-    }
-  }
-
-  updateAnimationLayerName(newName) {
-    if (
-      this.animationLayerControlName &&
-      this.overlayLayers[this.animationLayerControlName]
-    ) {
-      const layer = this.overlayLayers[this.animationLayerControlName];
-      this.removeOverlayLayer(this.animationLayerControlName);
-      this.addOverlayLayer(newName, layer, true);
-      this.animationLayerControlName = newName;
     }
   }
 
