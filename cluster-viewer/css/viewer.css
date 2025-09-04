@@ -32,7 +32,6 @@ body {
 }
 
 .controls-panel {
-  grid-area: controls;
   background: rgba(42, 42, 42, 0.95);
   padding: 16px;
   border-radius: 8px;
@@ -43,18 +42,6 @@ body {
   flex-wrap: wrap;
 }
 
-.info-panel {
-  grid-area: info;
-  background: rgba(42, 42, 42, 0.95);
-  padding: 20px;
-  border-radius: 8px;
-  backdrop-filter: blur(10px);
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* Animation Controls */
 .animation-controls {
   display: flex;
   align-items: center;
@@ -110,7 +97,6 @@ body {
   font-weight: 500;
 }
 
-/* Navigation Controls */
 .navigation-controls {
   display: flex;
   align-items: center;
@@ -138,7 +124,6 @@ body {
   color: #4a9eff;
 }
 
-/* Overlay Controls */
 .overlay-controls {
   display: flex;
   align-items: center;
@@ -161,7 +146,6 @@ body {
   font-weight: 500;
 }
 
-/* Range Sliders */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
@@ -190,215 +174,7 @@ input[type="range"]::-moz-range-thumb {
   border: none;
 }
 
-/* Info Panel */
-.data-info h3 {
-  color: #4a9eff;
-  margin-bottom: 12px;
-  font-size: 16px;
-}
-
-.data-info > div {
-  margin-bottom: 8px;
-  font-size: 14px;
-  color: #ccc;
-}
-
-.loading-info {
-  font-size: 14px;
-  color: #ccc;
-}
-
-#load-data-btn {
-  background: #4a9eff;
-  border: none;
-  color: white;
-  padding: 12px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.2s;
-}
-
-#load-data-btn:hover {
-  background: #3d8ae6;
-}
-
-/* Loading Overlay */
-.loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  z-index: 10000;
-}
-
-.loading-overlay.hidden {
-  display: none;
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #666;
-  border-top: 3px solid #4a9eff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.loading-text {
-  color: white;
-  font-size: 18px;
-  font-weight: 500;
-}
-
-.loading-progress-bar {
-  width: 300px;
-  height: 4px;
-  background: #666;
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: #4a9eff;
-  width: 0%;
-  transition: width 0.3s;
-}
-
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .viewer-container {
-    grid-template-areas:
-      "map"
-      "controls"
-      "info";
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr auto auto;
-  }
-
-  .info-panel {
-    flex-direction: row;
-    gap: 20px;
-  }
-}
-
-@media (max-width: 768px) {
-  .controls-panel {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .info-panel {
-    flex-direction: column;
-  }
-}
-
-/* Map-specific enhancements */
-.leaflet-container {
-  background: #000;
-  font-family: inherit;
-}
-
-.leaflet-control-layers {
-  background: rgba(42, 42, 42, 0.95);
-  color: #fff;
-  border: 1px solid #666;
-}
-
-.leaflet-control-layers-toggle {
-  background: rgba(42, 42, 42, 0.95);
-  color: #fff;
-}
-
-.leaflet-control-layers label {
-  color: #fff;
-}
-
-.leaflet-control-zoom {
-  border: none;
-}
-
-.leaflet-control-zoom a {
-  background: rgba(42, 42, 42, 0.95);
-  color: #fff;
-  border: 1px solid #666;
-}
-
-.leaflet-control-zoom a:hover {
-  background: rgba(74, 158, 255, 0.95);
-  color: #fff;
-}
-
-/* Loading indicator for map */
-.map-loading {
-  position: relative;
-}
-
-.map-loading::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 40px;
-  height: 40px;
-  margin: -20px 0 0 -20px;
-  border: 3px solid #666;
-  border-top: 3px solid #4a9eff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  z-index: 1000;
-}
-
-.land-use-dropdown-container {
-  margin-bottom: 4px;
-}
-
-.land-use-dropdown {
-  width: 100%;
-  padding: 4px 8px;
-  font-size: 12px;
-  border: 1px solid #ddd;
-  border-radius: 3px;
-  font-family: monospace;
-}
-
-.land-use-dropdown.unlabeled {
-  background-color: #f5f5f5;
-  color: #666;
-}
-
-.land-use-dropdown.intermediate {
-  background-color: #e3f2fd;
-  font-weight: bold;
-}
-
-.land-use-dropdown.leaf {
-  background-color: #e8f5e8;
-}
-
-.land-use-dropdown option {
-  font-family: monospace;
-  padding: 2px 4px;
-}
-
-.legend-panel {
+.right-panel {
   width: 350px;
   background: white;
   border-left: 1px solid #ddd;
@@ -407,23 +183,150 @@ input[type="range"]::-moz-range-thumb {
   max-height: 100vh;
   overflow: hidden;
 }
-@media (max-width: 1200px) {
-  .legend-panel {
-    width: 300px;
-  }
+
+.panel-tabs {
+  display: flex;
+  background: #f8f9fa;
+  border-bottom: 1px solid #ddd;
 }
 
-@media (max-width: 900px) {
-  .viewer-container {
-    flex-direction: column;
-  }
+.panel-tab {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+}
 
-  .legend-panel {
-    width: 100%;
-    max-height: 40vh;
-    border-left: none;
-    border-top: 1px solid #ddd;
-  }
+.panel-tab:hover {
+  background: rgba(0, 123, 255, 0.1);
+}
+
+.panel-tab.active {
+  background: white;
+  border-bottom: 2px solid #007bff;
+  color: #007bff;
+}
+
+.panel-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+.tab-panel {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tab-panel.active {
+  display: flex;
+}
+
+.data-header {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  background: #f8f9fa;
+}
+
+.data-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.data-controls {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#load-data-btn,
+#clear-data-btn {
+  background: #4a9eff;
+  border: none;
+  color: white;
+  padding: 12px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+  font-size: 14px;
+}
+
+#load-data-btn:hover {
+  background: #3d8ae6;
+}
+
+#clear-data-btn {
+  background: #6c757d;
+}
+
+#clear-data-btn:hover {
+  background: #5a6268;
+}
+
+.dataset-info {
+  border-bottom: 1px solid #eee;
+}
+
+.dataset-info-header {
+  padding: 12px 15px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fafafa;
+  transition: background 0.2s;
+}
+
+.dataset-info-header:hover {
+  background: #f0f0f0;
+}
+
+.dataset-info-header h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.collapse-chevron {
+  transition: transform 0.2s;
+  color: #666;
+}
+
+.dataset-info-header.collapsed .collapse-chevron {
+  transform: rotate(-90deg);
+}
+
+.dataset-info-content {
+  padding: 15px;
+  transition: all 0.2s;
+  overflow: hidden;
+}
+
+.dataset-info-content.collapsed {
+  max-height: 0;
+  padding: 0 15px;
+}
+
+.dataset-info-content > div {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+.loading-info {
+  padding: 15px;
+  font-size: 14px;
+  color: #666;
 }
 
 .legend-header {
@@ -435,6 +338,7 @@ input[type="range"]::-moz-range-thumb {
 .legend-header h3 {
   margin: 0 0 5px 0;
   font-size: 16px;
+  color: #333;
 }
 
 .legend-stats {
@@ -617,4 +521,180 @@ input[type="range"]::-moz-range-thumb {
   color: #666;
   font-size: 11px;
   margin-left: auto;
+}
+
+.land-use-dropdown-container {
+  margin-bottom: 4px;
+}
+
+.land-use-dropdown {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.land-use-dropdown.unlabeled {
+  background-color: #f5f5f5;
+  color: #666;
+}
+
+.land-use-dropdown.intermediate {
+  background-color: #e3f2fd;
+  font-weight: bold;
+}
+
+.land-use-dropdown.leaf {
+  background-color: #e8f5e8;
+}
+
+.land-use-dropdown option {
+  font-family: monospace;
+  padding: 2px 4px;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  z-index: 10000;
+}
+
+.loading-overlay.hidden {
+  display: none;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #666;
+  border-top: 3px solid #4a9eff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  color: white;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.loading-progress-bar {
+  width: 300px;
+  height: 4px;
+  background: #666;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #4a9eff;
+  width: 0%;
+  transition: width 0.3s;
+}
+
+@media (max-width: 1200px) {
+  .right-panel {
+    width: 300px;
+  }
+}
+
+@media (max-width: 900px) {
+  .viewer-container {
+    flex-direction: column;
+  }
+
+  .right-panel {
+    width: 100%;
+    max-height: 40vh;
+    border-left: none;
+    border-top: 1px solid #ddd;
+  }
+}
+
+@media (max-width: 1024px) {
+  .controls-panel {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .controls-panel {
+    flex-wrap: wrap;
+  }
+}
+
+.leaflet-container {
+  background: #000;
+  font-family: inherit;
+}
+
+.leaflet-control-layers {
+  background: rgba(42, 42, 42, 0.95);
+  color: #fff;
+  border: 1px solid #666;
+}
+
+.leaflet-control-layers-toggle {
+  background: rgba(42, 42, 42, 0.95);
+  color: #fff;
+}
+
+.leaflet-control-layers label {
+  color: #fff;
+}
+
+.leaflet-control-zoom {
+  border: none;
+}
+
+.leaflet-control-zoom a {
+  background: rgba(42, 42, 42, 0.95);
+  color: #fff;
+  border: 1px solid #666;
+}
+
+.leaflet-control-zoom a:hover {
+  background: rgba(74, 158, 255, 0.95);
+  color: #fff;
+}
+
+.map-loading {
+  position: relative;
+}
+
+.map-loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border: 3px solid #666;
+  border-top: 3px solid #4a9eff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  z-index: 1000;
 }

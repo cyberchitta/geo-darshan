@@ -99,6 +99,11 @@ class ClusterViewer {
     this.dataLoader.on("loadError", (error) => {
       this.handleLoadError(error);
     });
+    this.setupTabSwitching();
+    this.setupDatasetInfoCollapse();
+    document.getElementById("clear-data-btn").addEventListener("click", () => {
+      this.clearData();
+    });
     this.mapManager.on("clusterClicked", (clusterValue, latlng) => {
       this.handleClusterClicked(clusterValue, latlng);
     });
@@ -128,6 +133,70 @@ class ClusterViewer {
     document.getElementById("k-slider").disabled = isPlaying;
   }
 
+  setupTabSwitching() {
+    const tabs = document.querySelectorAll(".panel-tab");
+    const panels = document.querySelectorAll(".tab-panel");
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const panelId = tab.dataset.panel;
+        tabs.forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        panels.forEach((p) => p.classList.remove("active"));
+        document.getElementById(`${panelId}-panel`).classList.add("active");
+        localStorage.setItem("activePanel", panelId);
+        console.log(`Switched to ${panelId} panel`);
+      });
+    });
+    const savedPanel = localStorage.getItem("activePanel");
+    if (savedPanel && ["legend", "data"].includes(savedPanel)) {
+      const tab = document.querySelector(`[data-panel="${savedPanel}"]`);
+      if (tab) tab.click();
+    }
+  }
+
+  setupDatasetInfoCollapse() {
+    const toggle = document.getElementById("dataset-info-toggle");
+    const content = document.getElementById("dataset-info-content");
+    toggle.addEventListener("click", () => {
+      const isCollapsed = toggle.classList.toggle("collapsed");
+      content.classList.toggle("collapsed", isCollapsed);
+      localStorage.setItem("datasetInfoCollapsed", isCollapsed);
+    });
+    const isCollapsed =
+      localStorage.getItem("datasetInfoCollapsed") !== "false";
+    if (isCollapsed) {
+      toggle.classList.add("collapsed");
+      content.classList.add("collapsed");
+    }
+  }
+
+  switchToDataPanel() {
+    const dataTab = document.querySelector('[data-panel="data"]');
+    if (dataTab) dataTab.click();
+  }
+
+  switchToLegendPanel() {
+    const legendTab = document.querySelector('[data-panel="legend"]');
+    if (legendTab) legendTab.click();
+  }
+
+  clearData() {
+    if (!confirm("Clear all loaded data? This will reset the viewer.")) return;
+    this.animationController.destroy();
+    this.mapManager.clearOverlays();
+    this.currentClusterData = null;
+    document.getElementById("data-status").textContent = "No data loaded";
+    document.getElementById("data-bounds").textContent = "";
+    document.getElementById("data-shape").textContent = "";
+    document.getElementById("loading-status").textContent = "";
+    document.getElementById("current-k").textContent = "--";
+    document.getElementById("legend-clusters").innerHTML =
+      '<div class="legend-placeholder">Load cluster data to see legend</div>';
+    document.getElementById("k-slider").value = 0;
+    this.updateControlStates(false);
+    console.log("✅ Data cleared");
+  }
+
   setupKeyboardShortcuts() {
     document.addEventListener("keydown", (e) => {
       if (e.code === "Space") {
@@ -149,6 +218,7 @@ class ClusterViewer {
       return;
     }
     try {
+      this.switchToDataPanel();
       this.showLoading(true);
       await this.dataLoader.loadFromFolder(files);
     } catch (error) {
@@ -174,6 +244,7 @@ class ClusterViewer {
     this.mapManager.on("firstLayerReady", () => {
       this.animationController.showInitialFrame();
       console.log("✅ Initial frame displayed after preprocessing");
+      setTimeout(() => this.switchToLegendPanel(), 500);
     });
     this.showLoading(false);
     console.log("✅ Data loading complete");
