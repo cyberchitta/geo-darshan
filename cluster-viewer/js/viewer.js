@@ -161,10 +161,17 @@ class ClusterViewer {
       });
     });
     const savedPanel = localStorage.getItem("activePanel");
-    if (savedPanel && ["legend", "data"].includes(savedPanel)) {
-      const tab = document.querySelector(`[data-panel="${savedPanel}"]`);
-      if (tab) tab.click();
+    const hasData = this.currentClusterData !== null;
+    let initialPanel;
+    if (hasData && savedPanel && ["legend", "data"].includes(savedPanel)) {
+      initialPanel = savedPanel;
+    } else if (hasData) {
+      initialPanel = "legend";
+    } else {
+      initialPanel = "data";
     }
+    const tab = document.querySelector(`[data-panel="${initialPanel}"]`);
+    if (tab) tab.click();
   }
 
   setupDatasetInfoCollapse() {
