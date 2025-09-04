@@ -39,9 +39,7 @@ class ClusterConfig:
     aef_file: Path = Path("data/aef_3.5k_roi_cog.tif")
     output_dir: Path = Path("output/cluster_animation")
     # Clustering parameters
-    k_min: int = 8
-    k_max: int = 24
-    k_step: int = 2
+    k_values: List[int] = field(default_factory=lambda: [8, 10, 12, 14, 16, 18, 20, 22, 24])
     # Color mapping
     n_color_families: int = 8
     # Algorithm settings
@@ -51,15 +49,22 @@ class ClusterConfig:
     verbose: bool = True
     overwrite_existing: bool = True
 
+    @classmethod
+    def from_range(cls, k_min: int, k_max: int, k_step: int = 2, **kwargs: Any) -> 'ClusterConfig':
+        """Factory method to create config from k-range parameters."""
+        k_values = list(range(k_min, k_max + 1, k_step))
+        return cls(k_values=k_values, **kwargs)
+
     @property
     def k_range(self) -> List[int]:
-        return list(range(self.k_min, self.k_max + 1, self.k_step))
+        """Backward compatibility property."""
+        return self.k_values
 
     def validate(self) -> None:
         if not self.aef_file.exists():
             raise FileNotFoundError(f"AEF file not found: {self.aef_file}")
-        if self.k_min >= self.k_max or self.k_step <= 0:
-            raise ValueError("Invalid k_range parameters")
+        if not self.k_values or len(self.k_values) == 0:
+            raise ValueError("k_values cannot be empty")
         if self.n_color_families < 2:
             raise ValueError("n_color_families must be >= 2")
 
@@ -91,11 +96,19 @@ class LandCoverConfig:
 
 
 # --- EDIT YOUR CONFIGURATIONS HERE ---
-CLUSTER_ANIMATION_CONFIG = ClusterConfig(
-    output_dir=Path("output/cluster_animation"),
+""" CLUSTER_ANIMATION_CONFIG = ClusterConfig.from_range(
     k_min=8,
     k_max=24,
     k_step=2,
+    output_dir=Path("output/cluster_animation"),
+    n_color_families=8,
+    scenario="exploration",
+) """
+
+# Alternative direct specification:
+CLUSTER_ANIMATION_CONFIG = ClusterConfig(
+    k_values=[22, 44],
+    output_dir=Path("output/cluster_animation"),
     n_color_families=8,
     scenario="exploration",
 )
@@ -278,7 +291,7 @@ def main():
 
         # --- Run Pipelines ---
         generate_cluster_animation(CLUSTER_ANIMATION_CONFIG, embeddings_flat, metadata)
-        generate_land_cover_animation(LAND_COVER_CONFIG, embeddings_flat, metadata)
+#        generate_land_cover_animation(LAND_COVER_CONFIG, embeddings_flat, metadata)
         # --- End Pipelines ---
 
         if verbose:
