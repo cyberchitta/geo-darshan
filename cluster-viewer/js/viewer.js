@@ -358,6 +358,7 @@ class ClusterViewer {
     } catch (error) {
       console.warn("Failed to save labels to localStorage:", error);
     }
+    this.mapManager.updateClusterLabels(labels);
     if (this.labeledRegionsLayer) {
       const currentSegmentationKey = this.getCurrentSegmentationKey();
       this.labeledRegionsLayer.updateLabels(labels, currentSegmentationKey);

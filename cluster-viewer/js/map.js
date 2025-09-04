@@ -11,6 +11,7 @@ class MapManager {
     this.rasterHandler = rasterHandler;
     this.listeners = {};
     this.overlayLayers = {};
+    this.clusterLabels = new Map();
     if (this.rasterHandler) {
       console.log(`MapManager initialized with ${this.rasterHandler.name}`);
     } else {
@@ -84,6 +85,15 @@ class MapManager {
       const clusterValue = values[0];
       const colorMapping = this.dataLoader?.colorMapping;
       const baseColor = this.mapClusterValueToColor(clusterValue, colorMapping);
+      if (
+        this.clusterLabels.has(clusterValue) &&
+        this.clusterLabels.get(clusterValue) !== "unlabeled"
+      ) {
+        const grayColor = this.convertToGrayscale(baseColor);
+        return `rgba(${grayColor.r},${grayColor.g},${grayColor.b},${
+          grayColor.a / 255
+        })`;
+      }
       return `rgba(${baseColor.r},${baseColor.g},${baseColor.b},${
         baseColor.a / 255
       })`;
@@ -136,6 +146,18 @@ class MapManager {
       g: Math.round(f(8) * 255),
       b: Math.round(f(4) * 255),
       a: 255,
+    };
+  }
+
+  convertToGrayscale(color) {
+    const gray = Math.round(
+      0.299 * color.r + 0.587 * color.g + 0.114 * color.b
+    );
+    return {
+      r: gray,
+      g: gray,
+      b: gray,
+      a: color.a,
     };
   }
 
@@ -444,6 +466,26 @@ class MapManager {
   extractKValue(segmentationKey) {
     const match = segmentationKey.match(/k(\d+)/);
     return match ? parseInt(match[1]) : 0;
+  }
+
+  updateClusterLabels(labels) {
+    this.clusterLabels.clear();
+    Object.entries(labels).forEach(([clusterId, label]) => {
+      this.clusterLabels.set(parseInt(clusterId), label);
+    });
+    this.forceRedraw();
+  }
+
+  forceRedraw() {
+    if (this.currentOverlay && this.currentOverlay.setOpacity) {
+      const currentOpacity = this.currentOpacity;
+      this.currentOverlay.setOpacity(0);
+      setTimeout(() => {
+        if (this.currentOverlay && this.currentOverlay.setOpacity) {
+          this.currentOverlay.setOpacity(currentOpacity);
+        }
+      }, 10);
+    }
   }
 }
 
