@@ -28,3 +28,6 @@ output/
 
 *.ipynb
 .ipynb_checkpoints/
+.venv/
+.ruff_cache/
+.vscode/

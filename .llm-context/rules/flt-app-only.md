@@ -5,12 +5,14 @@ compose:
   filters: ["flt-repo"]
 gitignores:
   full-files:
+    - "*.json"
     - "*.css"
   outline-files:
+    - "*.json"
     - "*.css"
 limit-to:
   full-files:
-    - "cluster-viewer/**"
+    - "app/**"
   outline-files:
-    - "cluster-viewer/**"
+    - "app/**"
 ---
