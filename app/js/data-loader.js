@@ -1,5 +1,3 @@
-import { RasterDataHandler } from "./raster-handler.js";
-
 class DataLoader {
   constructor(rasterHandler = null) {
     this.listeners = {};

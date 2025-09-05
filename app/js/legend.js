@@ -1,5 +1,9 @@
 import { LandUseDropdown } from "./land-use-hierarchy.js";
-import { convertToGrayscale, rgbStringToObject, STORAGE_KEYS } from "./utils.js";
+import {
+  convertToGrayscale,
+  rgbStringToObject,
+  STORAGE_KEYS,
+} from "./utils.js";
 
 class LegendPanel {
   constructor(containerId) {
@@ -352,12 +356,30 @@ class LegendPanel {
 
   toggleLabeledRegions(visible) {
     if (this.labeledLayer) {
-      this.labeledLayer.setVisible(visible);
-      const opacityControl = document.getElementById(
+      if (
+        visible &&
+        this.labeledLayer.overlayData.size > 0 &&
+        this.labeledLayer.allLabels.size > 0
+      ) {
+        this.labeledLayer
+          .regenerateComposite()
+          .then(() => {
+            this.labeledLayer.setVisible(visible);
+          })
+          .catch((error) => {
+            console.error("Failed to generate labeled composite:", error);
+          });
+      } else {
+        this.labeledLayer.setVisible(visible);
+      }
+   const opacityControl = document.getElementById(
         "labeled-regions-opacity-control"
       );
-      opacityControl.style.display = visible ? "block" : "none";
-      localStorage.setItem(STORAGE_KEYS.LABELED_REGIONS_VISIBLE, visible.toString());
+      opacityControl.style.display = visible ? "flex" : "none";
+      localStorage.setItem(
+        STORAGE_KEYS.LABELED_REGIONS_VISIBLE,
+        visible.toString()
+      );
       console.log(`Labeled regions layer ${visible ? "enabled" : "disabled"}`);
     }
   }
@@ -368,7 +390,10 @@ class LegendPanel {
       document.getElementById(
         "labeled-regions-opacity-value"
       ).textContent = `${Math.round(opacity * 100)}%`;
-      localStorage.setItem(STORAGE_KEYS.LABELED_REGIONS_OPACITY, opacity.toString());
+      localStorage.setItem(
+        STORAGE_KEYS.LABELED_REGIONS_OPACITY,
+        opacity.toString()
+      );
       console.log(`Labeled regions opacity set to ${opacity}`);
     }
   }
@@ -378,16 +403,21 @@ class LegendPanel {
     const savedVisible =
       localStorage.getItem(STORAGE_KEYS.LABELED_REGIONS_VISIBLE) === "true";
     const savedOpacity =
-      parseFloat(localStorage.getItem(STORAGE_KEYS.LABELED_REGIONS_OPACITY)) || 0.7;
+      parseFloat(localStorage.getItem(STORAGE_KEYS.LABELED_REGIONS_OPACITY)) ||
+      0.7;
     document.getElementById("labeled-regions-toggle").checked = savedVisible;
     document.getElementById("labeled-regions-opacity").value = savedOpacity;
     document.getElementById(
       "labeled-regions-opacity-value"
     ).textContent = `${Math.round(savedOpacity * 100)}%`;
+    const opacityControl = document.getElementById(
+      "labeled-regions-opacity-control"
+    );
+    opacityControl.style.display = savedVisible ? "flex" : "none";
+    this.setLabeledRegionsOpacity(savedOpacity);
     if (savedVisible) {
       this.toggleLabeledRegions(true);
     }
-    this.setLabeledRegionsOpacity(savedOpacity);
   }
 
   switchToSegmentation(segmentationKey) {

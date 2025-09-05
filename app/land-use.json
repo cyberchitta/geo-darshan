@@ -68,39 +68,29 @@
         "_color": "#8FBC8F",
         "_description": "Trees + crops"
       }
+    },
+    "fallow": {
+      "_color": "#D2691E",
+      "_description": "Agricultural land intentionally left unplanted"
     }
   },
   "built_environment": {
     "_color": "#696969",
-    "residential": {
-      "_color": "#A9A9A9",
-      "auroville_settlements": {
-        "_color": "#F5F5DC",
-        "_description": "Auroville communities"
-      },
-      "village_settlements": {
-        "_color": "#CD853F",
-        "_description": "Traditional Tamil villages"
-      },
-      "urban_fringe": {
-        "_color": "#778899",
-        "_description": "Pondicherry periphery"
-      }
+    "dense_built": {
+      "_color": "#2F4F4F",
+      "_description": "High density buildings, urban areas"
     },
-    "institutional": {
+    "sparse_built": {
       "_color": "#708090",
-      "auroville_centers": {
-        "_color": "#B0C4DE",
-        "_description": "Community centers, workshops"
-      },
-      "schools": {
-        "_color": "#87CEEB",
-        "_description": "Educational institutions"
-      },
-      "community_buildings": {
-        "_color": "#D3D3D3",
-        "_description": "Religious, cultural facilities"
-      }
+      "_description": "Low density buildings in open areas"
+    },
+    "forest_built": {
+      "_color": "#8B7355",
+      "_description": "Buildings integrated within forested areas"
+    },
+    "infrastructure": {
+      "_color": "#36454F",
+      "_description": "Roads, industrial facilities"
     }
   },
   "water": {

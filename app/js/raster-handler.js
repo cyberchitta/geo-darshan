@@ -1,24 +1,5 @@
-class RasterDataHandler {
+class GeoRasterAdapter {
   constructor() {
-    this.name = "Abstract Raster Handler";
-  }
-  async parseGeoTIFF(arrayBuffer) {
-    throw new Error("parseGeoTIFF must be implemented by subclass");
-  }
-  createMapLayer(rasterData, options) {
-    throw new Error("createMapLayer must be implemented by subclass");
-  }
-  getMetadata(rasterData) {
-    throw new Error("getMetadata must be implemented by subclass");
-  }
-  pixelValuesToColor(pixelValues, kValue) {
-    throw new Error("pixelValuesToColor must be implemented by subclass");
-  }
-}
-
-class GeoRasterAdapter extends RasterDataHandler {
-  constructor() {
-    super();
     this.name = "GeoRaster Adapter";
     console.log("GeoRasterAdapter initialized");
   }
@@ -72,10 +53,6 @@ class GeoRasterAdapter extends RasterDataHandler {
     };
   }
 
-  pixelValuesToColor(pixelValues, kValue) {
-    return null;
-  }
-
   getOptimalResolution(rasterData) {
     const totalPixels = rasterData.width * rasterData.height;
     if (totalPixels > 100_000_000) return 128;
@@ -84,4 +61,4 @@ class GeoRasterAdapter extends RasterDataHandler {
   }
 }
 
-export { RasterDataHandler, GeoRasterAdapter };
+export { GeoRasterAdapter };

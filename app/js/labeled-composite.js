@@ -6,18 +6,20 @@ class LabeledCompositeLayer {
   constructor(mapManager, dataLoader) {
     this.mapManager = mapManager;
     this.dataLoader = dataLoader;
-    this.allLabels = new Map(); // segmentationKey -> Map(clusterId -> label)
-    this.overlayData = new Map(); // segmentationKey -> overlay data
+    this.allLabels = new Map();
+    this.overlayData = new Map();
     this.compositeLayer = null;
     this.isVisible = false;
     this.opacity = 0.7;
     this.layerGroup = L.layerGroup();
+    this.layerGroup.addTo(this.mapManager.map);
+    this.mapManager.addOverlayLayer("Labeled Regions", this.layerGroup, false);
     this.rules = {
-      priority: "highest_k", // 'highest_k', 'lowest_k', 'most_specific', 'largest_cluster'
-      requireLabeled: true, // Only show pixels from labeled clusters
-      fallbackToLower: true, // If high-K unlabeled, fall back to labeled lower-K
+      priority: "highest_k",
+      requireLabeled: true,
+      fallbackToLower: true,
     };
-    console.log("LabeledCompositeLayer initialized with TensorFlow.js");
+    console.log("LabeledCompositeLayer initialized and registered with map");
   }
 
   setOverlayData(overlays) {
@@ -53,13 +55,12 @@ class LabeledCompositeLayer {
       const startTime = performance.now();
       const composite = await this.generateCompositeRaster();
       if (this.compositeLayer) {
-        this.compositeLayer.setOpacity(0);
         this.layerGroup.removeLayer(this.compositeLayer);
       }
       this.compositeLayer = this.mapManager.rasterHandler.createMapLayer(
         composite,
         {
-          opacity: 0,
+          opacity: this.isVisible ? this.opacity : 0,
           pixelValuesToColorFn: (values) =>
             this.convertCompositePixelToColor(values),
           zIndex: 2000,
@@ -102,34 +103,35 @@ class LabeledCompositeLayer {
       const overlay = this.overlayData.get(segKey);
       const labels = this.allLabels.get(segKey) || new Map();
       if (labels.size === 0) continue;
-      const rasterTensor = tf.tensor2d(
-        overlay.georaster.values[0],
-        [height, width],
-        "int32"
-      );
+      const rasterData = overlay.georaster.values[0];
+      const regularArray = Array.from(rasterData, (row) => Array.from(row));
+      const rasterTensor = tf.tensor2d(regularArray, [height, width], "int32");
       const labeledClusterIds = Array.from(labels.keys());
       let labelMask = tf.zeros([height, width], "bool");
       for (const clusterId of labeledClusterIds) {
-        const clusterMask = rasterTensor.equal(clusterId);
-        labelMask = labelMask.logicalOr(clusterMask);
+        const clusterMask = tf.equal(rasterTensor, clusterId);
+        labelMask = tf.logicalOr(labelMask, clusterMask);
+        clusterMask.dispose();
       }
-      const shouldUpdate = labelMask.logicalAnd(hasLabel.logicalNot());
+      const notHasLabel = tf.logicalNot(hasLabel);
+      const shouldUpdate = tf.logicalAnd(labelMask, notHasLabel);
       bestClusterIds = tf.where(shouldUpdate, rasterTensor, bestClusterIds);
       bestSegmentationIds = tf.where(
         shouldUpdate,
         tf.fill([height, width], i),
         bestSegmentationIds
       );
-      hasLabel = hasLabel.logicalOr(labelMask);
+      hasLabel = tf.logicalOr(hasLabel, labelMask);
       rasterTensor.dispose();
       labelMask.dispose();
       shouldUpdate.dispose();
+      notHasLabel.dispose();
     }
     const compositeData = await bestClusterIds.array();
     const segmentationIds = await bestSegmentationIds.array();
     this.compositeSegmentationMap = segmentationIds;
     this.compositeSegmentations = segmentations;
-    const compositeGeoRaster = {
+   const compositeGeoRaster = {
       ...refGeoRaster,
       values: [compositeData],
       numberOfRasters: 1,
@@ -175,12 +177,12 @@ class LabeledCompositeLayer {
         }
       }
     }
-    return `rgba(128,128,128,0.8)`;
+    return "rgba(128,128,128,0.8)";
   }
 
   mapClusterValueToColor(clusterValue, colorMapping) {
     if (!colorMapping || !colorMapping.colors_rgb) {
-      return `rgba(128,128,128,0.8)`;
+      return "rgba(128,128,128,0.8)";
     }
     const colors = colorMapping.colors_rgb;
     const color = colors[clusterValue];
@@ -190,7 +192,7 @@ class LabeledCompositeLayer {
       const b = Math.round(color[2] * 255);
       return `rgba(${r},${g},${b},${this.opacity})`;
     }
-    return `rgba(128,128,128,0.8)`;
+    return "rgba(128,128,128,0.8)";
   }
 
   setVisible(visible) {

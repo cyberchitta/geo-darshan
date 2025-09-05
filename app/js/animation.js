@@ -145,7 +145,7 @@ class AnimationController {
     }
     const segmentationKey = this.frames[this.currentFrame];
     const overlay = this.overlays[this.currentFrame];
-    this.emit("frameChanged", this.currentFrame, segmentationKey, overlay);
+    this.emit("frameChanged", this.currentFrame, segmentationKey);
     this.emit("frameInfo", {
       index: this.currentFrame,
       total: this.frames.length,

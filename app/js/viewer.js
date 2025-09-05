@@ -34,12 +34,11 @@ class ClusterViewer {
       await this.mapManager.initialize();
       this.isInitialized = true;
       this.labeledLayer = new LabeledCompositeLayer(
-        this.legendPanel.hierarchyData,
-        this.mapManager
+        this.mapManager,
+        this.dataLoader
       );
       this.legendPanel.setLabeledLayer(this.labeledLayer);
-      console.log("✅ Labeled regions layer initialized");
-      console.log("✅ Cluster Viewer initialized");
+      console.log("✅ Labeled regions layer initialized and registered");
     } catch (error) {
       console.error("Failed to initialize viewer:", error);
       this.showError("Failed to initialize viewer");
@@ -82,9 +81,9 @@ class ClusterViewer {
     });
     this.animationController.on(
       "frameChanged",
-      (frameIndex, segmentationKey, overlay) => {
+      (frameIndex, segmentationKey) => {
         this.updateUI(frameIndex, segmentationKey);
-        this.mapManager.showFrame(frameIndex, overlay);
+        this.mapManager.showFrame(frameIndex);
         this.updateLegendForFrame(frameIndex, segmentationKey);
         const currentLabels =
           this.legendPanel.getAllLabelsAsObject()[segmentationKey] || {};
@@ -190,12 +189,12 @@ class ClusterViewer {
   }
 
   switchToDataPanel() {
-    const dataTab = document.querySelector('[data-panel="data"]');
+    const dataTab = document.querySelector("[data-panel=\"data\"]");
     if (dataTab) dataTab.click();
   }
 
   switchToLegendPanel() {
-    const legendTab = document.querySelector('[data-panel="legend"]');
+    const legendTab = document.querySelector("[data-panel=\"legend\"]");
     if (legendTab) legendTab.click();
   }
 
@@ -210,7 +209,7 @@ class ClusterViewer {
     document.getElementById("loading-status").textContent = "";
     document.getElementById("current-k").textContent = "--";
     document.getElementById("legend-clusters").innerHTML =
-      '<div class="legend-placeholder">Load cluster data to see legend</div>';
+      "<div class=\"legend-placeholder\">Load cluster data to see legend</div>";
     document.getElementById("k-slider").value = 0;
     this.updateControlStates(false);
     console.log("✅ Data cleared");
@@ -253,6 +252,9 @@ class ClusterViewer {
     this.mapManager.setDataLoader(this.dataLoader);
     this.currentClusterData = this.extractClusterData(overlays, manifest);
     this.mapManager.setOverlays(overlays);
+    if (this.labeledLayer) {
+      this.labeledLayer.setOverlayData(overlays);
+    }
     await new Promise((resolve) => {
       this.mapManager.fitBounds(manifest.metadata.bounds);
       this.mapManager.map.whenReady(() => resolve());
@@ -264,6 +266,10 @@ class ClusterViewer {
       await this.loadSavedLabels();
       this.animationController.showInitialFrame();
       console.log("✅ Initial frame displayed with saved labels");
+      const allLabels = this.legendPanel.getAllLabelsAsObject();
+      if (Object.keys(allLabels).length > 0 && this.labeledLayer) {
+        this.labeledLayer.updateLabels(allLabels);
+      }
       setTimeout(() => this.switchToLegendPanel(), 500);
     }, 100);
     if (this.labeledLayer && this.legendPanel.hierarchyData) {
@@ -378,10 +384,7 @@ class ClusterViewer {
     const currentLabels = allLabels[currentSegmentationKey] || {};
     this.mapManager.updateClusterLabels(currentLabels, currentSegmentationKey);
     if (this.labeledLayer) {
-      this.labeledLayer.updateLabels(
-        currentLabels,
-        currentSegmentationKey
-      );
+      this.labeledLayer.updateLabels(allLabels);
     }
   }
 

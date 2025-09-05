@@ -11,7 +11,10 @@
     "download-tiles:5k": "bun run scripts/download_esri.js 5k",
     "stitch-tiles": "bun run scripts/stitch_esri.js test",
     "stitch-tiles:3.5k": "bun run scripts/stitch_esri.js 3.5k",
-    "stitch-tiles:5k": "bun run scripts/stitch_esri.js 5k"
+    "stitch-tiles:5k": "bun run scripts/stitch_esri.js 5k",
+    "lint": "eslint app/js/**/*.js",
+    "lint:fix": "eslint app/js/**/*.js --fix",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@turf/turf": "^7.2.0",
@@ -20,5 +23,11 @@
     "leaflet": "^1.9.4",
     "leaflet-draw": "^1.0.4",
     "sphericalmercator": "^1.0.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "@types/leaflet": "^1.9.20",
+    "eslint": "^9.34.0",
+    "typescript": "^5.9.2"
   }
 }

@@ -226,7 +226,7 @@ class MapManager {
     return 512;
   }
 
-  showFrame(frameIndex, overlayData = null) {
+  showFrame(frameIndex) {
     if (!this.overlays || this.overlays.length === 0) {
       console.warn("No overlays loaded yet, cannot show frame");
       return;
