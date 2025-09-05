@@ -122,7 +122,7 @@ class MapManager {
       );
     }
     const colors = colorMapping.colors_rgb;
-    if (clusterValue === 0 || clusterValue === colorMapping.nodata_value) {
+    if (clusterValue === colorMapping.nodata_value) {
       return { r: 0, g: 0, b: 0, a: 0 };
     }
     const color = colors[clusterValue];
@@ -368,7 +368,7 @@ class MapManager {
       if (
         clusterValue !== null &&
         clusterValue !== undefined &&
-        clusterValue > 0
+        clusterValue >= 0
       ) {
         this.emit("clusterClicked", clusterValue, latlng);
       } else {
