@@ -1,3 +1,5 @@
+import { extractKValue } from "./utils.js";
+
 class LabeledRegionsLayer {
   constructor(hierarchyData, mapManager) {
     this.hierarchyData = hierarchyData;
@@ -14,7 +16,7 @@ class LabeledRegionsLayer {
   }
 
   updateLabels(clusterLabels, currentSegmentationKey) {
-    const kValue = this.extractKValue(currentSegmentationKey);
+    const kValue = extractKValue(currentSegmentationKey);
     Object.entries(clusterLabels).forEach(([clusterId, landUsePath]) => {
       if (landUsePath !== "unlabeled") {
         this.labeledRegions.set(parseInt(clusterId), {
@@ -150,11 +152,6 @@ class LabeledRegionsLayer {
     if (this.isVisible) {
       this.render();
     }
-  }
-
-  extractKValue(segmentationKey) {
-    const match = segmentationKey.match(/k(\d+)/);
-    return match ? parseInt(match[1]) : 0;
   }
 
   getDisplayPathForLandUse(landUsePath) {
