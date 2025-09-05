@@ -2,7 +2,7 @@ import { DataLoader } from "./data-loader.js";
 import { MapManager } from "./map.js";
 import { AnimationController } from "./animation.js";
 import { LegendPanel } from "./legend.js";
-import { LabeledRegionsLayer } from "./labeled-regions.js";
+import { LabeledCompositeLayer } from "./labeled-composite.js";
 import { extractKValue, STORAGE_KEYS } from "./utils.js";
 
 class ClusterViewer {
@@ -13,7 +13,7 @@ class ClusterViewer {
     this.legendPanel = null;
     this.isInitialized = false;
     this.currentClusterData = null;
-    this.labeledRegionsLayer = null;
+    this.labeledLayer = null;
   }
 
   async initialize() {
@@ -33,16 +33,11 @@ class ClusterViewer {
       this.setupKeyboardShortcuts();
       await this.mapManager.initialize();
       this.isInitialized = true;
-      this.labeledRegionsLayer = new LabeledRegionsLayer(
+      this.labeledLayer = new LabeledCompositeLayer(
         this.legendPanel.hierarchyData,
         this.mapManager
       );
-      this.legendPanel.setLabeledRegionsLayer(this.labeledRegionsLayer);
-      this.mapManager.addOverlayLayer(
-        "Labeled Regions",
-        this.labeledRegionsLayer.layerGroup,
-        false
-      );
+      this.legendPanel.setLabeledLayer(this.labeledLayer);
       console.log("✅ Labeled regions layer initialized");
       console.log("✅ Cluster Viewer initialized");
     } catch (error) {
@@ -271,8 +266,8 @@ class ClusterViewer {
       console.log("✅ Initial frame displayed with saved labels");
       setTimeout(() => this.switchToLegendPanel(), 500);
     }, 100);
-    if (this.labeledRegionsLayer && this.legendPanel.hierarchyData) {
-      this.labeledRegionsLayer.hierarchyData = this.legendPanel.hierarchyData;
+    if (this.labeledLayer && this.legendPanel.hierarchyData) {
+      this.labeledLayer.hierarchyData = this.legendPanel.hierarchyData;
     }
     this.showLoading(false);
     console.log("✅ Data loading complete");
@@ -382,8 +377,8 @@ class ClusterViewer {
     const currentSegmentationKey = this.getCurrentSegmentationKey();
     const currentLabels = allLabels[currentSegmentationKey] || {};
     this.mapManager.updateClusterLabels(currentLabels, currentSegmentationKey);
-    if (this.labeledRegionsLayer) {
-      this.labeledRegionsLayer.updateLabels(
+    if (this.labeledLayer) {
+      this.labeledLayer.updateLabels(
         currentLabels,
         currentSegmentationKey
       );

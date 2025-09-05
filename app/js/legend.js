@@ -11,7 +11,7 @@ class LegendPanel {
     this.currentSegmentationKey = null;
     this.clusterColors = new Map();
     this.onLabelsChanged = null;
-    this.labeledRegionsLayer = null;
+    this.labeledLayer = null;
     this.initializePanel();
     this.loadHierarchyData();
   }
@@ -351,8 +351,8 @@ class LegendPanel {
   }
 
   toggleLabeledRegions(visible) {
-    if (this.labeledRegionsLayer) {
-      this.labeledRegionsLayer.setVisible(visible);
+    if (this.labeledLayer) {
+      this.labeledLayer.setVisible(visible);
       const opacityControl = document.getElementById(
         "labeled-regions-opacity-control"
       );
@@ -363,8 +363,8 @@ class LegendPanel {
   }
 
   setLabeledRegionsOpacity(opacity) {
-    if (this.labeledRegionsLayer) {
-      this.labeledRegionsLayer.setOpacity(opacity);
+    if (this.labeledLayer) {
+      this.labeledLayer.setOpacity(opacity);
       document.getElementById(
         "labeled-regions-opacity-value"
       ).textContent = `${Math.round(opacity * 100)}%`;
@@ -373,8 +373,8 @@ class LegendPanel {
     }
   }
 
-  setLabeledRegionsLayer(layer) {
-    this.labeledRegionsLayer = layer;
+  setLabeledLayer(layer) {
+    this.labeledLayer = layer;
     const savedVisible =
       localStorage.getItem(STORAGE_KEYS.LABELED_REGIONS_VISIBLE) === "true";
     const savedOpacity =
