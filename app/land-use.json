@@ -30,6 +30,10 @@
         "_color": "#DDA0DD",
         "_description": "Cashew plantations"
       },
+      "casuarina": {
+        "_color": "#8B7D6B",
+        "_description": "Casuarina plantations"
+      },
       "mixed_fruit": {
         "_color": "#98FB98",
         "_description": "Polyculture orchards"
