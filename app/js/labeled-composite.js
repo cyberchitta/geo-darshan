@@ -11,6 +11,7 @@ class LabeledCompositeLayer {
     this.compositeLayer = null;
     this.isVisible = false;
     this.opacity = 0.7;
+    this.needsRegeneration = false;
     this.layerGroup = L.layerGroup();
     this.layerGroup.addTo(this.mapManager.map);
     this.mapManager.addOverlayLayer("Labeled Regions", this.layerGroup, false);
@@ -27,6 +28,7 @@ class LabeledCompositeLayer {
     overlays.forEach((overlay) => {
       this.overlayData.set(overlay.segmentationKey, overlay);
     });
+    this.needsRegeneration = true;
     console.log(`Loaded ${overlays.length} segmentations for composite`);
   }
 
@@ -39,6 +41,7 @@ class LabeledCompositeLayer {
       });
       this.allLabels.set(segmentationKey, labelMap);
     });
+    this.needsRegeneration = true;
     console.log(`Updated labels for ${this.allLabels.size} segmentations`);
     if (this.isVisible && this.overlayData.size > 0) {
       this.regenerateComposite();
@@ -67,11 +70,7 @@ class LabeledCompositeLayer {
         }
       );
       this.layerGroup.addLayer(this.compositeLayer);
-      setTimeout(() => {
-        if (this.compositeLayer && this.isVisible) {
-          this.compositeLayer.setOpacity(this.opacity);
-        }
-      }, 10);
+      this.needsRegeneration = false;
       const endTime = performance.now();
       console.log(
         `✅ Composite generated in ${(endTime - startTime).toFixed(2)}ms`
@@ -131,7 +130,7 @@ class LabeledCompositeLayer {
     const segmentationIds = await bestSegmentationIds.array();
     this.compositeSegmentationMap = segmentationIds;
     this.compositeSegmentations = segmentations;
-   const compositeGeoRaster = {
+    const compositeGeoRaster = {
       ...refGeoRaster,
       values: [compositeData],
       numberOfRasters: 1,
@@ -195,14 +194,14 @@ class LabeledCompositeLayer {
     return "rgba(128,128,128,0.8)";
   }
 
-  setVisible(visible) {
+  async setVisible(visible) {
     this.isVisible = visible;
+    if (visible && this.needsRegeneration && this.overlayData.size > 0) {
+      console.log("Regenerating composite for visibility...");
+      await this.regenerateComposite();
+    }
     if (this.compositeLayer) {
-      if (visible) {
-        this.compositeLayer.setOpacity(this.opacity);
-      } else {
-        this.compositeLayer.setOpacity(0);
-      }
+      this.compositeLayer.setOpacity(visible ? this.opacity : 0);
     }
     console.log(`Labeled composite layer ${visible ? "enabled" : "disabled"}`);
   }
