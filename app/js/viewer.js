@@ -46,39 +46,6 @@ class ClusterViewer {
   }
 
   setupEventListeners() {
-    document.getElementById("load-data-btn").addEventListener("click", () => {
-      document.getElementById("file-input").click();
-    });
-    document.getElementById("file-input").addEventListener("change", (e) => {
-      this.handleFileSelect(e.target.files);
-    });
-    document.getElementById("play-pause").addEventListener("click", () => {
-      if (this.animationController.canPlay()) {
-        this.animationController.togglePlayPause();
-      }
-    });
-    document.getElementById("step-back").addEventListener("click", () => {
-      this.animationController.stepBack();
-    });
-    document.getElementById("step-forward").addEventListener("click", () => {
-      this.animationController.stepForward();
-    });
-    document.getElementById("speed-slider").addEventListener("input", (e) => {
-      const speed = parseFloat(e.target.value);
-      this.animationController.setSpeed(speed);
-      document.getElementById("speed-value").textContent = `${speed}x`;
-    });
-    document.getElementById("k-slider").addEventListener("input", (e) => {
-      const frameIndex = parseInt(e.target.value);
-      this.animationController.goToFrame(frameIndex);
-    });
-    document.getElementById("opacity-slider").addEventListener("input", (e) => {
-      const opacity = parseFloat(e.target.value);
-      this.mapManager.setOverlayOpacity(opacity);
-      document.getElementById("opacity-value").textContent = `${Math.round(
-        opacity * 100
-      )}%`;
-    });
     this.animationController.on(
       "frameChanged",
       (frameIndex, segmentationKey) => {
@@ -102,7 +69,7 @@ class ClusterViewer {
       console.log(`Animation ready with ${frameCount} frames`);
     });
     this.dataLoader.on("loadProgress", (loaded, total) => {
-      this.updateLoadingProgress(loaded, total);
+      this.legendPanel.updateLoadingProgress(loaded, total);
     });
     this.dataLoader.on("loadComplete", (manifest, overlays) => {
       this.handleDataLoaded(manifest, overlays);
@@ -110,124 +77,96 @@ class ClusterViewer {
     this.dataLoader.on("loadError", (error) => {
       this.handleLoadError(error);
     });
-    this.setupTabSwitching();
-    this.setupDatasetInfoCollapse();
-    document.getElementById("clear-data-btn").addEventListener("click", () => {
-      this.clearData();
-    });
     this.mapManager.on("clusterClicked", (clusterValue, latlng) => {
       this.handleClusterClicked(clusterValue, latlng);
     });
     this.mapManager.on("backgroundClicked", (latlng) => {
       this.handleBackgroundClicked(latlng);
     });
-    this.legendPanel.onClusterSelected = (clusterId) => {
-      this.handleLegendClusterSelected(clusterId);
-    };
-    this.legendPanel.onLabelsChanged = (labels) => {
-      this.onLabelsChanged(labels);
-    };
-  }
-
-  updateDetailedInfo(info) {
-    document.getElementById("loading-status").textContent = `Frame ${
-      info.index + 1
-    }/${info.total} (${info.progress.toFixed(1)}%)`;
-  }
-
-  updateControlStates(isPlaying) {
-    const canStep = this.animationController.canStepBack();
-    const canPlay = this.animationController.canPlay();
-    document.getElementById("step-back").disabled = !canStep || isPlaying;
-    document.getElementById("step-forward").disabled = !canStep || isPlaying;
-    document.getElementById("play-pause").disabled = !canPlay;
-    document.getElementById("k-slider").disabled = isPlaying;
-  }
-
-  setupTabSwitching() {
-    const tabs = document.querySelectorAll(".panel-tab");
-    const panels = document.querySelectorAll(".tab-panel");
-    tabs.forEach((tab) => {
-      tab.addEventListener("click", () => {
-        const panelId = tab.dataset.panel;
-        tabs.forEach((t) => t.classList.remove("active"));
-        tab.classList.add("active");
-        panels.forEach((p) => p.classList.remove("active"));
-        document.getElementById(`${panelId}-panel`).classList.add("active");
-        localStorage.setItem(STORAGE_KEYS.ACTIVE_PANEL, panelId);
-        console.log(`Switched to ${panelId} panel`);
-      });
+    this.legendPanel.on("animationLayerToggle", (visible) => {
+      this.handleAnimationLayerToggle(visible);
     });
-    const savedPanel = localStorage.getItem(STORAGE_KEYS.ACTIVE_PANEL);
-    const hasData = this.currentClusterData !== null;
-    let initialPanel;
-    if (hasData && savedPanel && ["legend", "data"].includes(savedPanel)) {
-      initialPanel = savedPanel;
-    } else if (hasData) {
-      initialPanel = "legend";
-    } else {
-      initialPanel = "data";
-    }
-    const tab = document.querySelector(`[data-panel="${initialPanel}"]`);
-    if (tab) tab.click();
-  }
-
-  setupDatasetInfoCollapse() {
-    const toggle = document.getElementById("dataset-info-toggle");
-    const content = document.getElementById("dataset-info-content");
-    toggle.addEventListener("click", () => {
-      const isCollapsed = toggle.classList.toggle("collapsed");
-      content.classList.toggle("collapsed", isCollapsed);
-      localStorage.setItem(STORAGE_KEYS.DATASET_INFO_COLLAPSED, isCollapsed);
+    this.legendPanel.on("animationOpacityChange", (opacity) => {
+      this.mapManager.setOverlayOpacity(opacity);
     });
-    const isCollapsed =
-      localStorage.getItem(STORAGE_KEYS.DATASET_INFO_COLLAPSED) !== "false";
-    if (isCollapsed) {
-      toggle.classList.add("collapsed");
-      content.classList.add("collapsed");
-    }
-  }
-
-  switchToDataPanel() {
-    const dataTab = document.querySelector("[data-panel=\"data\"]");
-    if (dataTab) dataTab.click();
-  }
-
-  switchToLegendPanel() {
-    const legendTab = document.querySelector("[data-panel=\"legend\"]");
-    if (legendTab) legendTab.click();
-  }
-
-  clearData() {
-    if (!confirm("Clear all loaded data? This will reset the viewer.")) return;
-    this.animationController.destroy();
-    this.mapManager.clearOverlays();
-    this.currentClusterData = null;
-    document.getElementById("data-status").textContent = "No data loaded";
-    document.getElementById("data-bounds").textContent = "";
-    document.getElementById("data-shape").textContent = "";
-    document.getElementById("loading-status").textContent = "";
-    document.getElementById("current-k").textContent = "--";
-    document.getElementById("legend-clusters").innerHTML =
-      "<div class=\"legend-placeholder\">Load cluster data to see legend</div>";
-    document.getElementById("k-slider").value = 0;
-    this.updateControlStates(false);
-    console.log("✅ Data cleared");
-  }
-
-  setupKeyboardShortcuts() {
-    document.addEventListener("keydown", (e) => {
-      if (e.code === "Space") {
-        e.preventDefault();
-        this.animationController.togglePlayPause();
-      } else if (e.code === "ArrowLeft") {
-        e.preventDefault();
-        this.animationController.stepBack();
-      } else if (e.code === "ArrowRight") {
-        e.preventDefault();
-        this.animationController.stepForward();
+    this.legendPanel.on("labeledRegionsToggle", (visible) => {
+      this.handleLabeledRegionsToggle(visible);
+    });
+    this.legendPanel.on("labeledRegionsOpacityChange", (opacity) => {
+      if (this.labeledLayer) {
+        this.labeledLayer.setOpacity(opacity);
       }
     });
+    this.legendPanel.on("hierarchyLevelChange", (level) => {
+      if (this.labeledLayer) {
+        this.labeledLayer.setHierarchyLevel(level);
+      }
+    });
+    this.legendPanel.on("fileSelect", (files) => {
+      this.handleFileSelect(files);
+    });
+    this.legendPanel.on("clearData", () => {
+      this.clearData();
+    });
+    document.getElementById("play-pause").addEventListener("click", () => {
+      if (this.animationController.canPlay()) {
+        this.animationController.togglePlayPause();
+      }
+    });
+    document.getElementById("step-back").addEventListener("click", () => {
+      this.animationController.stepBack();
+    });
+    document.getElementById("step-forward").addEventListener("click", () => {
+      this.animationController.stepForward();
+    });
+    document.getElementById("speed-slider").addEventListener("input", (e) => {
+      const speed = parseFloat(e.target.value);
+      this.animationController.setSpeed(speed);
+      document.getElementById("speed-value").textContent = `${speed}x`;
+    });
+    document.getElementById("k-slider").addEventListener("input", (e) => {
+      const frameIndex = parseInt(e.target.value);
+      this.animationController.goToFrame(frameIndex);
+    });
+  }
+
+  handleAnimationLayerToggle(visible) {
+    if (this.mapManager.animationLayerGroup) {
+      if (visible) {
+        if (
+          !this.mapManager.map.hasLayer(this.mapManager.animationLayerGroup)
+        ) {
+          this.mapManager.animationLayerGroup.addTo(this.mapManager.map);
+        }
+      } else {
+        if (this.mapManager.map.hasLayer(this.mapManager.animationLayerGroup)) {
+          this.mapManager.map.removeLayer(this.mapManager.animationLayerGroup);
+        }
+      }
+    }
+    console.log(`Animation layer ${visible ? "enabled" : "disabled"}`);
+  }
+
+  handleLabeledRegionsToggle(visible) {
+    if (this.labeledLayer) {
+      if (
+        visible &&
+        this.labeledLayer.overlayData.size > 0 &&
+        this.labeledLayer.allLabels.size > 0
+      ) {
+        this.labeledLayer
+          .regenerateComposite()
+          .then(() => {
+            this.labeledLayer.setVisible(visible);
+          })
+          .catch((error) => {
+            console.error("Failed to generate labeled composite:", error);
+          });
+      } else {
+        this.labeledLayer.setVisible(visible);
+      }
+    }
+    console.log(`Labeled regions layer ${visible ? "enabled" : "disabled"}`);
   }
 
   async handleFileSelect(files) {
@@ -236,7 +175,7 @@ class ClusterViewer {
       return;
     }
     try {
-      this.switchToDataPanel();
+      this.legendPanel.switchToTab("data");
       this.showLoading(true);
       await this.dataLoader.loadFromFolder(files);
     } catch (error) {
@@ -260,7 +199,7 @@ class ClusterViewer {
       this.mapManager.map.whenReady(() => resolve());
     });
     this.animationController.setFrames(manifest.segmentation_keys, overlays);
-    this.updateDataInfo(manifest);
+    this.legendPanel.updateDataInfo(manifest);
     this.setupSliders(manifest.segmentation_keys);
     setTimeout(async () => {
       await this.loadSavedLabels();
@@ -270,13 +209,66 @@ class ClusterViewer {
       if (Object.keys(allLabels).length > 0 && this.labeledLayer) {
         this.labeledLayer.updateLabels(allLabels);
       }
-      setTimeout(() => this.switchToLegendPanel(), 500);
+      setTimeout(() => this.legendPanel.switchToTab("clusters"), 500);
     }, 100);
-    if (this.labeledLayer && this.legendPanel.hierarchyData) {
-      this.labeledLayer.hierarchyData = this.legendPanel.hierarchyData;
-    }
     this.showLoading(false);
     console.log("✅ Data loading complete");
+  }
+
+  handleLoadError(error) {
+    console.error("Load error:", error);
+    this.showError(`Failed to load data: ${error.message}`);
+    this.showLoading(false);
+  }
+
+  clearData() {
+    if (!confirm("Clear all loaded data? This will reset the viewer.")) return;
+    this.animationController.destroy();
+    this.mapManager.clearOverlays();
+    this.currentClusterData = null;
+    this.legendPanel.clearDataDisplay();
+    document.getElementById("current-k").textContent = "--";
+    document.getElementById("k-slider").value = 0;
+    this.updateControlStates(false);
+    console.log("✅ Data cleared");
+  }
+
+  updateDetailedInfo(info) {
+    // This might need to be moved to appropriate renderer or removed
+    const statusElement = document.getElementById("loading-status");
+    if (statusElement) {
+      statusElement.textContent = `Frame ${info.index + 1}/${
+        info.total
+      } (${info.progress.toFixed(1)}%)`;
+    }
+  }
+
+  updateControlStates(isPlaying) {
+    const canStep = this.animationController.canStepBack();
+    const canPlay = this.animationController.canPlay();
+    const stepBackBtn = document.getElementById("step-back");
+    const stepForwardBtn = document.getElementById("step-forward");
+    const playBtn = document.getElementById("play-pause");
+    const kSlider = document.getElementById("k-slider");
+    if (stepBackBtn) stepBackBtn.disabled = !canStep || isPlaying;
+    if (stepForwardBtn) stepForwardBtn.disabled = !canStep || isPlaying;
+    if (playBtn) playBtn.disabled = !canPlay;
+    if (kSlider) kSlider.disabled = isPlaying;
+  }
+
+  setupKeyboardShortcuts() {
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        this.animationController.togglePlayPause();
+      } else if (e.code === "ArrowLeft") {
+        e.preventDefault();
+        this.animationController.stepBack();
+      } else if (e.code === "ArrowRight") {
+        e.preventDefault();
+        this.animationController.stepForward();
+      }
+    });
   }
 
   handleClusterClicked(clusterValue, latlng) {
@@ -299,7 +291,6 @@ class ClusterViewer {
   handleLegendClusterSelected(clusterId) {
     console.log(`Legend selection: cluster ${clusterId}`);
     // TODO: Highlight cluster on map (next phase)
-    // this.mapManager.highlightCluster(clusterId);
   }
 
   showClickFeedback(latlng) {
@@ -411,60 +402,39 @@ class ClusterViewer {
     return frameInfo.segmentationKey;
   }
 
-  handleLoadError(error) {
-    console.error("Load error:", error);
-    this.showError(`Failed to load data: ${error.message}`);
-    this.showLoading(false);
-  }
-
   updateUI(frameIndex, segmentationKey) {
     const numericK = extractKValue(segmentationKey);
-    document.getElementById("current-k").textContent = numericK;
-    document.getElementById("k-slider").value = frameIndex;
+    const currentKElement = document.getElementById("current-k");
+    const kSliderElement = document.getElementById("k-slider");
+    if (currentKElement) currentKElement.textContent = numericK;
+    if (kSliderElement) kSliderElement.value = frameIndex;
   }
 
   updatePlayButton(isPlaying) {
     const btn = document.getElementById("play-pause");
-    btn.textContent = isPlaying ? "⏸" : "▶";
-    btn.title = isPlaying ? "Pause (Space)" : "Play (Space)";
-  }
-
-  updateDataInfo(manifest) {
-    const { metadata, segmentation_keys } = manifest;
-    document.getElementById(
-      "data-status"
-    ).textContent = `${segmentation_keys.length} frames loaded`;
-    document.getElementById(
-      "data-bounds"
-    ).textContent = `Bounds: ${metadata.bounds
-      .map((b) => b.toFixed(6))
-      .join(", ")}`;
-    document.getElementById(
-      "data-shape"
-    ).textContent = `Shape: ${metadata.shape.join(" × ")}`;
+    if (btn) {
+      btn.textContent = isPlaying ? "⏸" : "▶";
+      btn.title = isPlaying ? "Pause (Space)" : "Play (Space)";
+    }
   }
 
   setupSliders(segmentationKeys) {
     const slider = document.getElementById("k-slider");
-    slider.min = 0;
-    slider.max = segmentationKeys.length - 1;
-    slider.value = 0;
-  }
-
-  updateLoadingProgress(loaded, total) {
-    const percent = (loaded / total) * 100;
-    document.getElementById("progress-fill").style.width = `${percent}%`;
-    document.getElementById(
-      "loading-status"
-    ).textContent = `Loading ${loaded}/${total} files...`;
+    if (slider) {
+      slider.min = 0;
+      slider.max = segmentationKeys.length - 1;
+      slider.value = 0;
+    }
   }
 
   showLoading(show) {
     const overlay = document.getElementById("loading-overlay");
-    if (show) {
-      overlay.classList.remove("hidden");
-    } else {
-      overlay.classList.add("hidden");
+    if (overlay) {
+      if (show) {
+        overlay.classList.remove("hidden");
+      } else {
+        overlay.classList.add("hidden");
+      }
     }
   }
 

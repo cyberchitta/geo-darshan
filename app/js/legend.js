@@ -1,473 +1,177 @@
-import { LandUseDropdown } from "./land-use-hierarchy.js";
-import {
-  convertToGrayscale,
-  rgbStringToObject,
-  STORAGE_KEYS,
-} from "./utils.js";
+import { ClusterLegendRenderer } from "./cluster-legend-renderer.js";
+import { DataSectionRenderer } from "./data-section-renderer.js";
+import { LandUseLegendRenderer } from "./land-use-legend-renderer.js";
+import { STORAGE_KEYS } from "./utils.js";
 
 class LegendPanel {
   constructor(containerId) {
     this.containerId = containerId;
     this.container = document.getElementById(containerId);
-    this.hierarchyData = null;
-    this.clusterDropdowns = new Map();
-    this.clusterLabelsBySegmentation = new Map(); // segmentationKey -> Map(clusterId -> label)
-    this.currentSegmentationKey = null;
-    this.clusterColors = new Map();
-    this.onLabelsChanged = null;
-    this.labeledLayer = null;
-    this.initializePanel();
+    this.activeTab = "clusters";
+    this.clusterRenderer = new ClusterLegendRenderer("cluster-panel");
+    this.landUseRenderer = new LandUseLegendRenderer("landuse-panel");
+    this.dataRenderer = new DataSectionRenderer("data-panel");
+    this.setupRenderers();
+    this.render();
     this.loadHierarchyData();
+  }
+
+  render() {
+    this.container.innerHTML = `
+        <div class="panel-tabs">
+          <button class="panel-tab active" data-panel="clusters">Clusters</button>
+          <button class="panel-tab" data-panel="landuse">Land Use</button>
+          <button class="panel-tab" data-panel="data">Data</button>
+        </div>
+        <div class="panel-content">
+          <div id="cluster-panel" class="tab-panel active"></div>
+          <div id="landuse-panel" class="tab-panel"></div>
+          <div id="data-panel" class="tab-panel"></div>
+        </div>
+    `;
+    this.setupTabSwitching();
+    this.clusterRenderer.render();
+    this.landUseRenderer.render();
+    this.dataRenderer.render();
+    this.switchToTab("clusters");
+  }
+
+  setupRenderers() {
+    this.clusterRenderer.on("labelsChanged", (labels) => {
+      if (this.onLabelsChanged) this.onLabelsChanged(labels);
+    });
+    this.clusterRenderer.on("clusterSelected", (clusterId) => {
+      if (this.onClusterSelected) this.onClusterSelected(clusterId);
+    });
+    this.clusterRenderer.on("animationLayerToggle", (visible) => {
+      this.emit("animationLayerToggle", visible);
+    });
+    this.clusterRenderer.on("animationOpacityChange", (opacity) => {
+      this.emit("animationOpacityChange", opacity);
+    });
+    this.landUseRenderer.on("labeledRegionsToggle", (visible) => {
+      this.emit("labeledRegionsToggle", visible);
+    });
+    this.landUseRenderer.on("labeledRegionsOpacityChange", (opacity) => {
+      this.emit("labeledRegionsOpacityChange", opacity);
+    });
+    this.landUseRenderer.on("hierarchyLevelChange", (level) => {
+      this.emit("hierarchyLevelChange", level);
+    });
+    this.dataRenderer.on("fileSelect", (files) => {
+      this.emit("fileSelect", files);
+    });
+    this.dataRenderer.on("clearData", () => {
+      this.emit("clearData");
+    });
+  }
+
+  setupTabSwitching() {
+    const tabs = this.container.querySelectorAll(".panel-tab");
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const panelId = tab.dataset.panel;
+        this.switchToTab(panelId);
+      });
+    });
+  }
+
+  switchToTab(tabName) {
+    if (this.activeTab === tabName) return;
+    const tabs = this.container.querySelectorAll(".panel-tab");
+    tabs.forEach((tab) => {
+      tab.classList.toggle("active", tab.dataset.panel === tabName);
+    });
+    const panels = this.container.querySelectorAll(".tab-panel");
+    panels.forEach((panel) => {
+      panel.classList.remove("active");
+    });
+    const activePanel = this.container.querySelector(`#${tabName}-panel`);
+    if (activePanel) {
+      activePanel.classList.add("active");
+    }
+    this.clusterRenderer.setVisible(tabName === "clusters");
+    this.landUseRenderer.setVisible(tabName === "landuse");
+    this.dataRenderer.setVisible(tabName === "data");
+    this.activeTab = tabName;
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_PANEL, tabName);
+    console.log(`Switched to ${tabName} tab`);
   }
 
   async loadHierarchyData() {
     try {
       const response = await fetch("land-use.json");
-      this.hierarchyData = await response.json();
-      console.log("✅ Loaded land use hierarchy");
-      if (this.labeledLayer) {
-        this.labeledLayer.setLandUseHierarchy(this.hierarchyData);
-      }
+      const hierarchyData = await response.json();
+      this.clusterRenderer.setHierarchyData(hierarchyData);
+      this.landUseRenderer.setHierarchyData(hierarchyData);
+      console.log("✅ Loaded land use hierarchy for all renderers");
     } catch (error) {
       console.error("Failed to load land-use.json:", error);
     }
   }
 
-  initializePanel() {
-    this.container.innerHTML = `
-      <div class="legend-header">
-        <h3>Cluster Legend</h3>
-        <div class="legend-stats">
-          <span id="legend-progress">0 of 0 labeled</span>
-        </div>
-      </div>
-      <div class="legend-controls">
-        <button id="save-labels-btn" class="legend-btn">Save Labels</button>
-        <button id="load-labels-btn" class="legend-btn">Load Labels</button>
-        <input type="file" id="load-labels-input" accept=".json" style="display: none;">
-        <button id="clear-labels-btn" class="legend-btn secondary">Clear All</button>
-      </div>
-      <div class="labeled-regions-controls">
-        <div class="layer-control-group">
-          <label class="layer-toggle">
-            <input type="checkbox" id="labeled-regions-toggle">
-            <span class="toggle-slider"></span>
-            Show Labeled Regions
-          </label>
-          <div class="hierarchy-control" id="hierarchy-control" style="display: none;">
-            <label for="hierarchy-level">Detail Level:</label>
-            <input type="range" id="hierarchy-level" min="1" max="4" step="1" value="1">
-            <span id="hierarchy-level-label">Broad Categories</span>
-          </div>
-          <div class="opacity-control" id="labeled-regions-opacity-control" style="display: none;">
-            <label for="labeled-regions-opacity">Opacity:</label>
-            <input type="range" id="labeled-regions-opacity" min="0" max="1" step="0.1" value="0.7">
-            <span id="labeled-regions-opacity-value">70%</span>
-          </div>
-        </div>
-      </div>
-      <div id="legend-clusters" class="legend-clusters-container">
-        <div class="legend-placeholder">Load cluster data to see legend</div>
-      </div>
-  `;
-    this.setupEventListeners();
-  }
-
-  setupEventListeners() {
-    document.getElementById("save-labels-btn").addEventListener("click", () => {
-      this.saveLabels();
-    });
-    document.getElementById("load-labels-btn").addEventListener("click", () => {
-      document.getElementById("load-labels-input").click();
-    });
-    document
-      .getElementById("load-labels-input")
-      .addEventListener("change", (e) => {
-        this.loadLabels(e.target.files[0]);
-      });
-    document
-      .getElementById("clear-labels-btn")
-      .addEventListener("click", () => {
-        this.clearAllLabels();
-      });
-    document
-      .getElementById("labeled-regions-toggle")
-      .addEventListener("change", (e) => {
-        this.toggleLabeledRegions(e.target.checked);
-      });
-    document
-      .getElementById("labeled-regions-opacity")
-      .addEventListener("input", (e) => {
-        const opacity = parseFloat(e.target.value);
-        this.setLabeledRegionsOpacity(opacity);
-      });
-    document
-      .getElementById("hierarchy-level")
-      .addEventListener("input", (e) => {
-        const level = parseInt(e.target.value);
-        this.setHierarchyLevel(level);
-      });
-  }
-
   updateClusters(clusterData, clusterColors) {
-    if (!this.hierarchyData) {
-      console.warn("Hierarchy data not loaded yet");
-      return;
-    }
-    this.clusterColors = new Map(clusterColors);
-    const clustersContainer = document.getElementById("legend-clusters");
-    clustersContainer.innerHTML = "";
-    this.clusterDropdowns.clear();
-    const sortedClusters = [...clusterData].sort((a, b) => a.id - b.id);
-    sortedClusters.forEach((cluster) => {
-      const clusterItem = this.createClusterItem(cluster);
-      clustersContainer.appendChild(clusterItem);
-    });
-    this.updateProgressStats();
+    this.clusterRenderer.updateClusters(clusterData, clusterColors);
   }
 
-  createClusterItem(cluster) {
-    const item = document.createElement("div");
-    item.className = "legend-cluster-item";
-    item.dataset.clusterId = cluster.id;
-    const currentLabels = this.currentSegmentationKey
-      ? this.clusterLabelsBySegmentation.get(this.currentSegmentationKey)
-      : null;
-    const hasLabel =
-      currentLabels &&
-      currentLabels.has(cluster.id) &&
-      currentLabels.get(cluster.id) !== "unlabeled";
-    if (hasLabel) {
-      item.classList.add("labeled");
-    }
-    item.innerHTML = `
-    <div class="cluster-info">
-      <div class="cluster-color-swatch" style="background-color: ${
-        this.clusterColors.get(cluster.id) || "#ccc"
-      }"></div>
-      <span class="cluster-id">Cluster ${cluster.id}</span>
-      <span class="cluster-stats">(${cluster.pixelCount || 0} pixels)</span>
-    </div>
-    <div class="cluster-dropdown-container" id="cluster-dropdown-${
-      cluster.id
-    }"></div>
-  `;
-    item.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this.selectCluster(cluster.id);
-    });
-    const dropdown = new LandUseDropdown(
-      cluster.id,
-      this.hierarchyData,
-      (clusterId, selectedOption) =>
-        this.onClusterLabeled(clusterId, selectedOption)
-    );
-    const dropdownContainer = item.querySelector(
-      `#cluster-dropdown-${cluster.id}`
-    );
-    dropdownContainer.appendChild(dropdown.element);
-    this.clusterDropdowns.set(cluster.id, dropdown);
-    if (currentLabels && currentLabels.has(cluster.id)) {
-      dropdown.setSelection(currentLabels.get(cluster.id));
-    } else {
-      dropdown.setSelection("unlabeled");
-    }
-    return item;
-  }
-
-  onClusterLabeled(clusterId, selectedOption) {
-    if (!this.currentSegmentationKey) {
-      console.warn("No current segmentation key set");
-      return;
-    }
-    const currentLabels = this.clusterLabelsBySegmentation.get(
-      this.currentSegmentationKey
-    );
-    currentLabels.set(clusterId, selectedOption.path);
-    this.updateClusterItemAppearance(clusterId, selectedOption.path);
-    this.updateProgressStats();
-    if (this.onLabelsChanged) {
-      this.onLabelsChanged(this.getAllLabelsAsObject());
-    }
-    console.log(
-      `Cluster ${clusterId} in ${this.currentSegmentationKey} labeled as: ${selectedOption.displayPath}`
-    );
-  }
-
-  updateClusterItemAppearance(clusterId, label) {
-    const clusterItem = this.container.querySelector(
-      `[data-cluster-id="${clusterId}"]`
-    );
-    if (clusterItem) {
-      const colorSwatch = clusterItem.querySelector(".cluster-color-swatch");
-      const originalColor = this.clusterColors.get(clusterId);
-      if (label !== "unlabeled") {
-        clusterItem.classList.add("labeled");
-        if (originalColor && colorSwatch) {
-          const colorObj = rgbStringToObject(originalColor);
-          if (colorObj) {
-            const grayColor = convertToGrayscale(colorObj);
-            colorSwatch.style.backgroundColor = `rgb(${grayColor.r}, ${grayColor.g}, ${grayColor.b})`;
-          }
-        }
-      } else {
-        clusterItem.classList.remove("labeled");
-        if (originalColor && colorSwatch) {
-          colorSwatch.style.backgroundColor = originalColor;
-        }
-      }
-    }
-  }
-
-  updateProgressStats() {
-    if (!this.currentSegmentationKey) return;
-    const total = this.clusterDropdowns.size;
-    const currentLabels = this.clusterLabelsBySegmentation.get(
-      this.currentSegmentationKey
-    );
-    const labeled = currentLabels
-      ? Array.from(currentLabels.values()).filter(
-          (label) => label !== "unlabeled"
-        ).length
-      : 0;
-    document.getElementById(
-      "legend-progress"
-    ).textContent = `${labeled} of ${total} labeled`;
-  }
-
-  getLabelsAsObject() {
-    if (!this.currentSegmentationKey) return {};
-    const currentLabels = this.clusterLabelsBySegmentation.get(
-      this.currentSegmentationKey
-    );
-    if (!currentLabels) return {};
-    const labels = {};
-    currentLabels.forEach((path, clusterId) => {
-      if (path !== "unlabeled") {
-        labels[clusterId] = path;
-      }
-    });
-    return labels;
-  }
-
-  getAllLabelsAsObject() {
-    const allLabels = {};
-    this.clusterLabelsBySegmentation.forEach((labelsMap, segmentationKey) => {
-      const segmentationLabels = {};
-      labelsMap.forEach((path, clusterId) => {
-        if (path !== "unlabeled") {
-          segmentationLabels[clusterId] = path;
-        }
-      });
-      if (Object.keys(segmentationLabels).length > 0) {
-        allLabels[segmentationKey] = segmentationLabels;
-      }
-    });
-    return allLabels;
-  }
-
-  saveLabels() {
-    const allLabels = this.getAllLabelsAsObject();
-    const dataStr = JSON.stringify(allLabels, null, 2);
-    const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(dataBlob);
-    link.download = `cluster-labels-${
-      new Date().toISOString().split("T")[0]
-    }.json`;
-    link.click();
-    console.log("✅ Labels saved:", allLabels);
-  }
-
-  async loadLabels(file) {
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const allLabels = JSON.parse(text);
-      this.clusterLabelsBySegmentation.clear();
-      Object.entries(allLabels).forEach(([segmentationKey, labels]) => {
-        const labelsMap = new Map();
-        Object.entries(labels).forEach(([clusterId, path]) => {
-          labelsMap.set(parseInt(clusterId), path);
-        });
-        this.clusterLabelsBySegmentation.set(segmentationKey, labelsMap);
-      });
-      if (this.currentSegmentationKey) {
-        this.switchToSegmentation(this.currentSegmentationKey);
-      }
-      if (this.onLabelsChanged) {
-        this.onLabelsChanged(allLabels);
-      }
-      console.log("✅ Labels loaded:", allLabels);
-    } catch (error) {
-      console.error("Failed to load labels:", error);
-      alert("Failed to load labels file");
-    }
-  }
-
-  clearAllLabels() {
-    if (!confirm("Clear all cluster labels for ALL segmentations?")) return;
-    this.clusterLabelsBySegmentation.clear();
-    this.clusterDropdowns.forEach((dropdown, clusterId) => {
-      dropdown.setSelection("unlabeled");
-      this.updateClusterItemAppearance(clusterId, "unlabeled");
-    });
-    this.updateProgressStats();
-    if (this.onLabelsChanged) {
-      this.onLabelsChanged({});
-    }
-    console.log("✅ All labels cleared for all segmentations");
+  switchToSegmentation(segmentationKey) {
+    this.clusterRenderer.switchToSegmentation(segmentationKey);
   }
 
   selectCluster(clusterId) {
-    this.clearSelection();
-    const clusterItem = this.container.querySelector(
-      `[data-cluster-id="${clusterId}"]`
-    );
-    if (clusterItem) {
-      clusterItem.classList.add("selected");
-      this.selectedClusterId = clusterId;
-      clusterItem.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      this.backgroundOtherClusters(clusterId);
-      if (this.onClusterSelected) {
-        this.onClusterSelected(clusterId);
-      }
-      console.log(`Selected cluster ${clusterId} in legend`);
-    } else {
-      console.warn(`Cluster ${clusterId} not found in legend`);
+    this.clusterRenderer.selectCluster(clusterId);
+    if (this.activeTab !== "clusters") {
+      this.switchToTab("clusters");
     }
   }
 
   clearSelection() {
-    if (this.selectedClusterId) {
-      const selected = this.container.querySelector(
-        `[data-cluster-id="${this.selectedClusterId}"]`
-      );
-      if (selected) {
-        selected.classList.remove("selected");
-      }
-      this.selectedClusterId = null;
-    }
-    this.container.querySelectorAll(".legend-cluster-item").forEach((item) => {
-      item.classList.remove("backgrounded");
-    });
+    this.clusterRenderer.clearSelection();
   }
 
-  backgroundOtherClusters(selectedClusterId) {
-    this.container.querySelectorAll(".legend-cluster-item").forEach((item) => {
-      const clusterId = parseInt(item.dataset.clusterId);
-      if (clusterId !== selectedClusterId) {
-        item.classList.add("backgrounded");
-      }
-    });
+  getAllLabelsAsObject() {
+    return this.clusterRenderer.getAllLabelsAsObject();
   }
 
-  toggleLabeledRegions(visible) {
-    if (this.labeledLayer) {
-      if (
-        visible &&
-        this.labeledLayer.overlayData.size > 0 &&
-        this.labeledLayer.allLabels.size > 0
-      ) {
-        this.labeledLayer
-          .regenerateComposite()
-          .then(() => {
-            this.labeledLayer.setVisible(visible);
-          })
-          .catch((error) => {
-            console.error("Failed to generate labeled composite:", error);
-          });
-      } else {
-        this.labeledLayer.setVisible(visible);
-      }
-      const opacityControl = document.getElementById(
-        "labeled-regions-opacity-control"
-      );
-      const hierarchyControl = document.getElementById("hierarchy-control");
-      opacityControl.style.display = visible ? "flex" : "none";
-      hierarchyControl.style.display = visible ? "flex" : "none";
-      localStorage.setItem(
-        STORAGE_KEYS.LABELED_REGIONS_VISIBLE,
-        visible.toString()
-      );
-      console.log(`Labeled regions layer ${visible ? "enabled" : "disabled"}`);
-    }
-  }
-
-  setLabeledRegionsOpacity(opacity) {
-    if (this.labeledLayer) {
-      this.labeledLayer.setOpacity(opacity);
-      document.getElementById(
-        "labeled-regions-opacity-value"
-      ).textContent = `${Math.round(opacity * 100)}%`;
-      localStorage.setItem(
-        STORAGE_KEYS.LABELED_REGIONS_OPACITY,
-        opacity.toString()
-      );
-      console.log(`Labeled regions opacity set to ${opacity}`);
-    }
+  async loadLabels(file) {
+    return this.clusterRenderer.loadLabels(file);
   }
 
   setLabeledLayer(layer) {
-    this.labeledLayer = layer;
-    if (this.hierarchyData) {
-      this.labeledLayer.setLandUseHierarchy(this.hierarchyData);
+    this.landUseRenderer.setLabeledLayer(layer);
+  }
+
+  updateDataInfo(manifest) {
+    this.dataRenderer.updateDataInfo(manifest);
+  }
+
+  updateLoadingProgress(loaded, total) {
+    this.dataRenderer.updateLoadingProgress(loaded, total);
+  }
+
+  clearDataDisplay() {
+    this.dataRenderer.clearDataDisplay();
+  }
+
+  on(event, callback) {
+    if (!this.listeners) this.listeners = {};
+    if (!this.listeners[event]) {
+      this.listeners[event] = [];
     }
-    const savedVisible =
-      localStorage.getItem(STORAGE_KEYS.LABELED_REGIONS_VISIBLE) === "true";
-    const savedOpacity =
-      parseFloat(localStorage.getItem(STORAGE_KEYS.LABELED_REGIONS_OPACITY)) ||
-      0.7;
-    document.getElementById("labeled-regions-toggle").checked = savedVisible;
-    document.getElementById("labeled-regions-opacity").value = savedOpacity;
-    document.getElementById(
-      "labeled-regions-opacity-value"
-    ).textContent = `${Math.round(savedOpacity * 100)}%`;
-    const opacityControl = document.getElementById(
-      "labeled-regions-opacity-control"
-    );
-    const hierarchyControl = document.getElementById("hierarchy-control");
-    opacityControl.style.display = savedVisible ? "flex" : "none";
-    hierarchyControl.style.display = savedVisible ? "flex" : "none";
-    this.setLabeledRegionsOpacity(savedOpacity);
-    if (savedVisible) {
-      this.toggleLabeledRegions(true);
+    this.listeners[event].push(callback);
+  }
+
+  emit(event, ...args) {
+    if (!this.listeners) this.listeners = {};
+    if (this.listeners[event]) {
+      this.listeners[event].forEach((callback) => callback(...args));
     }
   }
 
-  switchToSegmentation(segmentationKey) {
-    if (this.currentSegmentationKey === segmentationKey) return;
-    this.currentSegmentationKey = segmentationKey;
-    if (!this.clusterLabelsBySegmentation.has(segmentationKey)) {
-      this.clusterLabelsBySegmentation.set(segmentationKey, new Map());
-    }
-    const currentLabels = this.clusterLabelsBySegmentation.get(segmentationKey);
-    this.clusterDropdowns.forEach((dropdown, clusterId) => {
-      const label = currentLabels.get(clusterId) || "unlabeled";
-      dropdown.setSelection(label);
-      this.updateClusterItemAppearance(clusterId, label);
-    });
-    this.updateProgressStats();
-    console.log(`Switched to segmentation: ${segmentationKey}`);
-  }
-
-  setHierarchyLevel(level) {
-    if (this.labeledLayer) {
-      this.labeledLayer.setHierarchyLevel(level);
-      this.updateHierarchyLevelLabel(level);
-      console.log(`Hierarchy level set to ${level}`);
-    }
-  }
-
-  updateHierarchyLevelLabel(level) {
-    const labels = {
-      1: "Broad Categories",
-      2: "Sub Categories",
-      3: "Detailed Types",
-      4: "Specific Varieties",
-    };
-    document.getElementById("hierarchy-level-label").textContent =
-      labels[level] || "Unknown";
+  destroy() {
+    this.clusterRenderer.destroy();
+    this.landUseRenderer.destroy();
+    this.dataRenderer.destroy();
   }
 }
 

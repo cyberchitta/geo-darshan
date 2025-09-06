@@ -50,53 +50,8 @@
             </div>
         </div>
         <div class="right-panel">
-            <div class="panel-tabs">
-                <button class="panel-tab active" data-panel="legend">Legend</button>
-                <button class="panel-tab" data-panel="data">Data</button>
-            </div>
-            <div class="panel-content">
-                <div id="legend-panel" class="tab-panel">
-                    <div class="legend-header">
-                        <h3>Cluster Legend</h3>
-                        <div class="legend-stats">
-                            <span id="legend-progress">0 of 0 labeled</span>
-                        </div>
-                    </div>
-                    <div class="legend-controls">
-                        <button id="save-labels-btn" class="legend-btn">Save Labels</button>
-                        <button id="load-labels-btn" class="legend-btn">Load Labels</button>
-                        <input type="file" id="load-labels-input" accept=".json" style="display: none;">
-                        <button id="clear-labels-btn" class="legend-btn secondary">Clear All</button>
-                    </div>
-                    <div id="legend-clusters" class="legend-clusters-container">
-                        <div class="legend-placeholder">Load cluster data to see legend</div>
-                    </div>
-                </div>
-                <div id="data-panel" class="tab-panel active">
-                    <div class="data-header">
-                        <h3>Data Management</h3>
-                    </div>
-                    <div class="data-controls">
-                        <button id="load-data-btn">Select Data Folder</button>
-                        <input type="file" id="file-input" webkitdirectory multiple style="display: none;">
-                        <button id="clear-data-btn" class="data-btn secondary">Clear Data</button>
-                    </div>
-                    <div class="dataset-info">
-                        <div class="dataset-info-header" id="dataset-info-toggle">
-                            <h4>Dataset Info</h4>
-                            <span class="collapse-chevron">▼</span>
-                        </div>
-                        <div class="dataset-info-content" id="dataset-info-content">
-                            <div id="data-status">No data loaded</div>
-                            <div id="data-bounds"></div>
-                            <div id="data-shape"></div>
-                        </div>
-                    </div>
-                    <div class="loading-info">
-                        <div id="loading-progress"></div>
-                        <div id="loading-status"></div>
-                    </div>
-                </div>
+            <div id="legend-panel" class="legend-panel-container">
+                <!-- LegendPanel will render its own tabs and content here -->
             </div>
         </div>
     </div>
