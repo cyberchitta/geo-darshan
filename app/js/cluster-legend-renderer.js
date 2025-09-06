@@ -40,7 +40,7 @@ class ClusterLegendRenderer extends TabRenderer {
         <input type="file" id="load-labels-input" accept=".json" style="display: none;">
         <button id="clear-labels-btn" class="legend-btn secondary">Clear All</button>
       </div>
-      <div id="cluster-legend-clusters" class="legend-clusters-container">
+      <div class="legend-clusters-container">
         <div class="legend-placeholder">Load cluster data to see legend</div>
       </div>
     `;
@@ -86,8 +86,8 @@ class ClusterLegendRenderer extends TabRenderer {
       return;
     }
     this.clusterColors = new Map(clusterColors);
-    const clustersContainer = document.getElementById(
-      "cluster-legend-clusters"
+    const clustersContainer = this.container.querySelector(
+      ".legend-clusters-container"
     );
     clustersContainer.innerHTML = "";
     this.clusterDropdowns.clear();

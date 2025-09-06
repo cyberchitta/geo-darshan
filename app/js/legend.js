@@ -86,7 +86,12 @@ class LegendPanel {
     panels.forEach((panel) => {
       panel.classList.remove("active");
     });
-    const activePanel = this.container.querySelector(`#${tabName}-panel`);
+    const panelIds = {
+      clusters: "cluster-panel",
+      landuse: "landuse-panel",
+      data: "data-panel",
+    };
+    const activePanel = this.container.querySelector(`#${panelIds[tabName]}`);
     if (activePanel) {
       activePanel.classList.add("active");
     }
