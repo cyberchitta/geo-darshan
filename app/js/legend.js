@@ -25,14 +25,11 @@ class LegendPanel {
       const response = await fetch("land-use.json");
       this.hierarchyData = await response.json();
       console.log("✅ Loaded land use hierarchy");
+      if (this.labeledLayer) {
+        this.labeledLayer.setLandUseHierarchy(this.hierarchyData);
+      }
     } catch (error) {
       console.error("Failed to load land-use.json:", error);
-      this.hierarchyData = {
-        forest: "Forest areas",
-        agriculture: "Agricultural land",
-        urban: "Built environment",
-        water: "Water bodies",
-      };
     }
   }
 
@@ -57,6 +54,11 @@ class LegendPanel {
             <span class="toggle-slider"></span>
             Show Labeled Regions
           </label>
+          <div class="hierarchy-control" id="hierarchy-control" style="display: none;">
+            <label for="hierarchy-level">Detail Level:</label>
+            <input type="range" id="hierarchy-level" min="1" max="4" step="1" value="1">
+            <span id="hierarchy-level-label">Broad Categories</span>
+          </div>
           <div class="opacity-control" id="labeled-regions-opacity-control" style="display: none;">
             <label for="labeled-regions-opacity">Opacity:</label>
             <input type="range" id="labeled-regions-opacity" min="0" max="1" step="0.1" value="0.7">
@@ -67,7 +69,7 @@ class LegendPanel {
       <div id="legend-clusters" class="legend-clusters-container">
         <div class="legend-placeholder">Load cluster data to see legend</div>
       </div>
-    `;
+  `;
     this.setupEventListeners();
   }
 
@@ -98,6 +100,12 @@ class LegendPanel {
       .addEventListener("input", (e) => {
         const opacity = parseFloat(e.target.value);
         this.setLabeledRegionsOpacity(opacity);
+      });
+    document
+      .getElementById("hierarchy-level")
+      .addEventListener("input", (e) => {
+        const level = parseInt(e.target.value);
+        this.setHierarchyLevel(level);
       });
   }
 
@@ -372,10 +380,12 @@ class LegendPanel {
       } else {
         this.labeledLayer.setVisible(visible);
       }
-   const opacityControl = document.getElementById(
+      const opacityControl = document.getElementById(
         "labeled-regions-opacity-control"
       );
+      const hierarchyControl = document.getElementById("hierarchy-control");
       opacityControl.style.display = visible ? "flex" : "none";
+      hierarchyControl.style.display = visible ? "flex" : "none";
       localStorage.setItem(
         STORAGE_KEYS.LABELED_REGIONS_VISIBLE,
         visible.toString()
@@ -400,6 +410,9 @@ class LegendPanel {
 
   setLabeledLayer(layer) {
     this.labeledLayer = layer;
+    if (this.hierarchyData) {
+      this.labeledLayer.setLandUseHierarchy(this.hierarchyData);
+    }
     const savedVisible =
       localStorage.getItem(STORAGE_KEYS.LABELED_REGIONS_VISIBLE) === "true";
     const savedOpacity =
@@ -413,7 +426,9 @@ class LegendPanel {
     const opacityControl = document.getElementById(
       "labeled-regions-opacity-control"
     );
+    const hierarchyControl = document.getElementById("hierarchy-control");
     opacityControl.style.display = savedVisible ? "flex" : "none";
+    hierarchyControl.style.display = savedVisible ? "flex" : "none";
     this.setLabeledRegionsOpacity(savedOpacity);
     if (savedVisible) {
       this.toggleLabeledRegions(true);
@@ -434,6 +449,25 @@ class LegendPanel {
     });
     this.updateProgressStats();
     console.log(`Switched to segmentation: ${segmentationKey}`);
+  }
+
+  setHierarchyLevel(level) {
+    if (this.labeledLayer) {
+      this.labeledLayer.setHierarchyLevel(level);
+      this.updateHierarchyLevelLabel(level);
+      console.log(`Hierarchy level set to ${level}`);
+    }
+  }
+
+  updateHierarchyLevelLabel(level) {
+    const labels = {
+      1: "Broad Categories",
+      2: "Sub Categories",
+      3: "Detailed Types",
+      4: "Specific Varieties",
+    };
+    document.getElementById("hierarchy-level-label").textContent =
+      labels[level] || "Unknown";
   }
 }
 

@@ -1,6 +1,6 @@
 import * as tf from "@tensorflow/tfjs-core";
 import "@tensorflow/tfjs-backend-cpu";
-import { extractKValue } from "./utils.js";
+import { extractKValue, hexToRgb } from "./utils.js";
 
 class LabeledCompositeLayer {
   constructor(mapManager, dataLoader) {
@@ -15,12 +15,81 @@ class LabeledCompositeLayer {
     this.layerGroup = L.layerGroup();
     this.layerGroup.addTo(this.mapManager.map);
     this.mapManager.addOverlayLayer("Labeled Regions", this.layerGroup, false);
+    this.hierarchyLevel = 1;
+    this.landUseHierarchy = null;
+    this.landUseColorCache = new Map();
     this.rules = {
       priority: "highest_k",
       requireLabeled: true,
       fallbackToLower: true,
     };
     console.log("LabeledCompositeLayer initialized and registered with map");
+  }
+
+  setLandUseHierarchy(hierarchyData) {
+    this.landUseHierarchy = hierarchyData;
+    this.landUseColorCache.clear();
+    this.needsRegeneration = true;
+    console.log("Land-use hierarchy data loaded");
+    if (this.isVisible && this.overlayData.size > 0) {
+      this.regenerateComposite();
+    }
+  }
+
+  setHierarchyLevel(level) {
+    if (level >= 1 && level <= 4 && level !== this.hierarchyLevel) {
+      this.hierarchyLevel = level;
+      this.landUseColorCache.clear();
+      this.needsRegeneration = true;
+      console.log(`Hierarchy level set to ${level}`);
+      if (this.isVisible && this.overlayData.size > 0) {
+        this.regenerateComposite();
+      }
+    }
+  }
+
+  resolveLandUseColor(landUsePath) {
+    if (!landUsePath || !this.landUseHierarchy) {
+      return "rgba(128,128,128,0.8)";
+    }
+    const cacheKey = `${landUsePath}:${this.hierarchyLevel}`;
+    if (this.landUseColorCache.has(cacheKey)) {
+      return this.landUseColorCache.get(cacheKey);
+    }
+    const pathParts = landUsePath.split(".");
+    const truncatedPath = pathParts.slice(0, this.hierarchyLevel).join(".");
+    const color = this.findColorInHierarchy(truncatedPath);
+    const rgbaColor = color
+      ? `rgba(${hexToRgb(color)},${this.opacity})`
+      : "rgba(128,128,128,0.8)";
+    this.landUseColorCache.set(cacheKey, rgbaColor);
+    return rgbaColor;
+  }
+
+  findColorInHierarchy(path) {
+    if (!this.landUseHierarchy || !path) return null;
+    const pathParts = path.split(".");
+    let current = this.landUseHierarchy;
+    for (const part of pathParts) {
+      if (current[part]) {
+        current = current[part];
+      } else {
+        return null;
+      }
+    }
+    let colorSearch = current;
+    let searchPath = pathParts;
+    while (searchPath.length > 0) {
+      if (colorSearch._color) {
+        return colorSearch._color;
+      }
+      searchPath.pop();
+      colorSearch = this.landUseHierarchy;
+      for (const part of searchPath) {
+        colorSearch = colorSearch[part];
+      }
+    }
+    return null;
   }
 
   setOverlayData(overlays) {
@@ -163,33 +232,13 @@ class LabeledCompositeLayer {
     const clusterId = values[0];
 
     // Find which segmentation this pixel came from
-    // Note: This is simplified - in practice you'd need to pass pixel coordinates
-    // to look up in compositeSegmentationMap
-
+    // Use the pixel coordinates to look up in compositeSegmentationMap
     // For now, use a fallback approach - try to find the cluster in any segmentation
     for (const [segKey, labels] of this.allLabels) {
       if (labels.has(clusterId)) {
-        const colorMapping =
-          this.dataLoader.getColorMappingForSegmentation(segKey);
-        if (colorMapping) {
-          return this.mapClusterValueToColor(clusterId, colorMapping);
-        }
+        const landUseLabel = labels.get(clusterId);
+        return this.resolveLandUseColor(landUseLabel);
       }
-    }
-    return "rgba(128,128,128,0.8)";
-  }
-
-  mapClusterValueToColor(clusterValue, colorMapping) {
-    if (!colorMapping || !colorMapping.colors_rgb) {
-      return "rgba(128,128,128,0.8)";
-    }
-    const colors = colorMapping.colors_rgb;
-    const color = colors[clusterValue];
-    if (color && color.length >= 3) {
-      const r = Math.round(color[0] * 255);
-      const g = Math.round(color[1] * 255);
-      const b = Math.round(color[2] * 255);
-      return `rgba(${r},${g},${b},${this.opacity})`;
     }
     return "rgba(128,128,128,0.8)";
   }
@@ -226,6 +275,10 @@ class LabeledCompositeLayer {
     return { ...this.rules };
   }
 
+  getHierarchyLevel() {
+    return this.hierarchyLevel;
+  }
+
   getStats() {
     const totalSegmentations = this.overlayData.size;
     const labeledSegmentations = this.allLabels.size;
@@ -239,6 +292,7 @@ class LabeledCompositeLayer {
       totalLabels,
       isVisible: this.isVisible,
       opacity: this.opacity,
+      hierarchyLevel: this.hierarchyLevel,
       rules: this.rules,
     };
   }
@@ -252,6 +306,7 @@ class LabeledCompositeLayer {
     this.compositeLayer = null;
     this.allLabels.clear();
     this.overlayData.clear();
+    this.landUseColorCache.clear();
     console.log("LabeledCompositeLayer destroyed");
   }
 }
