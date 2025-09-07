@@ -89,31 +89,135 @@ class LandUseLegendRenderer extends TabRenderer {
     }
   }
 
+  extractLabeledPaths() {
+    if (!this.labeledLayer || !this.labeledLayer.allLabels) {
+      return new Set();
+    }
+    const labeledPaths = new Set();
+    for (const [segmentationKey, labels] of this.labeledLayer.allLabels) {
+      for (const [clusterId, landUsePath] of labels) {
+        if (landUsePath && landUsePath !== "unlabeled") {
+          labeledPaths.add(landUsePath);
+        }
+      }
+    }
+    return labeledPaths;
+  }
+
+  getRelevantPathsForLevel(labeledPaths, targetLevel) {
+    const relevantPaths = new Set();
+    for (const path of labeledPaths) {
+      const pathParts = path.split(".");
+      if (pathParts.length === targetLevel) {
+        relevantPaths.add(path);
+      } else if (pathParts.length > targetLevel) {
+        const parentPath = pathParts.slice(0, targetLevel).join(".");
+        relevantPaths.add(parentPath);
+      } else if (pathParts.length < targetLevel) {
+        relevantPaths.add(path);
+      }
+    }
+    return relevantPaths;
+  }
+
   updateLegendItems() {
     if (!LandUseHierarchy.isLoaded()) return;
     const hierarchy = LandUseHierarchy.getInstance();
     const container = document.getElementById("landuse-legend-items");
-    const items = hierarchy.getHierarchyItemsAtLevel(this.hierarchyLevel);
-    if (items.length === 0) {
+    const labeledPaths = this.extractLabeledPaths();
+    if (labeledPaths.size === 0) {
+      container.innerHTML =
+        '<div class="legend-placeholder">No labeled regions to display</div>';
+      return;
+    }
+    const relevantPaths = this.getRelevantPathsForLevel(
+      labeledPaths,
+      this.hierarchyLevel
+    );
+    const displayItems = [];
+    const hierarchyItems = hierarchy.getHierarchyItemsAtLevel(
+      this.hierarchyLevel
+    );
+    for (const item of hierarchyItems) {
+      if (relevantPaths.has(item.path)) {
+        displayItems.push(item);
+      }
+    }
+    for (const path of relevantPaths) {
+      const pathParts = path.split(".");
+      if (pathParts.length < this.hierarchyLevel) {
+        const existing = displayItems.find((item) => item.path === path);
+        if (!existing) {
+          const color = hierarchy.getColorForPath(path);
+          displayItems.push({
+            path: path,
+            name: pathParts[pathParts.length - 1],
+            displayPath: pathParts.join(" > "),
+            color: color ? `#${color.replace("#", "")}` : "#888888",
+            isPromoted: true,
+          });
+        }
+      }
+    }
+    if (displayItems.length === 0) {
       container.innerHTML =
         '<div class="legend-placeholder">No items at this level</div>';
       return;
     }
-    container.innerHTML = items
+    displayItems.sort((a, b) => this.compareHierarchicalPaths(a.path, b.path));
+    container.innerHTML = displayItems
       .map(
         (item) => `
-            <div class="landuse-legend-item" data-path="${item.path}">
-                <div class="landuse-color-swatch" style="background-color: ${item.color}"></div>
-                <span class="landuse-name">${item.name}</span>
-                <span class="landuse-path">${item.displayPath}</span>
-            </div>
-            `
+          <div class="landuse-legend-item ${
+            item.isPromoted ? "promoted" : ""
+          }" data-path="${item.path}">
+              <div class="landuse-color-swatch" style="background-color: ${
+                item.color
+              }"></div>
+              <span class="landuse-name">${item.name}</span>
+              <span class="landuse-path">${item.displayPath}</span>
+              ${
+                item.isPromoted
+                  ? '<span class="promoted-indicator">↑</span>'
+                  : ""
+              }
+          </div>
+          `
       )
       .join("");
+    const statsElement = document.getElementById("landuse-legend-stats");
+    if (statsElement) {
+      const promotedCount = displayItems.filter(
+        (item) => item.isPromoted
+      ).length;
+      const regularCount = displayItems.length - promotedCount;
+      statsElement.textContent = `${regularCount} categories${
+        promotedCount > 0 ? `, ${promotedCount} promoted` : ""
+      }`;
+    }
+  }
+
+  compareHierarchicalPaths(pathA, pathB) {
+    const partsA = pathA.split(".");
+    const partsB = pathB.split(".");
+    const maxLength = Math.max(partsA.length, partsB.length);
+    for (let i = 0; i < maxLength; i++) {
+      const partA = partsA[i] || "";
+      const partB = partsB[i] || "";
+      if (partA !== partB) {
+        return partA.localeCompare(partB);
+      }
+    }
+    return partsA.length - partsB.length;
   }
 
   setLabeledLayer(layer) {
     this.labeledLayer = layer;
+    this.updateLegendItems();
+  }
+
+  onLabelsChanged() {
+    this.updateLegendItems();
   }
 }
 
