@@ -1,5 +1,3 @@
-import * as tf from "@tensorflow/tfjs-core";
-import "@tensorflow/tfjs-backend-cpu";
 import { extractKValue, hexToRgb } from "./utils.js";
 import { LandUseHierarchy } from "./land-use-hierarchy.js";
 
