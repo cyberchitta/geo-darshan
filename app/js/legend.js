@@ -129,6 +129,10 @@ class LegendPanel {
     this.dataRenderer.updateLoadingProgress(loaded, total);
   }
 
+  setDataLoader(dataLoader) {
+    this.landUseRenderer.setDataLoader(dataLoader);
+  }
+
   clearDataDisplay() {
     this.dataRenderer.clearDataDisplay();
   }

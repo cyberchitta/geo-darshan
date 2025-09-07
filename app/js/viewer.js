@@ -177,6 +177,7 @@ class ClusterViewer {
     console.log("=== DATA LOADING START ===");
     console.log("Overlays received:", overlays.length);
     this.mapManager.setDataLoader(this.dataLoader);
+    this.legendPanel.setDataLoader(this.dataLoader);
     this.currentClusterData = this.extractClusterData(overlays, manifest);
     this.mapManager.setOverlays(overlays);
     if (this.labeledLayer) {

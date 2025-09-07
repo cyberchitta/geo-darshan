@@ -1,5 +1,6 @@
 import { TabRenderer } from "./tab-renderer.js";
 import { LandUseHierarchy } from "./land-use-hierarchy.js";
+import { ExportUtility } from "./export-utility.js";
 
 class LandUseLegendRenderer extends TabRenderer {
   constructor(containerId) {
@@ -23,6 +24,9 @@ class LandUseLegendRenderer extends TabRenderer {
           <input type="range" id="hierarchy-level" min="1" max="4" step="1" value="1">
           <span id="hierarchy-level-label">Broad Categories</span>
         </div>
+        <div class="export-control">
+          <button id="export-landcover-btn" class="legend-btn">Export Land Cover</button>
+        </div>
       </div>
       <div id="landuse-legend-items" class="legend-items-container">
         <div class="legend-placeholder">Load hierarchy data to see legend</div>
@@ -40,6 +44,11 @@ class LandUseLegendRenderer extends TabRenderer {
       .addEventListener("input", (e) => {
         const level = parseInt(e.target.value);
         this.setHierarchyLevel(level);
+      });
+    document
+      .getElementById("export-landcover-btn")
+      .addEventListener("click", () => {
+        this.handleExport();
       });
   }
 
@@ -194,6 +203,45 @@ class LandUseLegendRenderer extends TabRenderer {
 
   onLabelsChanged() {
     this.updateLegendItems();
+  }
+  async handleExport() {
+    if (!this.labeledLayer) {
+      alert("No labeled layer available for export");
+      return;
+    }
+    const stats = this.labeledLayer.getStats();
+    if (stats.totalLabels === 0) {
+      alert(
+        "No labeled clusters available for export. Please label some clusters first."
+      );
+      return;
+    }
+    if (!stats.isVisible) {
+      alert(
+        "Labeled regions layer is not visible. Please enable it first to generate composite."
+      );
+      return;
+    }
+    try {
+      const exportBtn = document.getElementById("export-landcover-btn");
+      const originalText = exportBtn.textContent;
+      exportBtn.textContent = "Exporting...";
+      exportBtn.disabled = true;
+      const exporter = new ExportUtility(this.labeledLayer, this.dataLoader);
+      await exporter.exportLandCoverFiles();
+      exportBtn.textContent = originalText;
+      exportBtn.disabled = false;
+      alert("Land cover files exported successfully!");
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert(`Export failed: ${error.message}`);
+      const exportBtn = document.getElementById("export-landcover-btn");
+      exportBtn.textContent = "Export Land Cover";
+      exportBtn.disabled = false;
+    }
+  }
+  setDataLoader(dataLoader) {
+    this.dataLoader = dataLoader;
   }
 }
 

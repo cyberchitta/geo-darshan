@@ -834,3 +834,26 @@ input[type="range"]::-moz-range-thumb {
   margin-left: auto;
   font-style: italic;
 }
+
+.export-control {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+.export-control .legend-btn {
+  width: 100%;
+  background-color: #28a745;
+  border-color: #28a745;
+}
+
+.export-control .legend-btn:hover:not(:disabled) {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+.export-control .legend-btn:disabled {
+  background-color: #6c757d;
+  border-color: #6c757d;
+  cursor: not-allowed;
+}
