@@ -3,6 +3,7 @@ import { MapManager } from "./map.js";
 import { AnimationController } from "./animation.js";
 import { LegendPanel } from "./legend.js";
 import { LabeledCompositeLayer } from "./labeled-composite.js";
+import { LandUseHierarchy } from "./land-use-hierarchy.js";
 import { extractKValue, STORAGE_KEYS } from "./utils.js";
 
 class ClusterViewer {
@@ -19,6 +20,7 @@ class ClusterViewer {
   async initialize() {
     try {
       console.log("Initializing Cluster Viewer...");
+      await LandUseHierarchy.loadFromFile();
       const rasterHandler = window.rasterHandler;
       if (!rasterHandler) {
         throw new Error(

@@ -1,12 +1,11 @@
 import { TabRenderer } from "./tab-renderer.js";
+import { LandUseHierarchy } from "./land-use-hierarchy.js";
 
 class LandUseLegendRenderer extends TabRenderer {
   constructor(containerId) {
     super(containerId);
-    this.hierarchyData = null;
     this.hierarchyLevel = 1;
     this.labeledLayer = null;
-    this.landUseColorCache = new Map();
   }
 
   render() {
@@ -40,6 +39,9 @@ class LandUseLegendRenderer extends TabRenderer {
       </div>
     `;
     this.setupEventListeners();
+    if (LandUseHierarchy.isLoaded()) {
+      this.updateLegendItems();
+    }
   }
 
   setupEventListeners() {
@@ -65,11 +67,6 @@ class LandUseLegendRenderer extends TabRenderer {
       });
   }
 
-  setHierarchyData(hierarchyData) {
-    this.hierarchyData = hierarchyData;
-    this.updateLegendItems();
-  }
-
   setHierarchyLevel(level) {
     if (level >= 1 && level <= 4 && level !== this.hierarchyLevel) {
       this.hierarchyLevel = level;
@@ -79,21 +76,11 @@ class LandUseLegendRenderer extends TabRenderer {
     }
   }
 
-  updateHierarchyLevelLabel(level) {
-    const labels = {
-      1: "Broad Categories",
-      2: "Sub Categories",
-      3: "Detailed Types",
-      4: "Specific Varieties",
-    };
-    document.getElementById("hierarchy-level-label").textContent =
-      labels[level] || "Unknown";
-  }
-
   updateLegendItems() {
-    if (!this.hierarchyData) return;
+    if (!LandUseHierarchy.isLoaded()) return;
+    const hierarchy = LandUseHierarchy.getInstance();
     const container = document.getElementById("landuse-legend-items");
-    const items = this.getHierarchyItemsAtLevel(this.hierarchyLevel);
+    const items = hierarchy.getHierarchyItemsAtLevel(this.hierarchyLevel);
     if (items.length === 0) {
       container.innerHTML =
         '<div class="legend-placeholder">No items at this level</div>';
@@ -110,57 +97,6 @@ class LandUseLegendRenderer extends TabRenderer {
             `
       )
       .join("");
-  }
-
-  getHierarchyItemsAtLevel(level) {
-    if (!this.hierarchyData) return [];
-    const items = [];
-    this.traverseHierarchy(this.hierarchyData, [], items, level);
-    return items.sort((a, b) => a.name.localeCompare(b.name));
-  }
-
-  traverseHierarchy(obj, currentPath, items, targetLevel) {
-    for (const [key, value] of Object.entries(obj)) {
-      if (key.startsWith("_")) continue;
-      const newPath = [...currentPath, key];
-      if (newPath.length === targetLevel) {
-        const color = this.findColorInHierarchy(newPath.join("."));
-        items.push({
-          path: newPath.join("."),
-          name: key,
-          displayPath: newPath.join(" > "),
-          color: color ? `#${color.replace("#", "")}` : "#888888",
-        });
-      } else if (newPath.length < targetLevel) {
-        this.traverseHierarchy(value, newPath, items, targetLevel);
-      }
-    }
-  }
-
-  findColorInHierarchy(path) {
-    if (!this.hierarchyData || !path) return null;
-    const pathParts = path.split(".");
-    let current = this.hierarchyData;
-    for (const part of pathParts) {
-      if (current[part]) {
-        current = current[part];
-      } else {
-        return null;
-      }
-    }
-    let colorSearch = current;
-    let searchPath = pathParts;
-    while (searchPath.length > 0) {
-      if (colorSearch._color) {
-        return colorSearch._color;
-      }
-      searchPath.pop();
-      colorSearch = this.hierarchyData;
-      for (const part of searchPath) {
-        colorSearch = colorSearch[part];
-      }
-    }
-    return null;
   }
 
   setLabeledLayer(layer) {

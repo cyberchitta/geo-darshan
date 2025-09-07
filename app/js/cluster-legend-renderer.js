@@ -1,11 +1,10 @@
-import { LandUseDropdown } from "./land-use-hierarchy.js";
+import { LandUseDropdown, LandUseHierarchy } from "./land-use-hierarchy.js";
 import { convertToGrayscale, rgbStringToObject } from "./utils.js";
 import { TabRenderer } from "./tab-renderer.js";
 
 class ClusterLegendRenderer extends TabRenderer {
   constructor(containerId) {
     super(containerId);
-    this.hierarchyData = null;
     this.clusterDropdowns = new Map();
     this.clusterLabelsBySegmentation = new Map();
     this.currentSegmentationKey = null;
@@ -81,7 +80,7 @@ class ClusterLegendRenderer extends TabRenderer {
   }
 
   updateClusters(clusterData, clusterColors) {
-    if (!this.hierarchyData) {
+    if (!LandUseHierarchy.isLoaded()) {
       console.warn("Hierarchy data not loaded yet");
       return;
     }
@@ -129,21 +128,24 @@ class ClusterLegendRenderer extends TabRenderer {
       e.stopPropagation();
       this.selectCluster(cluster.id);
     });
-    const dropdown = new LandUseDropdown(
-      cluster.id,
-      this.hierarchyData,
-      (clusterId, selectedOption) =>
-        this.onClusterLabeled(clusterId, selectedOption)
-    );
-    const dropdownContainer = item.querySelector(
-      `#cluster-dropdown-${cluster.id}`
-    );
-    dropdownContainer.appendChild(dropdown.element);
-    this.clusterDropdowns.set(cluster.id, dropdown);
-    if (currentLabels && currentLabels.has(cluster.id)) {
-      dropdown.setSelection(currentLabels.get(cluster.id));
+    if (LandUseHierarchy.isLoaded()) {
+      const dropdown = new LandUseDropdown(
+        cluster.id,
+        (clusterId, selectedOption) =>
+          this.onClusterLabeled(clusterId, selectedOption)
+      );
+      const dropdownContainer = item.querySelector(
+        `#cluster-dropdown-${cluster.id}`
+      );
+      dropdownContainer.appendChild(dropdown.element);
+      this.clusterDropdowns.set(cluster.id, dropdown);
+      if (currentLabels && currentLabels.has(cluster.id)) {
+        dropdown.setSelection(currentLabels.get(cluster.id));
+      } else {
+        dropdown.setSelection("unlabeled");
+      }
     } else {
-      dropdown.setSelection("unlabeled");
+      console.warn("LandUseHierarchy not loaded - dropdown disabled");
     }
     return item;
   }
@@ -255,10 +257,6 @@ class ClusterLegendRenderer extends TabRenderer {
       this.updateClusterItemAppearance(clusterId, label);
     });
     this.updateProgressStats();
-  }
-
-  setHierarchyData(hierarchyData) {
-    this.hierarchyData = hierarchyData;
   }
 
   getAllLabelsAsObject() {

@@ -4,6 +4,31 @@ class LandUseHierarchy {
     this.flatPaths = this.flattenHierarchy();
   }
 
+  static async loadFromFile(url = "land-use.json") {
+    try {
+      const response = await fetch(url);
+      const hierarchyData = await response.json();
+      const instance = new LandUseHierarchy(hierarchyData);
+      LandUseHierarchy._instance = instance;
+      console.log("✅ Land use hierarchy loaded as singleton service");
+      return instance;
+    } catch (error) {
+      console.error("Failed to load land-use hierarchy:", error);
+      throw error;
+    }
+  }
+
+  static getInstance() {
+    if (!LandUseHierarchy._instance) {
+      throw new Error("Hierarchy not loaded. Call loadFromFile() first.");
+    }
+    return LandUseHierarchy._instance;
+  }
+
+  static isLoaded() {
+    return !!LandUseHierarchy._instance;
+  }
+
   flattenHierarchy(obj = this.hierarchy, currentPath = [], result = []) {
     for (const [key, value] of Object.entries(obj)) {
       if (key.startsWith("_")) continue;
@@ -41,12 +66,78 @@ class LandUseHierarchy {
   getPathByPrefix(prefix) {
     return this.flatPaths.filter((item) => item.path.startsWith(prefix));
   }
+
+  getColorForPath(path, level = null) {
+    if (!path) return null;
+
+    const pathParts = path.split(".");
+    const truncatedPath = level ? pathParts.slice(0, level).join(".") : path;
+    return this.findColorInHierarchy(truncatedPath);
+  }
+
+  findColorInHierarchy(path) {
+    if (!path) return null;
+    const pathParts = path.split(".");
+    let current = this.hierarchy;
+
+    for (const part of pathParts) {
+      if (current[part]) {
+        current = current[part];
+      } else {
+        return null;
+      }
+    }
+
+    let colorSearch = current;
+    let searchPath = pathParts;
+    while (searchPath.length > 0) {
+      if (colorSearch._color) {
+        return colorSearch._color;
+      }
+      searchPath.pop();
+      colorSearch = this.hierarchy;
+      for (const part of searchPath) {
+        colorSearch = colorSearch[part];
+      }
+    }
+    return null;
+  }
+
+  getHierarchyItemsAtLevel(level) {
+    const items = [];
+    this.traverseHierarchy(this.hierarchy, [], items, level);
+    return items.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  traverseHierarchy(obj, currentPath, items, targetLevel) {
+    for (const [key, value] of Object.entries(obj)) {
+      if (key.startsWith("_")) continue;
+      const newPath = [...currentPath, key];
+      if (newPath.length === targetLevel) {
+        const color = this.findColorInHierarchy(newPath.join("."));
+        items.push({
+          path: newPath.join("."),
+          name: key,
+          displayPath: newPath.join(" > "),
+          color: color ? `#${color.replace("#", "")}` : "#888888",
+        });
+      } else if (newPath.length < targetLevel) {
+        this.traverseHierarchy(value, newPath, items, targetLevel);
+      }
+    }
+  }
 }
 
 class LandUseDropdown {
-  constructor(clusterId, hierarchyData, onSelectionChange = null) {
+  constructor(clusterId, onSelectionChange = null) {
+    if (!LandUseHierarchy.isLoaded()) {
+      throw new Error(
+        "LandUseHierarchy must be loaded before creating dropdowns"
+      );
+    }
+
     this.clusterId = clusterId;
-    this.hierarchy = new LandUseHierarchy(hierarchyData);
+    this.hierarchy = LandUseHierarchy.getInstance();
     this.onSelectionChange = onSelectionChange;
     this.currentSelection = "unlabeled";
     this.element = this.createDropdownElement();

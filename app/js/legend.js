@@ -13,7 +13,6 @@ class LegendPanel {
     this.dataRenderer = new DataSectionRenderer("data-panel");
     this.setupRenderers();
     this.render();
-    this.loadHierarchyData();
   }
 
   render() {
@@ -101,18 +100,6 @@ class LegendPanel {
     this.activeTab = tabName;
     localStorage.setItem(STORAGE_KEYS.ACTIVE_PANEL, tabName);
     console.log(`Switched to ${tabName} tab`);
-  }
-
-  async loadHierarchyData() {
-    try {
-      const response = await fetch("land-use.json");
-      const hierarchyData = await response.json();
-      this.clusterRenderer.setHierarchyData(hierarchyData);
-      this.landUseRenderer.setHierarchyData(hierarchyData);
-      console.log("✅ Loaded land use hierarchy for all renderers");
-    } catch (error) {
-      console.error("Failed to load land-use.json:", error);
-    }
   }
 
   updateClusters(clusterData, clusterColors) {

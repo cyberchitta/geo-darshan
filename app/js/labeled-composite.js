@@ -1,6 +1,7 @@
 import * as tf from "@tensorflow/tfjs-core";
 import "@tensorflow/tfjs-backend-cpu";
 import { extractKValue, hexToRgb } from "./utils.js";
+import { LandUseHierarchy } from "./land-use-hierarchy.js";
 
 class LabeledCompositeLayer {
   constructor(mapManager, dataLoader) {
@@ -16,7 +17,6 @@ class LabeledCompositeLayer {
     this.layerGroup.addTo(this.mapManager.map);
     this.mapManager.addOverlayLayer("Labeled Regions", this.layerGroup, false);
     this.hierarchyLevel = 1;
-    this.landUseHierarchy = null;
     this.landUseColorCache = new Map();
     this.rules = {
       priority: "highest_k",
@@ -24,16 +24,6 @@ class LabeledCompositeLayer {
       fallbackToLower: true,
     };
     console.log("LabeledCompositeLayer initialized and registered with map");
-  }
-
-  setLandUseHierarchy(hierarchyData) {
-    this.landUseHierarchy = hierarchyData;
-    this.landUseColorCache.clear();
-    this.needsRegeneration = true;
-    console.log("Land-use hierarchy data loaded");
-    if (this.isVisible && this.overlayData.size > 0) {
-      this.regenerateComposite();
-    }
   }
 
   setHierarchyLevel(level) {
@@ -49,47 +39,22 @@ class LabeledCompositeLayer {
   }
 
   resolveLandUseColor(landUsePath) {
-    if (!landUsePath || !this.landUseHierarchy) {
+    if (!landUsePath) return "rgba(128,128,128,0.8)";
+    if (!LandUseHierarchy.isLoaded()) {
+      console.warn("LandUseHierarchy not loaded");
       return "rgba(128,128,128,0.8)";
     }
     const cacheKey = `${landUsePath}:${this.hierarchyLevel}`;
     if (this.landUseColorCache.has(cacheKey)) {
       return this.landUseColorCache.get(cacheKey);
     }
-    const pathParts = landUsePath.split(".");
-    const truncatedPath = pathParts.slice(0, this.hierarchyLevel).join(".");
-    const color = this.findColorInHierarchy(truncatedPath);
+    const hierarchy = LandUseHierarchy.getInstance();
+    const color = hierarchy.getColorForPath(landUsePath, this.hierarchyLevel);
     const rgbaColor = color
       ? `rgba(${hexToRgb(color)},${this.opacity})`
       : "rgba(128,128,128,0.8)";
     this.landUseColorCache.set(cacheKey, rgbaColor);
     return rgbaColor;
-  }
-
-  findColorInHierarchy(path) {
-    if (!this.landUseHierarchy || !path) return null;
-    const pathParts = path.split(".");
-    let current = this.landUseHierarchy;
-    for (const part of pathParts) {
-      if (current[part]) {
-        current = current[part];
-      } else {
-        return null;
-      }
-    }
-    let colorSearch = current;
-    let searchPath = pathParts;
-    while (searchPath.length > 0) {
-      if (colorSearch._color) {
-        return colorSearch._color;
-      }
-      searchPath.pop();
-      colorSearch = this.landUseHierarchy;
-      for (const part of searchPath) {
-        colorSearch = colorSearch[part];
-      }
-    }
-    return null;
   }
 
   setOverlayData(overlays) {
