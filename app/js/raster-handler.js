@@ -40,19 +40,6 @@ class GeoRasterAdapter {
     return layer;
   }
 
-  getMetadata(rasterData) {
-    return {
-      width: rasterData.width,
-      height: rasterData.height,
-      bands: rasterData.numberOfRasters,
-      bounds: rasterData.bounds,
-      noDataValue: rasterData.noDataValue,
-      projection: rasterData.projection,
-      pixelHeight: rasterData.pixelHeight,
-      pixelWidth: rasterData.pixelWidth,
-    };
-  }
-
   getOptimalResolution(rasterData) {
     const totalPixels = rasterData.width * rasterData.height;
     if (totalPixels > 100_000_000) return 128;
