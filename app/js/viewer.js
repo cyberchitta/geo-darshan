@@ -132,7 +132,7 @@ class ClusterViewer {
         }
       }
     }
-    console.log(`Animation layer ${visible ? "enabled" : "disabled"}`);
+    console.log(`Cluster animation layer ${visible ? "enabled" : "disabled"}`);
   }
 
   handleLabeledRegionsToggle(visible) {
