@@ -85,20 +85,6 @@ class ClusterViewer {
     this.mapManager.on("backgroundClicked", (latlng) => {
       this.handleBackgroundClicked(latlng);
     });
-    this.legendPanel.on("animationLayerToggle", (visible) => {
-      this.handleAnimationLayerToggle(visible);
-    });
-    this.legendPanel.on("animationOpacityChange", (opacity) => {
-      this.mapManager.setOverlayOpacity(opacity);
-    });
-    this.legendPanel.on("labeledRegionsToggle", (visible) => {
-      this.handleLabeledRegionsToggle(visible);
-    });
-    this.legendPanel.on("labeledRegionsOpacityChange", (opacity) => {
-      if (this.labeledLayer) {
-        this.labeledLayer.setOpacity(opacity);
-      }
-    });
     this.legendPanel.on("hierarchyLevelChange", (level) => {
       if (this.labeledLayer) {
         this.labeledLayer.setHierarchyLevel(level);

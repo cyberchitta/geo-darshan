@@ -18,20 +18,10 @@ class LandUseLegendRenderer extends TabRenderer {
         </div>
       </div>
       <div class="layer-control-group">
-        <label class="layer-toggle">
-          <input type="checkbox" id="labeled-regions-toggle">
-          <span class="toggle-slider"></span>
-          Show Labeled Regions
-        </label>
         <div class="hierarchy-control">
           <label for="hierarchy-level">Detail Level:</label>
           <input type="range" id="hierarchy-level" min="1" max="4" step="1" value="1">
           <span id="hierarchy-level-label">Broad Categories</span>
-        </div>
-        <div class="opacity-control" id="labeled-regions-opacity-control">
-          <label for="labeled-regions-opacity">Opacity:</label>
-          <input type="range" id="labeled-regions-opacity" min="0" max="1" step="0.1" value="0.7">
-          <span id="labeled-regions-opacity-value">70%</span>
         </div>
       </div>
       <div id="landuse-legend-items" class="legend-items-container">
@@ -45,20 +35,6 @@ class LandUseLegendRenderer extends TabRenderer {
   }
 
   setupEventListeners() {
-    document
-      .getElementById("labeled-regions-toggle")
-      .addEventListener("change", (e) => {
-        this.emit("labeledRegionsToggle", e.target.checked);
-      });
-    document
-      .getElementById("labeled-regions-opacity")
-      .addEventListener("input", (e) => {
-        const opacity = parseFloat(e.target.value);
-        this.emit("labeledRegionsOpacityChange", opacity);
-        document.getElementById(
-          "labeled-regions-opacity-value"
-        ).textContent = `${Math.round(opacity * 100)}%`;
-      });
     document
       .getElementById("hierarchy-level")
       .addEventListener("input", (e) => {

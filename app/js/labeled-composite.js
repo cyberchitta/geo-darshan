@@ -10,9 +10,7 @@ class LabeledCompositeLayer {
     this.allLabels = new Map();
     this.overlayData = new Map();
     this.compositeLayer = null;
-    this.isVisible = false;
     this.opacity = 0.7;
-    this.needsRegeneration = false;
     this.layerGroup = L.layerGroup();
     this.layerGroup.addTo(this.mapManager.map);
     this.mapManager.addOverlayLayer("Labeled Regions", this.layerGroup, false);
@@ -30,9 +28,8 @@ class LabeledCompositeLayer {
     if (level >= 1 && level <= 4 && level !== this.hierarchyLevel) {
       this.hierarchyLevel = level;
       this.landUseColorCache.clear();
-      this.needsRegeneration = true;
       console.log(`Hierarchy level set to ${level}`);
-      if (this.isVisible && this.overlayData.size > 0) {
+      if (this.overlayData.size > 0 && this.allLabels.size > 0) {
         this.regenerateComposite();
       }
     }
@@ -75,16 +72,17 @@ class LabeledCompositeLayer {
       });
       this.allLabels.set(segmentationKey, labelMap);
     });
-    this.needsRegeneration = true;
     console.log(`Updated labels for ${this.allLabels.size} segmentations`);
-    if (this.isVisible && this.overlayData.size > 0) {
+    if (this.overlayData.size > 0) {
       this.regenerateComposite();
     }
   }
 
   async regenerateComposite() {
-    if (this.overlayData.size === 0) {
-      console.warn("No overlay data available for composite generation");
+    if (this.overlayData.size === 0 || this.allLabels.size === 0) {
+      console.warn(
+        "No overlay data or labels available for composite generation"
+      );
       return;
     }
     try {
@@ -97,14 +95,13 @@ class LabeledCompositeLayer {
       this.compositeLayer = this.mapManager.rasterHandler.createMapLayer(
         composite,
         {
-          opacity: this.isVisible ? this.opacity : 0,
+          opacity: this.opacity,
           pixelValuesToColorFn: (values) =>
             this.convertCompositePixelToColor(values),
           zIndex: 2000,
         }
       );
       this.layerGroup.addLayer(this.compositeLayer);
-      this.needsRegeneration = false;
       const endTime = performance.now();
       console.log(
         `✅ Composite generated in ${(endTime - startTime).toFixed(2)}ms`
@@ -208,21 +205,9 @@ class LabeledCompositeLayer {
     return "rgba(128,128,128,0.8)";
   }
 
-  async setVisible(visible) {
-    this.isVisible = visible;
-    if (visible && this.needsRegeneration && this.overlayData.size > 0) {
-      console.log("Regenerating composite for visibility...");
-      await this.regenerateComposite();
-    }
-    if (this.compositeLayer) {
-      this.compositeLayer.setOpacity(visible ? this.opacity : 0);
-    }
-    console.log(`Labeled composite layer ${visible ? "enabled" : "disabled"}`);
-  }
-
   setOpacity(opacity) {
     this.opacity = Math.max(0, Math.min(1, opacity));
-    if (this.compositeLayer && this.isVisible) {
+    if (this.compositeLayer) {
       this.compositeLayer.setOpacity(this.opacity);
     }
     console.log(`Labeled composite opacity set to ${this.opacity}`);
@@ -231,7 +216,7 @@ class LabeledCompositeLayer {
   setRules(newRules) {
     this.rules = { ...this.rules, ...newRules };
     console.log("Updated combination rules:", this.rules);
-    if (this.isVisible && this.overlayData.size > 0) {
+    if (this.overlayData.size > 0 && this.allLabels.size > 0) {
       this.regenerateComposite();
     }
   }
@@ -255,7 +240,7 @@ class LabeledCompositeLayer {
       totalSegmentations,
       labeledSegmentations,
       totalLabels,
-      isVisible: this.isVisible,
+      isVisible: this.mapManager.map.hasLayer(this.layerGroup),
       opacity: this.opacity,
       hierarchyLevel: this.hierarchyLevel,
       rules: this.rules,
@@ -264,10 +249,10 @@ class LabeledCompositeLayer {
 
   destroy() {
     if (this.compositeLayer) {
-      this.compositeLayer.setOpacity(0);
       this.layerGroup.removeLayer(this.compositeLayer);
     }
     this.layerGroup.clearLayers();
+    this.mapManager.map.removeLayer(this.layerGroup);
     this.compositeLayer = null;
     this.allLabels.clear();
     this.overlayData.clear();

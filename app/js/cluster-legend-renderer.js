@@ -21,18 +21,6 @@ class ClusterLegendRenderer extends TabRenderer {
           <span id="cluster-legend-progress">0 of 0 labeled</span>
         </div>
       </div>
-      <div class="layer-control-group">
-        <label class="layer-toggle">
-          <input type="checkbox" id="animation-layer-toggle" checked>
-          <span class="toggle-slider"></span>
-          Show Animation Layer
-        </label>
-        <div class="opacity-control">
-          <label for="animation-opacity">Opacity:</label>
-          <input type="range" id="animation-opacity" min="0" max="1" step="0.1" value="0.8">
-          <span id="animation-opacity-value">80%</span>
-        </div>
-      </div>
       <div class="legend-controls">
         <button id="save-labels-btn" class="legend-btn">Save Labels</button>
         <button id="load-labels-btn" class="legend-btn">Load Labels</button>
@@ -47,20 +35,6 @@ class ClusterLegendRenderer extends TabRenderer {
   }
 
   setupEventListeners() {
-    document
-      .getElementById("animation-layer-toggle")
-      .addEventListener("change", (e) => {
-        this.emit("animationLayerToggle", e.target.checked);
-      });
-    document
-      .getElementById("animation-opacity")
-      .addEventListener("input", (e) => {
-        const opacity = parseFloat(e.target.value);
-        this.emit("animationOpacityChange", opacity);
-        document.getElementById(
-          "animation-opacity-value"
-        ).textContent = `${Math.round(opacity * 100)}%`;
-      });
     document.getElementById("save-labels-btn").addEventListener("click", () => {
       this.saveLabels();
     });

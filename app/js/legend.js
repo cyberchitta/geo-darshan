@@ -42,18 +42,6 @@ class LegendPanel {
     this.clusterRenderer.on("clusterSelected", (clusterId) => {
       if (this.onClusterSelected) this.onClusterSelected(clusterId);
     });
-    this.clusterRenderer.on("animationLayerToggle", (visible) => {
-      this.emit("animationLayerToggle", visible);
-    });
-    this.clusterRenderer.on("animationOpacityChange", (opacity) => {
-      this.emit("animationOpacityChange", opacity);
-    });
-    this.landUseRenderer.on("labeledRegionsToggle", (visible) => {
-      this.emit("labeledRegionsToggle", visible);
-    });
-    this.landUseRenderer.on("labeledRegionsOpacityChange", (opacity) => {
-      this.emit("labeledRegionsOpacityChange", opacity);
-    });
     this.landUseRenderer.on("hierarchyLevelChange", (level) => {
       this.emit("hierarchyLevelChange", level);
     });
