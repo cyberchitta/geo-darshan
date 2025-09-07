@@ -76,6 +76,19 @@ class LandUseLegendRenderer extends TabRenderer {
     }
   }
 
+  updateHierarchyLevelLabel(level) {
+    const labels = {
+      1: "Broad Categories",
+      2: "General Types",
+      3: "Specific Uses",
+      4: "Detailed Classification",
+    };
+    const labelElement = document.getElementById("hierarchy-level-label");
+    if (labelElement) {
+      labelElement.textContent = labels[level] || `Level ${level}`;
+    }
+  }
+
   updateLegendItems() {
     if (!LandUseHierarchy.isLoaded()) return;
     const hierarchy = LandUseHierarchy.getInstance();
