@@ -1,19 +1,41 @@
 class LandUseHierarchy {
-  constructor(hierarchyData) {
+  constructor(hierarchyData, colorData) {
     this.hierarchy = hierarchyData;
+    this.colors = colorData;
     this.flatPaths = this.flattenHierarchy();
   }
 
-  static async loadFromFile(url = "land-use.json") {
+  static async loadFromFile(
+    hierarchyUrl = "land-use.json",
+    colorUrl = "land-use-colors.json"
+  ) {
     try {
-      const response = await fetch(url);
-      const hierarchyData = await response.json();
-      const instance = new LandUseHierarchy(hierarchyData);
+      const [hierarchyResponse, colorResponse] = await Promise.all([
+        fetch(hierarchyUrl),
+        fetch(colorUrl),
+      ]);
+      if (!hierarchyResponse.ok) {
+        throw new Error(
+          `Failed to load hierarchy: ${hierarchyResponse.status} ${hierarchyResponse.statusText}`
+        );
+      }
+      if (!colorResponse.ok) {
+        throw new Error(
+          `Failed to load colors: ${colorResponse.status} ${colorResponse.statusText}`
+        );
+      }
+      const [hierarchyData, colorData] = await Promise.all([
+        hierarchyResponse.json(),
+        colorResponse.json(),
+      ]);
+      const instance = new LandUseHierarchy(hierarchyData, colorData);
       LandUseHierarchy._instance = instance;
-      console.log("✅ Land use hierarchy loaded as singleton service");
+      console.log(
+        "✅ Land use hierarchy and colors loaded as singleton service"
+      );
       return instance;
     } catch (error) {
-      console.error("Failed to load land-use hierarchy:", error);
+      console.error("Failed to load land-use hierarchy or colors:", error);
       throw error;
     }
   }
@@ -69,38 +91,25 @@ class LandUseHierarchy {
 
   getColorForPath(path, level = null) {
     if (!path) return null;
-
     const pathParts = path.split(".");
     const truncatedPath = level ? pathParts.slice(0, level).join(".") : path;
-    return this.findColorInHierarchy(truncatedPath);
+    return this.findColorInColorMapping(truncatedPath);
   }
 
-  findColorInHierarchy(path) {
+  findColorInColorMapping(path) {
     if (!path) return null;
+    if (this.colors[path]) {
+      return this.colors[path];
+    }
     const pathParts = path.split(".");
-    let current = this.hierarchy;
-
-    for (const part of pathParts) {
-      if (current[part]) {
-        current = current[part];
-      } else {
-        return null;
+    while (pathParts.length > 0) {
+      pathParts.pop();
+      const parentPath = pathParts.join(".");
+      if (this.colors[parentPath]) {
+        return this.colors[parentPath];
       }
     }
-
-    let colorSearch = current;
-    let searchPath = pathParts;
-    while (searchPath.length > 0) {
-      if (colorSearch._color) {
-        return colorSearch._color;
-      }
-      searchPath.pop();
-      colorSearch = this.hierarchy;
-      for (const part of searchPath) {
-        colorSearch = colorSearch[part];
-      }
-    }
-    return null;
+   throw new Error(`No color mapping found for path: ${path}`);
   }
 
   getHierarchyItemsAtLevel(level) {
@@ -114,12 +123,13 @@ class LandUseHierarchy {
       if (key.startsWith("_")) continue;
       const newPath = [...currentPath, key];
       if (newPath.length === targetLevel) {
-        const color = this.findColorInHierarchy(newPath.join("."));
+        const path = newPath.join(".");
+        const color = this.findColorInColorMapping(path);
         items.push({
-          path: newPath.join("."),
+          path: path,
           name: key,
           displayPath: newPath.join(" > "),
-          color: color ? `#${color.replace("#", "")}` : "#888888",
+          color: color.startsWith("#") ? color : `#${color}`,
         });
       } else if (newPath.length < targetLevel) {
         this.traverseHierarchy(value, newPath, items, targetLevel);
