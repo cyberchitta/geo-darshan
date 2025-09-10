@@ -107,7 +107,7 @@ class LandCoverConfig:
 
 # Alternative direct specification:
 CLUSTER_ANIMATION_CONFIG = ClusterConfig(
-    k_values=[22, 44],
+    k_values=[22, 44, 88],
     output_dir=Path("output/cluster_animation"),
     n_color_families=8,
     scenario="exploration",
@@ -291,14 +291,12 @@ def main():
 
         # --- Run Pipelines ---
         generate_cluster_animation(CLUSTER_ANIMATION_CONFIG, embeddings_flat, metadata)
-#        generate_land_cover_animation(LAND_COVER_CONFIG, embeddings_flat, metadata)
         # --- End Pipelines ---
 
         if verbose:
             print("\n🎉 All generation tasks complete!")
             print(f"\nOutput directories:")
             print(f"  📊 Clustering: {CLUSTER_ANIMATION_CONFIG.output_dir}")
-            print(f"  🎯 Land cover: {LAND_COVER_CONFIG.output_dir}")
             print(f"\nEach directory contains:")
             print(f"  • Raw cluster GeoTIFFs (int16, single band)")
             print(f"  • color_legend.json (RGB/hex color mappings)")
