@@ -192,7 +192,27 @@ class DataLoader {
   async loadGeoRasterFromFile(file) {
     try {
       const arrayBuffer = await this.readFileAsArrayBuffer(file);
-      return await this.rasterHandler.parseGeoTIFF(arrayBuffer);
+      const georasterBuffer = arrayBuffer.slice(0);
+      const rawTiffBuffer = arrayBuffer.slice(0);
+      const georaster = await this.rasterHandler.parseGeoTIFF(georasterBuffer);
+      const rawTiff = await GeoTIFF.fromArrayBuffer(rawTiffBuffer);
+      const firstImage = await rawTiff.getImage();
+      const geoKeys = firstImage.getGeoKeys();
+      const fileDirectory = firstImage.getFileDirectory();
+      georaster._projectionMetadata = {
+        geoKeys: { ...geoKeys },
+        modelPixelScale: fileDirectory.ModelPixelScale
+          ? Array.from(fileDirectory.ModelPixelScale)
+          : null,
+        modelTiepoint: fileDirectory.ModelTiepoint
+          ? Array.from(fileDirectory.ModelTiepoint)
+          : null,
+      };
+      console.log(
+        `✅ Preserved projection metadata for ${file.name}:`,
+        georaster._projectionMetadata
+      );
+      return georaster;
     } catch (error) {
       console.error(`Error processing GeoTIFF ${file.name}:`, error);
       throw new Error(

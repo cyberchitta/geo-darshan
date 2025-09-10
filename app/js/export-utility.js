@@ -71,6 +71,54 @@ class ExportUtility {
     return new Blob([tiffArrayBuffer], { type: "image/tiff" });
   }
 
+  validateProjectionMetadata(georaster) {
+    const projectionMetadata = georaster._projectionMetadata;
+    const sourceGeoKeys = projectionMetadata?.geoKeys;
+    const checks = [
+      {
+        condition: !projectionMetadata,
+        message: "missing projection metadata",
+      },
+      {
+        condition: !sourceGeoKeys,
+        message: "missing geoKeys",
+      },
+      {
+        condition:
+          !projectionMetadata?.modelPixelScale ||
+          projectionMetadata.modelPixelScale.length < 3,
+        message: "invalid ModelPixelScale",
+      },
+      {
+        condition:
+          !projectionMetadata?.modelTiepoint ||
+          projectionMetadata.modelTiepoint.length < 6,
+        message: "invalid ModelTiepoint",
+      },
+      {
+        condition: sourceGeoKeys?.GeographicTypeGeoKey !== 4326,
+        message: `not WGS84 (got ${sourceGeoKeys?.GeographicTypeGeoKey})`,
+      },
+      {
+        condition: sourceGeoKeys?.GTModelTypeGeoKey !== 2,
+        message: `not geographic model (got ${sourceGeoKeys?.GTModelTypeGeoKey})`,
+      },
+      {
+        condition: sourceGeoKeys?.GTRasterTypeGeoKey !== 1,
+        message: `not pixel area (got ${sourceGeoKeys?.GTRasterTypeGeoKey})`,
+      },
+    ];
+    return checks
+      .filter((check) => check.condition)
+      .map((check) => check.message);
+  }
+
+  throwValidationError(issues) {
+    if (issues.length > 0) {
+      throw new Error(`Invalid source raster: ${issues.join(", ")}`);
+    }
+  }
+
   async createGeoTiffWithLibrary(data, georaster) {
     const useInt8 = this.maxLandCoverId < 127;
     const TypedArray = useInt8 ? Int8Array : Int16Array;
@@ -80,6 +128,11 @@ class ExportUtility {
         this.maxLandCoverId + 1
       } land cover classes`
     );
+    const validationIssues = this.validateProjectionMetadata(georaster);
+    this.throwValidationError(validationIssues);
+    console.log("✅ Validated WGS84 geographic raster");
+    const projectionMetadata = georaster._projectionMetadata;
+    const sourceGeoKeys = projectionMetadata.geoKeys;
     const landCoverData = new TypedArray(georaster.width * georaster.height);
     let index = 0;
     let unlabeledCount = 0;
@@ -110,11 +163,9 @@ class ExportUtility {
     }
     if (unlabeledCount > 0) {
       console.warn(
-        `⚠️  Found ${unlabeledCount} unlabeled pixels (will be stored as -1)`
+        `⚠️ Found ${unlabeledCount} unlabeled pixels (will be stored as -1)`
       );
     }
-    const pixelWidth = (georaster.xmax - georaster.xmin) / georaster.width;
-    const pixelHeight = (georaster.ymax - georaster.ymin) / georaster.height;
     const metadata = {
       height: georaster.height,
       width: georaster.width,
@@ -122,24 +173,17 @@ class ExportUtility {
       bitsPerSample: [bitsPerSample],
       sampleFormat: [2],
       photometricInterpretation: 1,
-      compression: 5,
-      tileWidth: 512,
-      tileHeight: 512,
       planarConfiguration: 1,
-      ModelPixelScale: [pixelWidth, pixelHeight, 0],
-      ModelTiepoint: [0, 0, 0, georaster.xmin, georaster.ymax, 0],
-      GTModelTypeGeoKey: 2,
-      GTRasterTypeGeoKey: 1,
-      GeographicTypeGeoKey: 4326,
+      GTModelTypeGeoKey: sourceGeoKeys.GTModelTypeGeoKey,
+      GTRasterTypeGeoKey: sourceGeoKeys.GTRasterTypeGeoKey,
+      GeographicTypeGeoKey: sourceGeoKeys.GeographicTypeGeoKey,
+      ModelPixelScale: projectionMetadata.modelPixelScale,
+      ModelTiepoint: projectionMetadata.modelTiepoint,
       software: "geo-darshan",
     };
     const arrayBuffer = await GeoTIFF.writeArrayBuffer(landCoverData, metadata);
     const sizeMB = (arrayBuffer.byteLength / 1024 / 1024).toFixed(2);
-    console.log(
-      `✅ Generated GeoTIFF: ${sizeMB}MB using ${
-        useInt8 ? "8-bit" : "16-bit"
-      } signed data`
-    );
+    console.log(`✅ Generated GeoTIFF: ${sizeMB}MB`);
     return arrayBuffer;
   }
 
