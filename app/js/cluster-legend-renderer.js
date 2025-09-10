@@ -15,6 +15,7 @@ class ClusterLegendRenderer extends TabRenderer {
   render() {
     this.container = document.getElementById(this.containerId);
     this.container.innerHTML = `
+    <div class="legend-content">
       <div class="legend-header">
         <h3>Cluster Legend</h3>
         <div class="legend-stats">
@@ -30,6 +31,7 @@ class ClusterLegendRenderer extends TabRenderer {
       <div class="legend-clusters-container">
         <div class="legend-placeholder">Load cluster data to see legend</div>
       </div>
+    </div>
     `;
     this.setupEventListeners();
   }

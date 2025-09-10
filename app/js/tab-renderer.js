@@ -22,7 +22,7 @@ class TabRenderer {
   setVisible(visible) {
     this.isVisible = visible;
     if (this.container) {
-      this.container.style.display = visible ? "block" : "none";
+      this.container.style.display = visible ? "flex" : "none";
     }
   }
 
