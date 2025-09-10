@@ -1,73 +1,63 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cluster Animation Viewer</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/georaster@1.6.0/dist/georaster.browser.bundle.min.js"></script>
     <script src="https://unpkg.com/georaster-layer-for-leaflet@3.10.0/dist/georaster-layer-for-leaflet.min.js"></script>
     <script src="https://unpkg.com/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
     <script src="https://unpkg.com/geotiff@2.1.3/dist-browser/geotiff.js"></script>
-    <link rel="stylesheet" href="css/viewer.css">
-</head>
+    <link rel="stylesheet" href="css/viewer.css" />
+  </head>
 
-<body>
+  <body>
     <div class="viewer-container">
-        <div class="main-content">
-            <div id="map" class="map-container"></div>
-            <div class="controls-panel">
-                <div class="animation-controls">
-                    <button id="step-back" class="control-btn" title="Step Back (←)">⏮</button>
-                    <button id="play-pause" class="control-btn" title="Play/Pause (Space)">▶</button>
-                    <button id="step-forward" class="control-btn" title="Step Forward (→)">⏭</button>
-                    <div class="speed-control">
-                        <label for="speed-slider">Speed:</label>
-                        <input type="range" id="speed-slider" min="0.5" max="3" step="0.1" value="1">
-                        <span id="speed-value">1.0x</span>
-                    </div>
-                </div>
-                <div class="navigation-controls">
-                    <label for="k-slider">K-value:</label>
-                    <input type="range" id="k-slider" min="0" max="100" step="1" value="0">
-                    <div class="k-display">
-                        <span id="current-k">--</span> clusters
-                    </div>
-                </div>
-                <div class="overlay-controls">
-                    <label for="opacity-slider">Opacity:</label>
-                    <input type="range" id="opacity-slider" min="0" max="1" step="0.1" value="0.8">
-                    <span id="opacity-value">80%</span>
-                </div>
-            </div>
-        </div>
-        <div class="right-panel">
-            <div id="legend-panel" class="legend-panel-container">
-                <!-- LegendPanel will render its own tabs and content here -->
-            </div>
-        </div>
+      <div class="main-content">
+        <div id="map" class="map-container"></div>
+      </div>
+      <div class="right-panel">
+        <div id="svelte-legend-panel" class="legend-panel-container"></div>
+      </div>
     </div>
     <div id="loading-overlay" class="loading-overlay hidden">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Loading cluster data...</div>
-        <div class="loading-progress-bar">
-            <div id="progress-fill" class="progress-fill"></div>
-        </div>
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Loading cluster data...</div>
+      <div class="loading-progress-bar">
+        <div id="progress-fill" class="progress-fill"></div>
+      </div>
     </div>
     <script type="module">
-        import { GeoRasterAdapter } from './js/raster-handler.js';
-        import { DataLoader } from './js/data-loader.js';
-        import { MapManager } from './js/map.js';
-        import { AnimationController } from './js/animation.js';
-        import { ClusterViewer } from './js/viewer.js';
+      import { mount } from "svelte";
+      import AppContext from "./AppContext.svelte";
 
-        const rasterHandler = new GeoRasterAdapter();
-        window.rasterHandler = rasterHandler;
-        window.GeoRasterAdapter = GeoRasterAdapter;
+      import { GeoRasterAdapter } from "./js/raster-handler.js";
+      import { ClusterViewer } from "./js/viewer.js";
+
+      const rasterHandler = new GeoRasterAdapter();
+      window.rasterHandler = rasterHandler;
+      window.GeoRasterAdapter = GeoRasterAdapter;
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        const viewer = new ClusterViewer();
+        await viewer.initialize();
+        const svelteLegend = mount(AppContext, {
+          target: document.getElementById("svelte-legend-panel"),
+          props: {
+            dataLoader: viewer.dataLoader,
+            mapManager: viewer.mapManager,
+            animationController: viewer.animationController,
+            labeledLayer: viewer.labeledLayer,
+          },
+        });
+        window.clusterViewer = viewer;
+        window.svelteLegend = svelteLegend;
+      });
     </script>
-    <script type="module" src="js/viewer.js"></script>
-</body>
-
+  </body>
 </html>

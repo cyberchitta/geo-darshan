@@ -25,7 +25,8 @@ export default [
         File: "readonly",
         FileReader: "readonly",
         URL: "readonly",
-        tf: "readonly", // Add TensorFlow.js
+        tf: "readonly",
+        GeoTIFF: "readonly",
       },
     },
     rules: {
@@ -39,5 +40,13 @@ export default [
       quotes: ["error", "double"],
       "no-undef": "error",
     },
+  },
+  {
+    files: ["app/**/*.svelte"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+    },
+    rules: {},
   },
 ];

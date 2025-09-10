@@ -109,7 +109,7 @@ class LandUseHierarchy {
         return this.colors[parentPath];
       }
     }
-   throw new Error(`No color mapping found for path: ${path}`);
+    throw new Error(`No color mapping found for path: ${path}`);
   }
 
   getHierarchyItemsAtLevel(level) {

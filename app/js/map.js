@@ -13,7 +13,6 @@ class MapManager {
     this.rasterHandler = rasterHandler;
     this.listeners = {};
     this.overlayLayers = {};
-    this.clusterLabels = new Map();
     if (this.rasterHandler) {
       console.log(`MapManager initialized with ${this.rasterHandler.name}`);
     } else {
@@ -94,9 +93,10 @@ class MapManager {
       }
       const baseColor = this.mapClusterValueToColor(clusterValue, colorMapping);
       if (
-        this.currentSegmentationLabels === segmentationKey &&
-        this.clusterLabels.has(clusterValue) &&
-        this.clusterLabels.get(clusterValue) !== "unlabeled"
+        this.allClusterLabels &&
+        this.allClusterLabels[segmentationKey] &&
+        this.allClusterLabels[segmentationKey][clusterValue] &&
+        this.allClusterLabels[segmentationKey][clusterValue] !== "unlabeled"
       ) {
         const grayColor = convertToGrayscale(baseColor);
         return `rgba(${grayColor.r},${grayColor.g},${grayColor.b},${
@@ -439,26 +439,14 @@ class MapManager {
     }
   }
 
-  updateClusterLabels(labels, segmentationKey) {
-    this.clusterLabels.clear();
-    this.currentSegmentationLabels = segmentationKey;
-    Object.entries(labels).forEach(([clusterId, label]) => {
-      this.clusterLabels.set(parseInt(clusterId), label);
+  updateAllLayersWithNewLabels(allLabels) {
+    this.allClusterLabels = allLabels;
+    this.geoRasterLayers.forEach((layer, frameIndex) => {
+      if (layer && layer.redraw) {
+        layer.redraw();
+      }
     });
-    console.log(`Updated cluster labels for segmentation: ${segmentationKey}`);
-    this.forceRedraw();
-  }
-
-  forceRedraw() {
-    if (this.currentOverlay && this.currentOverlay.setOpacity) {
-      const currentOpacity = this.currentOpacity;
-      this.currentOverlay.setOpacity(0);
-      setTimeout(() => {
-        if (this.currentOverlay && this.currentOverlay.setOpacity) {
-          this.currentOverlay.setOpacity(currentOpacity);
-        }
-      }, 10);
-    }
+    console.log("🎨 All animation layers updated with new labels");
   }
 }
 
