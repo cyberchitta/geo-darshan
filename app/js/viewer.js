@@ -116,6 +116,13 @@ class ClusterViewer {
       const frameIndex = parseInt(e.target.value);
       this.animationController.goToFrame(frameIndex);
     });
+    document.getElementById("opacity-slider").addEventListener("input", (e) => {
+      const opacity = parseFloat(e.target.value);
+      this.mapManager.setOverlayOpacity(opacity);
+      document.getElementById("opacity-value").textContent = `${Math.round(
+        opacity * 100
+      )}%`;
+    });
   }
 
   handleAnimationLayerToggle(visible) {
