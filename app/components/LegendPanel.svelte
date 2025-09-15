@@ -1,55 +1,67 @@
 <script>
-  import { activeTab } from "../stores.js";
   import ClusterLegend from "./ClusterLegend.svelte";
   import LandUseLegend from "./LandUseLegend.svelte";
   import DataSection from "./DataSection.svelte";
 
+  let {
+    clusterLabels,
+    currentSegmentationKey,
+    currentSegmentationData,
+    manifest,
+    overlayData,
+    onLabelChange,
+  } = $props();
+
+  let activeTab = $state("clusters");
+
   function switchTab(tabId) {
-    activeTab.set(tabId);
+    activeTab = tabId;
     console.log("Switched to tab:", tabId);
   }
-
-  $: console.log("Active tab is:", $activeTab);
 </script>
 
 <div class="legend-panel">
   <div class="panel-tabs">
     <button
       class="panel-tab"
-      class:active={$activeTab === "clusters"}
-      on:click={() => switchTab("clusters")}
+      class:active={activeTab === "clusters"}
+      onclick={() => switchTab("clusters")}
     >
       Clusters
     </button>
     <button
       class="panel-tab"
-      class:active={$activeTab === "landuse"}
-      on:click={() => switchTab("landuse")}
+      class:active={activeTab === "landuse"}
+      onclick={() => switchTab("landuse")}
     >
       Land Use
     </button>
     <button
       class="panel-tab"
-      class:active={$activeTab === "data"}
-      on:click={() => switchTab("data")}
+      class:active={activeTab === "data"}
+      onclick={() => switchTab("data")}
     >
       Data
     </button>
   </div>
 
   <div class="panel-content">
-    <!-- Static components instead of dynamic -->
-    {#if $activeTab === "clusters"}
+    {#if activeTab === "clusters"}
       <div class="tab-panel active">
-        <ClusterLegend />
+        <ClusterLegend
+          {clusterLabels}
+          {currentSegmentationKey}
+          {currentSegmentationData}
+          {onLabelChange}
+        />
       </div>
-    {:else if $activeTab === "landuse"}
+    {:else if activeTab === "landuse"}
       <div class="tab-panel active">
-        <LandUseLegend />
+        <LandUseLegend {clusterLabels} {currentSegmentationKey} />
       </div>
-    {:else if $activeTab === "data"}
+    {:else if activeTab === "data"}
       <div class="tab-panel active">
-        <DataSection />
+        <DataSection {manifest} {overlayData} />
       </div>
     {/if}
   </div>

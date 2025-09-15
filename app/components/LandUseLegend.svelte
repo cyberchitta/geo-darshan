@@ -1,18 +1,17 @@
 <script>
   import { getContext } from "svelte";
-  import {
-    clusterLabels,
-    currentSegmentationKey,
-    hierarchyLevel,
-  } from "../stores.js";
   import { LandUseHierarchy } from "../js/land-use-hierarchy.js";
 
-  const { dataLoader } = getContext("managers");
+  const { dataLoader, labeledLayer: contextLabeledLayer } =
+    getContext("managers");
 
-  let labeledLayer = null;
-  let displayItems = [];
-  let isExporting = false;
-  let labeledPaths = new Set(); // FIX: Declare as regular variable
+  // Props from parent (AppContext will pass these)
+  let { clusterLabels, currentSegmentationKey } = $props();
+
+  // Local component state
+  let hierarchyLevel = $state(1);
+  let isExporting = $state(false);
+  let labeledLayer = contextLabeledLayer;
 
   // Reactive hierarchy level with labels
   const hierarchyLabels = {
@@ -22,34 +21,24 @@
     4: "Detailed Classification",
   };
 
-  $: hierarchyLabelText =
-    hierarchyLabels[$hierarchyLevel] || `Level ${$hierarchyLevel}`;
+  let hierarchyLabelText = $derived(
+    hierarchyLabels[hierarchyLevel] || `Level ${hierarchyLevel}`
+  );
 
-  // FIX: Extract labeled paths reactively
-  $: {
-    console.log("🔍 LandUseLegend - Raw cluster labels:", $clusterLabels);
-    labeledPaths = extractLabeledPaths($clusterLabels);
-    console.log(
-      "🔍 LandUseLegend - Extracted paths:",
-      Array.from(labeledPaths)
-    );
-  }
+  let labeledPaths = $derived(extractLabeledPaths(clusterLabels || {}));
 
-  // Update display items when hierarchy level or labels change
-  $: {
-    if (LandUseHierarchy.isLoaded() && labeledPaths.size > 0) {
-      updateDisplayItems(labeledPaths, $hierarchyLevel);
-      console.log("🔍 LandUseLegend - Display items:", displayItems);
-    } else {
-      displayItems = [];
-      console.log(
-        "🔍 LandUseLegend - No items to display, hierarchy loaded:",
-        LandUseHierarchy.isLoaded(),
-        "paths:",
-        labeledPaths.size
-      );
+  let displayItems = $derived(
+    LandUseHierarchy.isLoaded() && labeledPaths.size > 0
+      ? computeDisplayItems(labeledPaths, hierarchyLevel)
+      : []
+  );
+
+  // Sync hierarchyLevel with labeledLayer
+  $effect(() => {
+    if (labeledLayer) {
+      labeledLayer.setHierarchyLevel(hierarchyLevel);
     }
-  }
+  });
 
   function extractLabeledPaths(allLabels) {
     console.log("🔍 Extracting paths from:", allLabels);
@@ -60,7 +49,6 @@
       return paths;
     }
 
-    // Handle the nested structure: { segmentationKey: { clusterId: landUsePath } }
     Object.entries(allLabels).forEach(
       ([segmentationKey, segmentationLabels]) => {
         console.log(
@@ -84,17 +72,15 @@
     return paths;
   }
 
-  function updateDisplayItems(labeledPaths, targetLevel) {
+  function computeDisplayItems(labeledPaths, targetLevel) {
     if (!LandUseHierarchy.isLoaded() || labeledPaths.size === 0) {
-      displayItems = [];
-      return;
+      return [];
     }
 
     const hierarchy = LandUseHierarchy.getInstance();
     const relevantPaths = getRelevantPathsForLevel(labeledPaths, targetLevel);
     const items = [];
 
-    // Get hierarchy items at target level
     const hierarchyItems = hierarchy.getHierarchyItemsAtLevel(targetLevel);
 
     for (const item of hierarchyItems) {
@@ -103,7 +89,6 @@
       }
     }
 
-    // Add promoted items (from deeper levels)
     for (const path of relevantPaths) {
       const pathParts = path.split(".");
       if (pathParts.length < targetLevel) {
@@ -121,9 +106,7 @@
       }
     }
 
-    displayItems = items.sort((a, b) =>
-      compareHierarchicalPaths(a.path, b.path)
-    );
+    return items.sort((a, b) => compareHierarchicalPaths(a.path, b.path));
   }
 
   function getRelevantPathsForLevel(labeledPaths, targetLevel) {
@@ -158,13 +141,7 @@
   }
 
   function handleHierarchyLevelChange(event) {
-    const newLevel = parseInt(event.target.value);
-    hierarchyLevel.set(newLevel);
-
-    // Emit to labeled layer if available
-    if (labeledLayer) {
-      labeledLayer.setHierarchyLevel(newLevel);
-    }
+    hierarchyLevel = parseInt(event.target.value);
   }
 
   async function handleExport() {
@@ -190,12 +167,9 @@
 
     try {
       isExporting = true;
-
-      // Dynamic import of ExportUtility
       const { ExportUtility } = await import("../js/export-utility.js");
       const exporter = new ExportUtility(labeledLayer, dataLoader);
       await exporter.exportLandCoverFiles();
-
       alert("Land cover files exported successfully!");
     } catch (error) {
       console.error("Export failed:", error);
@@ -205,15 +179,14 @@
     }
   }
 
-  // Allow parent to set labeled layer
-  export function setLabeledLayer(layer) {
-    labeledLayer = layer;
-  }
-
   // Calculate stats
-  $: promotedCount = displayItems.filter((item) => item.isPromoted).length;
-  $: regularCount = displayItems.length - promotedCount;
-  $: statsText = `${regularCount} categories${promotedCount > 0 ? `, ${promotedCount} promoted` : ""}`;
+  let promotedCount = $derived(
+    displayItems.filter((item) => item.isPromoted).length
+  );
+  let regularCount = $derived(displayItems.length - promotedCount);
+  let statsText = $derived(
+    `${regularCount} categories${promotedCount > 0 ? `, ${promotedCount} promoted` : ""}`
+  );
 </script>
 
 <div
@@ -241,8 +214,8 @@
         min="1"
         max="4"
         step="1"
-        value={$hierarchyLevel}
-        on:input={handleHierarchyLevelChange}
+        value={hierarchyLevel}
+        oninput={handleHierarchyLevelChange}
         aria-describedby="hierarchy-level-desc"
       />
       <span id="hierarchy-level-desc">{hierarchyLabelText}</span>
@@ -253,7 +226,7 @@
         class="export-btn"
         class:loading={isExporting}
         disabled={isExporting || displayItems.length === 0}
-        on:click={handleExport}
+        onclick={handleExport}
         aria-describedby="export-btn-desc"
       >
         {isExporting ? "Exporting..." : "Export Land Cover"}

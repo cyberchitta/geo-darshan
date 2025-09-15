@@ -1,33 +1,43 @@
 <script>
   import { getContext } from "svelte";
-  import {
-    currentSegmentationKey,
-    clusterLabels,
-    currentSegmentationData,
-  } from "../stores.js";
   import LandUseDropdown from "./LandUseDropdown.svelte";
 
   const { dataLoader } = getContext("managers");
-  let clusters = [];
-  let clusterColors = new Map();
-  let focusedClusterId = null;
-  let announcementText = "";
-  let fileInput;
-  $: if ($currentSegmentationData) {
-    clusters = $currentSegmentationData.clusters || [];
-    clusterColors = $currentSegmentationData.colors || new Map();
-    console.log("ClusterLegend updated with:", clusters.length, "clusters");
-  }
-  $: currentLabels =
-    $currentSegmentationKey && $clusterLabels[$currentSegmentationKey]
-      ? $clusterLabels[$currentSegmentationKey]
-      : {};
-  $: labeledCount = Object.keys(currentLabels).filter((id) => {
-    const label = currentLabels[id];
-    return label && label !== "unlabeled";
-  }).length;
-  $: totalCount = clusters.length;
-  $: progressText = `${labeledCount} of ${totalCount} clusters labeled`;
+
+  // Props from parent (AppContext will pass these)
+  let {
+    clusterLabels,
+    currentSegmentationKey,
+    currentSegmentationData,
+    onLabelChange,
+  } = $props();
+
+  // Local component state
+  let focusedClusterId = $state(null);
+  let announcementText = $state("");
+  let fileInput = $state();
+
+  // Derived from props
+  let clusters = $derived(currentSegmentationData?.clusters || []);
+  let clusterColors = $derived(currentSegmentationData?.colors || new Map());
+
+  let currentLabels = $derived(
+    currentSegmentationKey && clusterLabels[currentSegmentationKey]
+      ? clusterLabels[currentSegmentationKey]
+      : {}
+  );
+
+  let labeledCount = $derived(
+    Object.keys(currentLabels).filter((id) => {
+      const label = currentLabels[id];
+      return label && label !== "unlabeled";
+    }).length
+  );
+
+  let totalCount = $derived(clusters.length);
+  let progressText = $derived(
+    `${labeledCount} of ${totalCount} clusters labeled`
+  );
 
   function handleClusterClick(clusterId) {
     selectCluster(clusterId);
@@ -71,14 +81,12 @@
 
   function handleLabelChange(clusterId, selectedOption) {
     console.log("Label changed:", clusterId, selectedOption.path);
-    clusterLabels.update((allLabels) => {
-      const updated = { ...allLabels };
-      if (!updated[$currentSegmentationKey]) {
-        updated[$currentSegmentationKey] = {};
-      }
-      updated[$currentSegmentationKey][clusterId] = selectedOption.path;
-      return updated;
-    });
+
+    // Call parent callback to update shared state
+    if (onLabelChange) {
+      onLabelChange(currentSegmentationKey, clusterId, selectedOption.path);
+    }
+
     const labelText =
       selectedOption.path === "unlabeled"
         ? "unlabeled"
@@ -94,14 +102,13 @@
   }
 
   function saveLabels() {
-    const allLabels = $clusterLabels;
-    const dataStr = JSON.stringify(allLabels, null, 2);
+    const dataStr = JSON.stringify(clusterLabels, null, 2);
     const dataBlob = new Blob([dataStr], { type: "application/json" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(dataBlob);
     link.download = `cluster-labels-${new Date().toISOString().split("T")[0]}.json`;
     link.click();
-    console.log("✅ Labels saved to file:", allLabels);
+    console.log("✅ Labels saved to file:", clusterLabels);
     announceChange("Labels saved successfully");
   }
 
@@ -117,15 +124,22 @@
       const text = await file.text();
       const loadedLabels = JSON.parse(text);
       console.log("📁 Loading labels from file:", loadedLabels);
+
       const isValidFormat = Object.entries(loadedLabels).every(
         ([segKey, labels]) => {
           return typeof labels === "object" && !Array.isArray(labels);
         }
       );
+
       if (!isValidFormat) {
         throw new Error("Invalid label file format");
       }
-      clusterLabels.set(loadedLabels);
+
+      // Call parent callback to update shared state
+      if (onLabelChange) {
+        onLabelChange(null, null, null, loadedLabels); // Special case for bulk load
+      }
+
       announceChange(
         `Labels loaded: ${Object.keys(loadedLabels).length} segmentations`
       );
@@ -138,7 +152,12 @@
 
   function clearAllLabels() {
     if (!confirm("Clear all cluster labels for ALL segmentations?")) return;
-    clusterLabels.set({});
+
+    // Call parent callback to clear all labels
+    if (onLabelChange) {
+      onLabelChange(null, null, null, {}); // Special case for clear all
+    }
+
     console.log("✅ All labels cleared");
     announceChange("All labels cleared");
   }
@@ -161,6 +180,7 @@
 <div aria-live="polite" aria-atomic="true" class="sr-only">
   {announcementText}
 </div>
+
 <div class="cluster-legend" role="region" aria-labelledby="legend-title">
   <div class="legend-header">
     <h3 id="legend-title">Cluster Legend</h3>
@@ -168,6 +188,7 @@
       <span aria-label="Progress: {progressText}">{progressText}</span>
     </div>
   </div>
+
   <div
     class="legend-controls"
     role="group"
@@ -176,9 +197,10 @@
     <span id="legend-controls-title" class="sr-only"
       >Legend management controls</span
     >
+
     <button
       class="legend-btn"
-      on:click={loadLabelsFromFile}
+      onclick={loadLabelsFromFile}
       aria-describedby="load-labels-desc"
     >
       Load Labels
@@ -186,16 +208,18 @@
     <span id="load-labels-desc" class="sr-only"
       >Load cluster labels from JSON file</span
     >
+
     <input
       bind:this={fileInput}
       type="file"
       accept=".json"
       style="display: none"
-      on:change={handleFileLoad}
+      onchange={handleFileLoad}
     />
+
     <button
       class="legend-btn"
-      on:click={saveLabels}
+      onclick={saveLabels}
       aria-describedby="save-labels-desc"
     >
       Save Labels
@@ -203,9 +227,10 @@
     <span id="save-labels-desc" class="sr-only"
       >Download current cluster labels as JSON file</span
     >
+
     <button
       class="legend-btn secondary"
-      on:click={clearAllLabels}
+      onclick={clearAllLabels}
       aria-describedby="clear-labels-desc"
     >
       Clear All
@@ -214,6 +239,7 @@
       >Remove all cluster labels from all segmentations</span
     >
   </div>
+
   <div
     class="legend-clusters-container"
     role="list"
@@ -223,6 +249,7 @@
       List of {totalCount} clusters. Use arrow keys to navigate, Enter or Space to
       select.
     </span>
+
     {#if clusters.length === 0}
       <div class="legend-placeholder" role="status">
         Load cluster data to see legend
@@ -237,8 +264,8 @@
           data-cluster-id={cluster.id}
           aria-labelledby="cluster-{cluster.id}-label"
           aria-describedby="cluster-{cluster.id}-desc"
-          on:click={() => handleClusterClick(cluster.id)}
-          on:keydown={(e) => handleClusterKeydown(e, cluster.id)}
+          onclick={() => handleClusterClick(cluster.id)}
+          onkeydown={(e) => handleClusterKeydown(e, cluster.id)}
         >
           <div class="cluster-info">
             <div
@@ -473,11 +500,6 @@
     border: 0;
   }
 
-  /* Loading and interaction states */
-  .legend-cluster-item.click-feedback {
-    animation: clickPulse 0.2s ease-out;
-  }
-
   @keyframes clickPulse {
     0% {
       transform: translateY(-1px) scale(1);
@@ -527,10 +549,6 @@
 
     .legend-cluster-item:hover {
       transform: none;
-    }
-
-    .click-feedback {
-      animation: none;
     }
   }
 </style>

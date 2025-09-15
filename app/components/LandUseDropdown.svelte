@@ -1,21 +1,27 @@
 <script>
   import { LandUseHierarchy } from "../js/land-use-hierarchy.js";
 
-  export let clusterId;
-  export let currentSelection = "unlabeled";
-  export let onSelectionChange = null;
+  // Props (already using correct Svelte 5 syntax)
+  let {
+    clusterId,
+    currentSelection = "unlabeled",
+    onSelectionChange = null,
+  } = $props();
 
-  let options = [];
-  let selectElement;
-  let selectionState = "unlabeled"; // Track current state for CSS
+  // Local state
+  let options = $state([]);
+  let selectElement = $state();
+  let selectionState = $state("unlabeled");
 
   // Load hierarchy options
-  $: if (LandUseHierarchy.isLoaded()) {
-    options = LandUseHierarchy.getInstance().getSelectableOptions();
-  }
+  $effect(() => {
+    if (LandUseHierarchy.isLoaded()) {
+      options = LandUseHierarchy.getInstance().getSelectableOptions();
+    }
+  });
 
   // Update selection state when currentSelection changes
-  $: {
+  $effect(() => {
     if (currentSelection === "unlabeled") {
       selectionState = "unlabeled";
     } else {
@@ -26,11 +32,10 @@
         selectionState = "unlabeled";
       }
     }
-  }
+  });
 
   function handleChange(event) {
     const newValue = event.target.value;
-    currentSelection = newValue;
 
     if (onSelectionChange) {
       const selectedOption = options.find((opt) => opt.path === newValue);
@@ -49,7 +54,7 @@
   bind:this={selectElement}
   class="land-use-dropdown {selectionState}"
   value={currentSelection}
-  on:change={handleChange}
+  onchange={handleChange}
   aria-label="Land use classification for cluster {clusterId}"
 >
   {#each options as option}

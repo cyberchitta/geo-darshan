@@ -1,20 +1,26 @@
 <script>
   import { getContext } from "svelte";
-  import {
-    currentFrame,
-    totalFrames,
-    isPlaying,
-    animationSpeed,
-  } from "../stores.js";
 
   const { animationController } = getContext("managers");
 
-  $: canStep = $totalFrames > 0;
-  $: canPlay = $totalFrames > 1;
-  $: speedDisplay = `${$animationSpeed.toFixed(1)}x`;
+  // Props from parent (AppContext will pass these)
+  let { currentFrame, totalFrames, isPlaying } = $props();
+
+  // Local component state
+  let speed = $state(1.0);
+
+  // Sync local state with external controller
+  $effect(() => {
+    animationController.setSpeed(speed);
+  });
+
+  // Derived computations
+  let canStep = $derived(totalFrames > 0);
+  let canPlay = $derived(totalFrames > 1);
+  let speedDisplay = $derived(`${speed.toFixed(1)}x`);
 
   function handleStepBack() {
-    if (canStep && !$isPlaying) {
+    if (canStep && !isPlaying) {
       animationController.stepBack();
     }
   }
@@ -26,18 +32,15 @@
   }
 
   function handleStepForward() {
-    if (canStep && !$isPlaying) {
+    if (canStep && !isPlaying) {
       animationController.stepForward();
     }
   }
 
   function handleSpeedChange(event) {
-    const speed = parseFloat(event.target.value);
-    animationSpeed.set(speed);
-    animationController.setSpeed(speed);
+    speed = parseFloat(event.target.value);
   }
 
-  // Keyboard shortcuts
   function handleKeydown(event) {
     switch (event.code) {
       case "Space":
@@ -58,6 +61,7 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
+<!-- Rest of template stays the same, just update reactive references -->
 <div
   class="animation-controls"
   role="group"
@@ -69,45 +73,36 @@
 
   <button
     class="control-btn"
-    class:disabled={!canStep || $isPlaying}
-    disabled={!canStep || $isPlaying}
-    on:click={handleStepBack}
+    class:disabled={!canStep || isPlaying}
+    disabled={!canStep || isPlaying}
+    onclick={handleStepBack}
     aria-label="Step back one frame"
-    aria-describedby="step-back-desc"
     title="Step Back (←)"
   >
     ⏮
   </button>
-  <span id="step-back-desc" class="sr-only">Go to previous animation frame</span
-  >
 
   <button
     class="control-btn play-pause-btn"
     class:disabled={!canPlay}
     disabled={!canPlay}
-    on:click={handlePlayPause}
-    aria-label={$isPlaying ? "Pause animation" : "Play animation"}
-    aria-describedby="play-pause-desc"
-    title={$isPlaying ? "Pause (Space)" : "Play (Space)"}
+    onclick={handlePlayPause}
+    aria-label={isPlaying ? "Pause animation" : "Play animation"}
+    title={isPlaying ? "Pause (Space)" : "Play (Space)"}
   >
-    {$isPlaying ? "⏸" : "▶"}
+    {isPlaying ? "⏸" : "▶"}
   </button>
-  <span id="play-pause-desc" class="sr-only">
-    {$isPlaying ? "Pause the animation" : "Start playing the animation"}
-  </span>
 
   <button
     class="control-btn"
-    class:disabled={!canStep || $isPlaying}
-    disabled={!canStep || $isPlaying}
-    on:click={handleStepForward}
+    class:disabled={!canStep || isPlaying}
+    disabled={!canStep || isPlaying}
+    onclick={handleStepForward}
     aria-label="Step forward one frame"
-    aria-describedby="step-forward-desc"
     title="Step Forward (→)"
   >
     ⏭
   </button>
-  <span id="step-forward-desc" class="sr-only">Go to next animation frame</span>
 
   <div class="speed-control" role="group" aria-labelledby="speed-control-title">
     <label id="speed-control-title" for="speed-slider">Speed:</label>
@@ -117,9 +112,8 @@
       min="0.5"
       max="3"
       step="0.1"
-      value={$animationSpeed}
-      on:input={handleSpeedChange}
-      aria-describedby="speed-value"
+      value={speed}
+      oninput={handleSpeedChange}
       aria-label="Animation playback speed"
     />
     <span id="speed-value" aria-live="polite">{speedDisplay}</span>

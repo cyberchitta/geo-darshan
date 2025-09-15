@@ -1,11 +1,31 @@
 <script>
   import { getContext } from "svelte";
-  import { manifest, overlayData } from "../stores.js";
 
   const { dataLoader } = getContext("managers");
 
-  let fileInput;
-  let isDatasetInfoCollapsed = false;
+  // Props from parent (AppContext will pass these)
+  let { manifest, overlayData } = $props();
+
+  // Local component state
+  let isDatasetInfoCollapsed = $state(false);
+  let fileInput = $state();
+
+  // Derived computations
+  let dataStatus = $derived(
+    manifest
+      ? `${manifest.segmentation_keys.length} frames loaded`
+      : "No data loaded"
+  );
+
+  let dataBounds = $derived(
+    manifest
+      ? `Bounds: ${manifest.metadata.bounds.map((b) => b.toFixed(6)).join(", ")}`
+      : ""
+  );
+
+  let dataShape = $derived(
+    manifest ? `Shape: ${manifest.metadata.shape.join(" × ")}` : ""
+  );
 
   function selectFolder() {
     fileInput.click();
@@ -34,18 +54,6 @@
       toggleDatasetInfo();
     }
   }
-
-  $: dataStatus = $manifest
-    ? `${$manifest.segmentation_keys.length} frames loaded`
-    : "No data loaded";
-
-  $: dataBounds = $manifest
-    ? `Bounds: ${$manifest.metadata.bounds.map((b) => b.toFixed(6)).join(", ")}`
-    : "";
-
-  $: dataShape = $manifest
-    ? `Shape: ${$manifest.metadata.shape.join(" × ")}`
-    : "";
 </script>
 
 <div class="data-section">
@@ -54,7 +62,7 @@
   </div>
 
   <div class="data-controls">
-    <button class="data-btn primary" on:click={selectFolder}>
+    <button class="data-btn primary" onclick={selectFolder}>
       Select Data Folder
     </button>
     <input
@@ -63,20 +71,17 @@
       webkitdirectory
       multiple
       style="display: none"
-      on:change={handleFileSelect}
+      onchange={handleFileSelect}
     />
-    <button class="data-btn secondary" on:click={clearData}>
-      Clear Data
-    </button>
+    <button class="data-btn secondary" onclick={clearData}> Clear Data </button>
   </div>
 
   <div class="dataset-info">
-    <!-- Fix: Use button instead of div for interactive element -->
     <button
       class="dataset-info-header"
       class:collapsed={isDatasetInfoCollapsed}
-      on:click={toggleDatasetInfo}
-      on:keydown={handleDatasetInfoKeydown}
+      onclick={toggleDatasetInfo}
+      onkeydown={handleDatasetInfoKeydown}
       aria-expanded={!isDatasetInfoCollapsed}
       aria-controls="dataset-info-content"
     >

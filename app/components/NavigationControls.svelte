@@ -1,49 +1,48 @@
 <script>
   import { getContext } from "svelte";
-  import {
-    currentFrame,
-    totalFrames,
-    isPlaying,
-    currentSegmentationKey,
-  } from "../stores.js";
   import { extractKValue } from "../js/utils.js";
 
   const { animationController } = getContext("managers");
 
-  // Reactive computations
-  $: currentK = $currentSegmentationKey
-    ? extractKValue($currentSegmentationKey)
-    : null;
-  $: sliderMax = Math.max(0, $totalFrames - 1);
-  $: canNavigate = $totalFrames > 0;
-  $: frameInfo = `Frame ${$currentFrame + 1} of ${$totalFrames}`;
-  $: kDisplayText = currentK !== null ? `${currentK} clusters` : "-- clusters";
+  // Props from parent (AppContext will pass these)
+  let { currentFrame, totalFrames, isPlaying, currentSegmentationKey } =
+    $props();
 
-  // Update CSS custom properties for progress bar - MOVED HERE
-  $: if (typeof document !== "undefined") {
-    const progressEl = document.querySelector(".frame-progress");
-    if (progressEl && $totalFrames > 0) {
-      const progress = (($currentFrame + 1) / $totalFrames) * 100;
-      progressEl.style.setProperty("--progress", progress.toString());
+  // Derived computations
+  let currentK = $derived(
+    currentSegmentationKey ? extractKValue(currentSegmentationKey) : null
+  );
+  let sliderMax = $derived(Math.max(0, totalFrames - 1));
+  let canNavigate = $derived(totalFrames > 0);
+  let frameInfo = $derived(`Frame ${currentFrame + 1} of ${totalFrames}`);
+  let kDisplayText = $derived(
+    currentK !== null ? `${currentK} clusters` : "-- clusters"
+  );
+
+  // Update CSS custom properties for progress bar
+  $effect(() => {
+    if (typeof document !== "undefined") {
+      const progressEl = document.querySelector(".frame-progress");
+      if (progressEl && totalFrames > 0) {
+        const progress = ((currentFrame + 1) / totalFrames) * 100;
+        progressEl.style.setProperty("--progress", progress.toString());
+      }
     }
-  }
+  });
 
-  // Handle frame navigation via slider
   function handleFrameChange(event) {
-    if (!$isPlaying && canNavigate) {
+    if (!isPlaying && canNavigate) {
       const frameIndex = parseInt(event.target.value);
       animationController.goToFrame(frameIndex);
     }
   }
 
-  // Handle keyboard navigation on slider
   function handleSliderKeydown(event) {
-    if ($isPlaying) {
+    if (isPlaying) {
       event.preventDefault();
       return;
     }
 
-    // Let default slider behavior work for arrow keys, home, end, page up/down
     switch (event.code) {
       case "Home":
         event.preventDefault();
@@ -51,16 +50,16 @@
         break;
       case "End":
         event.preventDefault();
-        animationController.goToFrame($totalFrames - 1);
+        animationController.goToFrame(totalFrames - 1);
         break;
       case "PageUp":
         event.preventDefault();
-        const prevFrame = Math.max(0, $currentFrame - 5);
+        const prevFrame = Math.max(0, currentFrame - 5);
         animationController.goToFrame(prevFrame);
         break;
       case "PageDown":
         event.preventDefault();
-        const nextFrame = Math.min($totalFrames - 1, $currentFrame + 5);
+        const nextFrame = Math.min(totalFrames - 1, currentFrame + 5);
         animationController.goToFrame(nextFrame);
         break;
     }
@@ -84,10 +83,10 @@
       min="0"
       max={sliderMax}
       step="1"
-      value={$currentFrame}
-      disabled={$isPlaying || !canNavigate}
-      on:input={handleFrameChange}
-      on:keydown={handleSliderKeydown}
+      value={currentFrame}
+      disabled={isPlaying || !canNavigate}
+      oninput={handleFrameChange}
+      onkeydown={handleSliderKeydown}
       aria-label="Navigate to specific frame"
       aria-describedby="k-slider-desc k-display"
       aria-valuetext={frameInfo}
@@ -105,13 +104,13 @@
     <span class="frame-info sr-only">{frameInfo}</span>
   </div>
 
-  {#if $totalFrames > 0}
+  {#if totalFrames > 0}
     <div
       class="frame-progress"
       role="progressbar"
-      aria-valuenow={$currentFrame + 1}
+      aria-valuenow={currentFrame + 1}
       aria-valuemin="1"
-      aria-valuemax={$totalFrames}
+      aria-valuemax={totalFrames}
       aria-label="Animation progress"
     >
       <span class="sr-only">{frameInfo}</span>

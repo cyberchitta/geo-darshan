@@ -1,31 +1,36 @@
 <script>
   import { getContext } from "svelte";
-  import { overlayOpacity } from "../stores.js";
 
   const { mapManager } = getContext("managers");
 
-  // Reactive computations
-  $: opacityPercent = Math.round($overlayOpacity * 100);
-  $: opacityDisplay = `${opacityPercent}%`;
+  // Local component state
+  let opacity = $state(0.8);
 
-  // Update CSS custom property for visual feedback - MOVED HERE
-  $: if (typeof document !== "undefined") {
-    const controlsEl = document.querySelector(".overlay-controls");
-    if (controlsEl) {
-      controlsEl.style.setProperty("--opacity", $overlayOpacity.toString());
+  // Sync local state with external map manager
+  $effect(() => {
+    mapManager.setOverlayOpacity(opacity);
+  });
+
+  // Derived computations
+  let opacityPercent = $derived(Math.round(opacity * 100));
+  let opacityDisplay = $derived(`${opacityPercent}%`);
+
+  // Update CSS custom property for visual feedback
+  $effect(() => {
+    if (typeof document !== "undefined") {
+      const controlsEl = document.querySelector(".overlay-controls");
+      if (controlsEl) {
+        controlsEl.style.setProperty("--opacity", opacity.toString());
+      }
     }
-  }
+  });
 
-  // Handle opacity changes
   function handleOpacityChange(event) {
-    const newOpacity = parseFloat(event.target.value);
-    overlayOpacity.set(newOpacity);
-    mapManager.setOverlayOpacity(newOpacity);
+    opacity = parseFloat(event.target.value);
   }
 
-  // Handle keyboard shortcuts for quick opacity adjustments
   function handleOpacityKeydown(event) {
-    let newOpacity = $overlayOpacity;
+    let newOpacity = opacity;
 
     switch (event.code) {
       case "Home":
@@ -38,11 +43,11 @@
         break;
       case "PageUp":
         event.preventDefault();
-        newOpacity = Math.min(1, $overlayOpacity + 0.1);
+        newOpacity = Math.min(1, opacity + 0.1);
         break;
       case "PageDown":
         event.preventDefault();
-        newOpacity = Math.max(0, $overlayOpacity - 0.1);
+        newOpacity = Math.max(0, opacity - 0.1);
         break;
       case "Digit0":
         if (event.ctrlKey || event.metaKey) {
@@ -63,16 +68,14 @@
         }
         break;
       default:
-        return; // Don't handle other keys
+        return;
     }
 
-    if (newOpacity !== $overlayOpacity) {
-      overlayOpacity.set(newOpacity);
-      mapManager.setOverlayOpacity(newOpacity);
+    if (newOpacity !== opacity) {
+      opacity = newOpacity;
     }
   }
 
-  // Preset opacity values for quick selection
   const presets = [
     { value: 0, label: "Hidden" },
     { value: 0.25, label: "25%" },
@@ -82,8 +85,7 @@
   ];
 
   function setPresetOpacity(value) {
-    overlayOpacity.set(value);
-    mapManager.setOverlayOpacity(value);
+    opacity = value;
   }
 </script>
 
@@ -104,9 +106,9 @@
       min="0"
       max="1"
       step="0.01"
-      value={$overlayOpacity}
-      on:input={handleOpacityChange}
-      on:keydown={handleOpacityKeydown}
+      value={opacity}
+      oninput={handleOpacityChange}
+      onkeydown={handleOpacityKeydown}
       aria-label="Cluster overlay opacity"
       aria-describedby="opacity-value opacity-help"
       aria-valuetext={opacityDisplay}
@@ -126,8 +128,8 @@
     {#each presets as preset}
       <button
         class="preset-btn"
-        class:active={Math.abs($overlayOpacity - preset.value) < 0.01}
-        on:click={() => setPresetOpacity(preset.value)}
+        class:active={Math.abs(opacity - preset.value) < 0.01}
+        onclick={() => setPresetOpacity(preset.value)}
         aria-label="Set opacity to {preset.label}"
         title="Set opacity to {preset.label}"
       >

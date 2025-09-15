@@ -2,13 +2,16 @@
   import AnimationControls from "./AnimationControls.svelte";
   import NavigationControls from "./NavigationControls.svelte";
   import OverlayControls from "./OverlayControls.svelte";
-  import { totalFrames } from "../stores.js";
+
+  // Props from parent (AppContext will pass these)
+  let { totalFrames, currentFrame, isPlaying, currentSegmentationKey } =
+    $props();
+
+  // Local component state
+  let isCollapsed = $state(false);
 
   // Show controls only when data is loaded
-  $: showControls = $totalFrames > 0;
-
-  // Panel visibility state for responsive design
-  let isCollapsed = false;
+  let showControls = $derived(totalFrames > 0);
 
   function toggleCollapsed() {
     isCollapsed = !isCollapsed;
@@ -29,8 +32,8 @@
       <button
         class="collapse-toggle"
         class:collapsed={isCollapsed}
-        on:click={toggleCollapsed}
-        on:keydown={handleKeydownToggle}
+        onclick={toggleCollapsed}
+        onkeydown={handleKeydownToggle}
         aria-expanded={!isCollapsed}
         aria-controls="controls-content"
         aria-label={isCollapsed
@@ -51,11 +54,16 @@
     >
       <div class="controls-row">
         <div class="control-group animation-group">
-          <AnimationControls />
+          <AnimationControls {currentFrame} {totalFrames} {isPlaying} />
         </div>
 
         <div class="control-group navigation-group">
-          <NavigationControls />
+          <NavigationControls
+            {currentFrame}
+            {totalFrames}
+            {isPlaying}
+            {currentSegmentationKey}
+          />
         </div>
 
         <div class="control-group overlay-group">
@@ -64,7 +72,6 @@
       </div>
     </div>
 
-    <!-- Status indicator when collapsed -->
     {#if isCollapsed}
       <div class="collapsed-status" aria-live="polite">
         <span class="sr-only">Controls panel collapsed</span>

@@ -1,91 +1,105 @@
 <script>
   import { setContext, onMount } from "svelte";
-  import {
-    currentFrame,
-    totalFrames,
-    isPlaying,
-    overlayData,
-    manifest,
-    clusterLabels,
-    currentSegmentationKey,
-    allClusterData,
-    animationSpeed,
-    overlayOpacity,
-  } from "./stores.js";
   import { STORAGE_KEYS } from "./js/utils.js";
   import LegendPanel from "./components/LegendPanel.svelte";
   import ControlsPanel from "./components/ControlsPanel.svelte";
 
   let { dataLoader, mapManager, animationController, labeledLayer } = $props();
+
   setContext("managers", {
     dataLoader,
     mapManager,
     animationController,
     labeledLayer,
   });
-  let currentSegKey = null;
+
+  // Shared state owned by AppContext
+  let currentFrame = $state(0);
+  let totalFrames = $state(0);
+  let isPlaying = $state(false);
+  let currentSegmentationKey = $state(null);
+  let clusterLabels = $state({});
+  let manifest = $state(null);
+  let overlayData = $state([]);
+  let allClusterData = $state({});
+
+  // Derived state
+  let currentSegmentationData = $derived(
+    currentSegmentationKey ? allClusterData[currentSegmentationKey] : null
+  );
+
   onMount(() => {
     console.log("AppContext mounted, setting up event listeners...");
+
+    // Animation controller events
     animationController.on("frameChanged", (frameIndex, segmentationKey) => {
       console.log("Frame changed:", frameIndex, segmentationKey);
-      currentFrame.set(frameIndex);
-      currentSegmentationKey.set(segmentationKey);
+      currentFrame = frameIndex;
+      currentSegmentationKey = segmentationKey;
     });
+
     animationController.on("framesReady", (frameCount) => {
       console.log("Frames ready:", frameCount);
-      totalFrames.set(frameCount);
+      totalFrames = frameCount;
     });
+
     animationController.on("playStateChanged", (playing) => {
       console.log("Play state changed:", playing);
-      isPlaying.set(playing);
+      isPlaying = playing;
     });
+
+    // Data loader events
     dataLoader.on("loadComplete", (manifestData, overlays) => {
       console.log("Data loaded:", manifestData, overlays);
-      manifest.set(manifestData);
-      overlayData.set(overlays);
+      manifest = manifestData;
+      overlayData = overlays;
     });
+
+    // Cluster data events
     window.addEventListener("clusterDataReady", (event) => {
       console.log("Cluster data received in AppContext:", event.detail);
-      allClusterData.set(event.detail);
+      allClusterData = event.detail;
     });
+
+    // Load saved labels
     loadSavedLabels();
-    const unsubscribeSegKey = currentSegmentationKey.subscribe((segKey) => {
-      console.log("Current segmentation changed to:", segKey);
+
+    // Clear data events
+    window.addEventListener("clearData", () => {
+      currentFrame = 0;
+      totalFrames = 0;
+      isPlaying = false;
+      currentSegmentationKey = null;
+      manifest = null;
+      overlayData = [];
+      allClusterData = {};
     });
-    const unsubscribeLabels = clusterLabels.subscribe((labels) => {
-      console.log("💾 Saving labels to localStorage:", labels);
-      try {
-        localStorage.setItem(
-          STORAGE_KEYS.CLUSTER_LABELS,
-          JSON.stringify({
-            labels,
-            timestamp: new Date().toISOString(),
-          })
-        );
-      } catch (error) {
-        console.warn("Failed to save labels to localStorage:", error);
-      }
-      if (labeledLayer) {
-        labeledLayer.updateLabels(labels);
-      }
-      mapManager.updateAllLayersWithNewLabels(labels);
-    });
-    const unsubscribeSpeed = animationSpeed.subscribe((speed) => {
-      if (Math.abs(animationController.speed - speed) > 0.01) {
-        animationController.setSpeed(speed);
-      }
-    });
-    const unsubscribeOpacity = overlayOpacity.subscribe((opacity) => {
-      if (Math.abs(mapManager.currentOpacity - opacity) > 0.01) {
-        mapManager.setOverlayOpacity(opacity);
-      }
-    });
-    return () => {
-      unsubscribeSegKey();
-      unsubscribeLabels();
-      unsubscribeSpeed();
-      unsubscribeOpacity();
-    };
+  });
+
+  // Save labels to localStorage whenever they change
+  $effect(() => {
+    console.log(
+      "💾 Saving labels to localStorage:",
+      $state.snapshot(clusterLabels)
+    );
+
+    try {
+      localStorage.setItem(
+        STORAGE_KEYS.CLUSTER_LABELS,
+        JSON.stringify({
+          labels: clusterLabels,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    } catch (error) {
+      console.warn("Failed to save labels to localStorage:", error);
+    }
+
+    // Update external systems
+    if (labeledLayer) {
+      labeledLayer.updateLabels(clusterLabels);
+    }
+    mapManager.updateAllLayersWithNewLabels(clusterLabels);
   });
 
   function loadSavedLabels() {
@@ -96,9 +110,9 @@
         if (data.labels && Object.keys(data.labels).length > 0) {
           console.log(
             "🔄 Loading saved labels from localStorage:",
-            data.labels
+            $state.snapshot(data.labels)
           );
-          clusterLabels.set(data.labels);
+          clusterLabels = data.labels;
           return;
         }
       }
@@ -107,7 +121,43 @@
       console.warn("Failed to load saved labels:", error);
     }
   }
+
+  // Callback for label changes from ClusterLegend
+  function handleLabelChange(
+    segmentationKey,
+    clusterId,
+    landUsePath,
+    bulkLabels = null
+  ) {
+    if (bulkLabels !== null) {
+      // Special case: bulk load or clear all
+      clusterLabels = bulkLabels;
+    } else if (segmentationKey && clusterId !== null) {
+      // Normal label change
+      clusterLabels = {
+        ...clusterLabels,
+        [segmentationKey]: {
+          ...clusterLabels[segmentationKey],
+          [clusterId]: landUsePath,
+        },
+      };
+    }
+  }
 </script>
 
-<LegendPanel />
-<ControlsPanel />
+<!-- Pass shared state as props to child components -->
+<LegendPanel
+  {clusterLabels}
+  {currentSegmentationKey}
+  {currentSegmentationData}
+  {manifest}
+  {overlayData}
+  onLabelChange={handleLabelChange}
+/>
+
+<ControlsPanel
+  {currentFrame}
+  {totalFrames}
+  {isPlaying}
+  {currentSegmentationKey}
+/>
