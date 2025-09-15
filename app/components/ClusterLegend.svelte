@@ -4,36 +4,41 @@
 
   const { dataLoader } = getContext("managers");
 
-  // Props from parent (AppContext will pass these)
   let {
     clusterLabels,
     currentSegmentationKey,
     currentSegmentationData,
+    selectedCluster,
     onLabelChange,
   } = $props();
 
-  // Local component state
+  $effect(() => {
+    if (
+      selectedCluster &&
+      selectedCluster.segmentationKey === currentSegmentationKey
+    ) {
+      scrollToCluster(selectedCluster.clusterId);
+      highlightCluster(selectedCluster.clusterId);
+    }
+  });
+
   let focusedClusterId = $state(null);
   let announcementText = $state("");
   let fileInput = $state();
 
-  // Derived from props
   let clusters = $derived(currentSegmentationData?.clusters || []);
   let clusterColors = $derived(currentSegmentationData?.colors || new Map());
-
   let currentLabels = $derived(
     currentSegmentationKey && clusterLabels[currentSegmentationKey]
       ? clusterLabels[currentSegmentationKey]
       : {}
   );
-
   let labeledCount = $derived(
     Object.keys(currentLabels).filter((id) => {
       const label = currentLabels[id];
       return label && label !== "unlabeled";
     }).length
   );
-
   let totalCount = $derived(clusters.length);
   let progressText = $derived(
     `${labeledCount} of ${totalCount} clusters labeled`
@@ -79,14 +84,35 @@
     }
   }
 
+  function scrollToCluster(clusterId) {
+    const element = document.querySelector(`[data-cluster-id="${clusterId}"]`);
+    if (element) {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      element.focus();
+    }
+  }
+
+  function highlightCluster(clusterId) {
+    document
+      .querySelectorAll(".legend-cluster-item.highlighted")
+      .forEach((el) => el.classList.remove("highlighted"));
+    const element = document.querySelector(`[data-cluster-id="${clusterId}"]`);
+    if (element) {
+      element.classList.add("highlighted");
+      setTimeout(() => {
+        element.classList.remove("highlighted");
+      }, 3000);
+    }
+  }
+
   function handleLabelChange(clusterId, selectedOption) {
     console.log("Label changed:", clusterId, selectedOption.path);
-
-    // Call parent callback to update shared state
     if (onLabelChange) {
       onLabelChange(currentSegmentationKey, clusterId, selectedOption.path);
     }
-
     const labelText =
       selectedOption.path === "unlabeled"
         ? "unlabeled"
@@ -397,6 +423,12 @@
     border-radius: 6px;
     background: #fafafa;
     position: relative;
+  }
+  .legend-cluster-item.highlighted {
+    background-color: #ffeb3b !important;
+    border: 2px solid #ff9800 !important;
+    box-shadow: 0 0 10px rgba(255, 152, 0, 0.5);
+    transition: all 0.3s ease;
   }
 
   .legend-cluster-item:hover {

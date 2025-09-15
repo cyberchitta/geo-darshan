@@ -1,19 +1,37 @@
 <script>
   import { setContext, onMount } from "svelte";
   import { STORAGE_KEYS } from "./js/utils.js";
+  import { DataLoader } from "./js/data-loader.js";
+  import { MapManager } from "./js/map.js";
+  import { AnimationController } from "./js/animation.js";
+  import { LabeledCompositeLayer } from "./js/labeled-composite.js";
+  import { LandUseHierarchy } from "./js/land-use-hierarchy.js";
+  import { Cluster } from "./js/cluster.js";
   import LegendPanel from "./components/LegendPanel.svelte";
   import ControlsPanel from "./components/ControlsPanel.svelte";
 
-  let { dataLoader, mapManager, animationController, labeledLayer } = $props();
+  let {} = $props();
+
+  let dataLoader = $state();
+  let mapManager = $state();
+  let animationController = $state();
+  let labeledLayer = $state();
 
   setContext("managers", {
-    dataLoader,
-    mapManager,
-    animationController,
-    labeledLayer,
+    get dataLoader() {
+      return dataLoader;
+    },
+    get mapManager() {
+      return mapManager;
+    },
+    get animationController() {
+      return animationController;
+    },
+    get labeledLayer() {
+      return labeledLayer;
+    },
   });
 
-  // Shared state owned by AppContext
   let currentFrame = $state(0);
   let totalFrames = $state(0);
   let isPlaying = $state(false);
@@ -22,67 +40,162 @@
   let manifest = $state(null);
   let overlayData = $state([]);
   let allClusterData = $state({});
+  let selectedCluster = $state(null);
 
-  // Derived state
   let currentSegmentationData = $derived(
     currentSegmentationKey ? allClusterData[currentSegmentationKey] : null
   );
 
-  onMount(() => {
-    console.log("AppContext mounted, setting up event listeners...");
+  onMount(async () => {
+    console.log("AppContext mounted, initializing managers...");
+    try {
+      await LandUseHierarchy.loadFromFile();
+      const rasterHandler = window.rasterHandler;
+      if (!rasterHandler) {
+        throw new Error(
+          "Raster handler not found. Make sure it's injected from HTML."
+        );
+      }
+      dataLoader = new DataLoader(rasterHandler);
+      mapManager = new MapManager("map", rasterHandler);
+      animationController = new AnimationController();
+      setupEventListeners();
+      setupKeyboardShortcuts();
+      await mapManager.initialize();
+      labeledLayer = new LabeledCompositeLayer(mapManager, dataLoader);
+      console.log("✅ All managers initialized");
+    } catch (error) {
+      console.error("Failed to initialize:", error);
+      showError("Failed to initialize viewer");
+    }
+    loadSavedLabels();
+  });
 
-    // Animation controller events
+  function setupEventListeners() {
     animationController.on("frameChanged", (frameIndex, segmentationKey) => {
       console.log("Frame changed:", frameIndex, segmentationKey);
       currentFrame = frameIndex;
       currentSegmentationKey = segmentationKey;
+      mapManager.showFrame(frameIndex);
     });
-
     animationController.on("framesReady", (frameCount) => {
       console.log("Frames ready:", frameCount);
       totalFrames = frameCount;
     });
-
     animationController.on("playStateChanged", (playing) => {
       console.log("Play state changed:", playing);
       isPlaying = playing;
     });
-
-    // Data loader events
     dataLoader.on("loadComplete", (manifestData, overlays) => {
-      console.log("Data loaded:", manifestData, overlays);
-      manifest = manifestData;
-      overlayData = overlays;
+      handleDataLoaded(manifestData, overlays);
     });
-
-    // Cluster data events
-    window.addEventListener("clusterDataReady", (event) => {
-      console.log("Cluster data received in AppContext:", event.detail);
-      allClusterData = event.detail;
+    dataLoader.on("loadError", (error) => {
+      handleLoadError(error);
     });
-
-    // Load saved labels
-    loadSavedLabels();
-
-    // Clear data events
+    mapManager.on("clusterClicked", (clusterValue, latlng) => {
+      console.log("Cluster clicked:", clusterValue);
+      selectedCluster = {
+        clusterId: clusterValue,
+        segmentationKey: currentSegmentationKey,
+        latlng,
+      };
+    });
     window.addEventListener("clearData", () => {
-      currentFrame = 0;
-      totalFrames = 0;
-      isPlaying = false;
-      currentSegmentationKey = null;
-      manifest = null;
-      overlayData = [];
-      allClusterData = {};
+      clearData();
     });
-  });
+  }
 
-  // Save labels to localStorage whenever they change
+  function setupKeyboardShortcuts() {
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      switch (e.code) {
+        case "Space":
+          e.preventDefault();
+          animationController.togglePlayPause();
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          animationController.stepBack();
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          animationController.stepForward();
+          break;
+      }
+    });
+  }
+
+  async function handleDataLoaded(manifestData, overlays) {
+    console.log("=== DATA LOADING START ===");
+    console.log("Overlays received:", overlays.length);
+    manifest = manifestData;
+    overlayData = overlays;
+    mapManager.setDataLoader(dataLoader);
+    allClusterData = await Cluster.extractClusterData(
+      overlays,
+      manifestData,
+      dataLoader
+    );
+    mapManager.setOverlays(overlays);
+    if (labeledLayer) {
+      labeledLayer.setOverlayData(overlays);
+    }
+    await new Promise((resolve) => {
+      mapManager.fitBounds(manifestData.metadata.bounds);
+      mapManager.map.whenReady(() => resolve());
+    });
+    animationController.setFrames(manifestData.segmentation_keys, overlays);
+    setTimeout(() => {
+      animationController.showInitialFrame();
+      console.log("✅ Initial frame displayed");
+    }, 100);
+    showLoading(false);
+    console.log("✅ Data loading complete");
+  }
+
+  function handleLoadError(error) {
+    console.error("Load error:", error);
+    showError(`Failed to load data: ${error.message}`);
+    showLoading(false);
+  }
+
+  function clearData() {
+    if (!confirm("Clear all loaded data? This will reset the viewer.")) return;
+    animationController.destroy();
+    mapManager.clearOverlays();
+    currentFrame = 0;
+    totalFrames = 0;
+    isPlaying = false;
+    currentSegmentationKey = null;
+    manifest = null;
+    overlayData = [];
+    allClusterData = {};
+    selectedCluster = null;
+    console.log("✅ Data cleared");
+  }
+
+  function getCurrentSegmentationKey() {
+    const frameInfo = animationController.getCurrentFrameInfo();
+    return frameInfo.segmentationKey;
+  }
+
+  function showLoading(show) {
+    const overlay = document.getElementById("loading-overlay");
+    if (overlay) {
+      overlay.classList.toggle("hidden", !show);
+    }
+  }
+
+  function showError(message) {
+    alert(`Error: ${message}`);
+    console.error("Viewer error:", message);
+  }
+
   $effect(() => {
     console.log(
       "💾 Saving labels to localStorage:",
       $state.snapshot(clusterLabels)
     );
-
     try {
       localStorage.setItem(
         STORAGE_KEYS.CLUSTER_LABELS,
@@ -94,12 +207,12 @@
     } catch (error) {
       console.warn("Failed to save labels to localStorage:", error);
     }
-
-    // Update external systems
     if (labeledLayer) {
       labeledLayer.updateLabels(clusterLabels);
     }
-    mapManager.updateAllLayersWithNewLabels(clusterLabels);
+    if (mapManager) {
+      mapManager.updateAllLayersWithNewLabels(clusterLabels);
+    }
   });
 
   function loadSavedLabels() {
@@ -122,7 +235,6 @@
     }
   }
 
-  // Callback for label changes from ClusterLegend
   function handleLabelChange(
     segmentationKey,
     clusterId,
@@ -130,10 +242,8 @@
     bulkLabels = null
   ) {
     if (bulkLabels !== null) {
-      // Special case: bulk load or clear all
       clusterLabels = bulkLabels;
     } else if (segmentationKey && clusterId !== null) {
-      // Normal label change
       clusterLabels = {
         ...clusterLabels,
         [segmentationKey]: {
@@ -145,11 +255,11 @@
   }
 </script>
 
-<!-- Pass shared state as props to child components -->
 <LegendPanel
   {clusterLabels}
   {currentSegmentationKey}
   {currentSegmentationData}
+  {selectedCluster}
   {manifest}
   {overlayData}
   onLabelChange={handleLabelChange}

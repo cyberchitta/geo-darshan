@@ -7,6 +7,7 @@
     clusterLabels,
     currentSegmentationKey,
     currentSegmentationData,
+    selectedCluster,
     manifest,
     overlayData,
     onLabelChange,
@@ -52,6 +53,7 @@
           {clusterLabels}
           {currentSegmentationKey}
           {currentSegmentationData}
+          {selectedCluster}
           {onLabelChange}
         />
       </div>
