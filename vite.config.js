@@ -9,8 +9,8 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: "app/index.html",
-        landcover: "app/land-cover-viewer.html",
+        main: "index.html",
+        landcover: "land-cover-viewer.html",
       },
     },
   },

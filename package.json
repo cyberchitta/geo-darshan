@@ -4,8 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "cluster-viewer:dev": "bunx serve app",
-    "frontend:dev": "bunx serve frontend",
+    "cluster-viewer:dev": "bun run vite",
     "download-tiles": "bun run scripts/download_esri.js test",
     "download-tiles:3.5k": "bun run scripts/download_esri.js 3.5k",
     "download-tiles:5k": "bun run scripts/download_esri.js 5k",
