@@ -5,14 +5,15 @@ compose:
   filters: ["flt-repo"]
 gitignores:
   full-files:
+    - "*.svelte"
     - "*.json"
     - "*.css"
-  outline-files:
+  excerpted-files:
     - "*.json"
     - "*.css"
 limit-to:
   full-files:
     - "app/**"
-  outline-files:
+  excerpted-files:
     - "app/**"
 ---
