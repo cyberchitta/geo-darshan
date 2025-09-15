@@ -1,4 +1,5 @@
 <script>
+  import InteractionModeControls from "./InteractionModeControls.svelte";
   import AnimationControls from "./AnimationControls.svelte";
   import NavigationControls from "./NavigationControls.svelte";
   import OverlayControls from "./OverlayControls.svelte";
@@ -46,17 +47,18 @@
         </span>
       </button>
     </div>
-
     <div
       class="controls-content"
       id="controls-content"
       class:collapsed={isCollapsed}
     >
       <div class="controls-row">
+        <div class="control-group interaction-group">
+          <InteractionModeControls />
+        </div>
         <div class="control-group animation-group">
           <AnimationControls {currentFrame} {totalFrames} {isPlaying} />
         </div>
-
         <div class="control-group navigation-group">
           <NavigationControls
             {currentFrame}
@@ -65,13 +67,11 @@
             {currentSegmentationKey}
           />
         </div>
-
         <div class="control-group overlay-group">
           <OverlayControls />
         </div>
       </div>
     </div>
-
     {#if isCollapsed}
       <div class="collapsed-status" aria-live="polite">
         <span class="sr-only">Controls panel collapsed</span>

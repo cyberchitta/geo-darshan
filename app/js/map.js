@@ -13,6 +13,7 @@ class MapManager {
     this.rasterHandler = rasterHandler;
     this.listeners = {};
     this.overlayLayers = {};
+    this.interactionMode = "view";
     if (this.rasterHandler) {
       console.log(`MapManager initialized with ${this.rasterHandler.name}`);
     } else {
@@ -358,25 +359,40 @@ class MapManager {
     });
   }
 
+  setInteractionMode(mode) {
+    this.interactionMode = mode;
+    console.log(`Interaction mode set to: ${mode}`);
+  }
+
   async handleMapClick(latlng) {
-    if (!this.currentOverlay || !this.currentOverlay.georasters[0]) {
-      console.log("No active overlay to sample");
+    if (this.interactionMode === "view") {
       return;
-    }
-    try {
-      const clusterValue = await this.samplePixelAtCoordinate(latlng);
-      if (
-        clusterValue !== null &&
-        clusterValue !== undefined &&
-        clusterValue >= 0
-      ) {
-        this.emit("clusterClicked", clusterValue, latlng);
-      } else {
-        this.emit("backgroundClicked", latlng);
+    } else if (this.interactionMode === "composite") {
+      this.handleCompositeLabeling(latlng);
+    } else if (this.interactionMode === "cluster") {
+      if (!this.currentOverlay || !this.currentOverlay.georasters[0]) {
+        console.log("No active overlay to sample");
+        return;
       }
-    } catch (error) {
-      console.error("Failed to sample pixel at click:", error);
+      try {
+        const clusterValue = await this.samplePixelAtCoordinate(latlng);
+        if (
+          clusterValue !== null &&
+          clusterValue !== undefined &&
+          clusterValue >= 0
+        ) {
+          this.emit("clusterClicked", clusterValue, latlng);
+        } else {
+          this.emit("backgroundClicked", latlng);
+        }
+      } catch (error) {
+        console.error("Failed to sample pixel at click:", error);
+      }
     }
+  }
+
+  handleCompositeLabeling(latlng) {
+    console.log("Composite labeling not yet implemented", latlng);
   }
 
   async samplePixelAtCoordinate(latlng) {
