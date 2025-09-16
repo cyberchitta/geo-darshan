@@ -28,15 +28,12 @@ class AnimationController {
   }
 
   setFrames(segmentationKeys, overlays) {
-    const sortedData = segmentationKeys
-      .map((key, index) => ({ key, overlay: overlays[index] }))
-      .sort((a, b) => compareSegmentationKeys(a.key, b.key));
-    sortedData.push({
-      key: "composite_regions",
-      overlay: null,
-    });
-    this.frames = sortedData.map((item) => item.key);
-    this.overlays = sortedData.map((item) => item.overlay);
+    const frameData = segmentationKeys.map((key, index) => ({
+      key,
+      overlay: overlays[index],
+    }));
+    this.frames = frameData.map((item) => item.key);
+    this.overlays = frameData.map((item) => item.overlay);
     this.currentFrame = 0;
     console.log(`Animation frames set: ${this.frames.length} frames`);
     console.log(`Segmentation keys: ${this.frames.join(", ")}`);

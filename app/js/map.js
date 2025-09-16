@@ -245,7 +245,7 @@ class MapManager {
       console.warn("No overlays loaded yet, cannot show frame");
       return;
     }
-    if (frameIndex === this.overlays.length) {
+    if (frameIndex >= this.overlays.length) {
       this.geoRasterLayers.forEach((layer) => {
         if (layer.setOpacity) {
           layer.setOpacity(0);
@@ -254,12 +254,14 @@ class MapManager {
       if (this.labeledLayer && this.labeledLayer.showSyntheticClusters) {
         this.labeledLayer.showSyntheticClusters();
       }
-      console.log(`✅ Displayed synthetic clusters frame`);
+      console.log(
+        `✅ Displayed synthetic clusters frame (index ${frameIndex})`
+      );
       return;
     }
     if (frameIndex < 0 || frameIndex >= this.overlays.length) {
       console.warn(
-        `Invalid frame index: ${frameIndex}, available: 0-${this.overlays.length}`
+        `Invalid frame index: ${frameIndex}, available: 0-${this.overlays.length - 1}`
       );
       return;
     }
