@@ -11,7 +11,6 @@ class LabeledCompositeLayer {
     this.allLabels = new Map();
     this.overlayData = new Map();
     this.compositeLayer = null;
-    this.opacity = 0.7;
     this.hierarchyLevel = 1;
     this.landUseColorCache = new Map();
     this.rules = {
@@ -46,11 +45,9 @@ class LabeledCompositeLayer {
     }
     const hierarchy = LandUseHierarchy.getInstance();
     const color = hierarchy.getColorForPath(landUsePath, this.hierarchyLevel);
-    const rgbaColor = color
-      ? `rgba(${hexToRgb(color)},${this.opacity})`
-      : "rgba(128,128,128,0.8)";
-    this.landUseColorCache.set(cacheKey, rgbaColor);
-    return rgbaColor;
+    const rgbColor = color ? `rgb(${hexToRgb(color)})` : "rgb(128,128,128)";
+    this.landUseColorCache.set(cacheKey, rgbColor);
+    return rgbColor;
   }
 
   setOverlayData(overlays) {
@@ -96,13 +93,13 @@ class LabeledCompositeLayer {
       this.compositeLayer = this.mapManager.rasterHandler.createMapLayer(
         compositeGeoRaster,
         {
-          opacity: this.opacity,
           pixelValuesToColorFn: (values) =>
             this.convertCompositePixelToColor(values),
           zIndex: 2000,
         }
       );
       this.layerGroup.addLayer(this.compositeLayer);
+      this.compositeLayer.setOpacity(this.mapManager.currentOpacity);
       const endTime = performance.now();
       console.log(
         `✅ Composite generated in ${(endTime - startTime).toFixed(2)}ms`
@@ -315,15 +312,15 @@ class LabeledCompositeLayer {
         }
       }
     }
-    return "rgba(255, 255, 0, 0.8)"; // Yellow for unlabeled
+    return "rgb(255, 255, 0)"; // Yellow for unlabeled
   }
 
   setOpacity(opacity) {
-    this.opacity = Math.max(0, Math.min(1, opacity));
+    opacity = Math.max(0, Math.min(1, opacity));
     if (this.compositeLayer) {
-      this.compositeLayer.setOpacity(this.opacity);
+      this.compositeLayer.setOpacity(opacity);
     }
-    console.log(`Labeled composite opacity set to ${this.opacity}`);
+    console.log(`Labeled composite opacity set to ${opacity}`);
   }
 
   setRules(newRules) {
