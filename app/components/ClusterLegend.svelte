@@ -12,7 +12,6 @@
     manifest,
     onLabelChange,
   } = $props();
-
   $effect(() => {
     if (
       selectedCluster &&
@@ -22,11 +21,8 @@
       highlightCluster(selectedCluster.clusterId);
     }
   });
-
   let focusedClusterId = $state(null);
   let announcementText = $state("");
-  let fileInput = $state();
-
   let clusters = $derived(currentSegmentationData?.clusters || []);
   let clusterColors = $derived(currentSegmentationData?.colors || new Map());
   let currentLabels = $derived(
@@ -141,58 +137,6 @@
     }, 1000);
   }
 
-  function saveLabels() {
-    const dataStr = JSON.stringify(clusterLabels, null, 2);
-    const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(dataBlob);
-    link.download = `cluster-labels-${new Date().toISOString().split("T")[0]}.json`;
-    link.click();
-    console.log("✅ Labels saved to file:", clusterLabels);
-    announceChange("Labels saved successfully");
-  }
-
-  function loadLabelsFromFile() {
-    fileInput.click();
-  }
-
-  async function handleFileLoad(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const loadedLabels = JSON.parse(text);
-      console.log("📁 Loading labels from file:", loadedLabels);
-      const isValidFormat = Object.entries(loadedLabels).every(
-        ([segKey, labels]) => {
-          return typeof labels === "object" && !Array.isArray(labels);
-        }
-      );
-      if (!isValidFormat) {
-        throw new Error("Invalid label file format");
-      }
-      if (onLabelChange) {
-        onLabelChange(null, null, null, loadedLabels);
-      }
-      announceChange(
-        `Labels loaded: ${Object.keys(loadedLabels).length} segmentations`
-      );
-      event.target.value = "";
-    } catch (error) {
-      console.error("Failed to load labels file:", error);
-      alert(`Failed to load labels: ${error.message}`);
-    }
-  }
-
-  function clearAllLabels() {
-    if (!confirm("Clear all cluster labels for ALL segmentations?")) return;
-    if (onLabelChange) {
-      onLabelChange(null, null, null, {});
-    }
-    console.log("✅ All labels cleared");
-    announceChange("All labels cleared");
-  }
-
   function getColorDescription(clusterId) {
     const color = clusterColors.get(clusterId);
     if (!color) return "No color";
@@ -213,61 +157,13 @@
 </div>
 <div class="cluster-legend" role="region" aria-labelledby="legend-title">
   <div class="legend-header">
-    <h3 id="legend-title">Cluster Legend</h3>
-    <div class="legend-stats" aria-live="polite">
-      <span aria-label="Progress: {progressText}">{progressText}</span>
-    </div>
-  </div>
-  <div
-    class="legend-controls"
-    role="group"
-    aria-labelledby="legend-controls-title"
-  >
-    <span id="legend-controls-title" class="sr-only"
-      >Legend management controls</span
-    >
-    <button
-      class="legend-btn"
-      onclick={loadLabelsFromFile}
-      aria-describedby="load-labels-desc"
-    >
-      Load Labels
-    </button>
-    <span id="load-labels-desc" class="sr-only"
-      >Load cluster labels from JSON file</span
-    >
-    <input
-      bind:this={fileInput}
-      type="file"
-      accept=".json"
-      style="display: none"
-      onchange={handleFileLoad}
-    />
-    <button
-      class="legend-btn"
-      onclick={saveLabels}
-      aria-describedby="save-labels-desc"
-    >
-      Save Labels
-    </button>
-    <span id="save-labels-desc" class="sr-only"
-      >Download current cluster labels as JSON file</span
-    >
-    <button
-      class="legend-btn secondary"
-      onclick={clearAllLabels}
-      aria-describedby="clear-labels-desc"
-    >
-      Clear All
-    </button>
-    <span id="clear-labels-desc" class="sr-only"
-      >Remove all cluster labels from all segmentations</span
-    >
+    <h3 id="legend-title">Cluster Segmentations</h3>
   </div>
   <div class="segmentation-selector">
-    <label for="segmentation-select">Segmentation:</label>
+    <label for="segmentation-select">Current Segmentation:</label>
     <select
       id="segmentation-select"
+      class="segmentation-dropdown"
       value={selectedSegmentationKey || ""}
       onchange={handleSegmentationChange}
     >
@@ -278,6 +174,11 @@
       {/each}
     </select>
   </div>
+  <div class="legend-stats-section">
+    <div class="legend-stats" aria-live="polite">
+      <span aria-label="Progress: {progressText}">{progressText}</span>
+    </div>
+  </div>
   <div
     class="legend-clusters-container"
     role="list"
@@ -287,7 +188,6 @@
       List of {totalCount} clusters. Use arrow keys to navigate, Enter or Space to
       select.
     </span>
-
     {#if clusters.length === 0}
       <div class="legend-placeholder" role="status">
         Load cluster data to see legend
@@ -350,64 +250,65 @@
     padding: 16px;
     border-bottom: 1px solid #eee;
     background: #f8f9fa;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
   }
 
   .legend-header h3 {
-    margin: 0 0 6px 0;
+    margin: 0;
     font-size: 18px;
     font-weight: 600;
     color: #222;
   }
 
-  .legend-stats {
-    color: #333;
-    font-size: 14px;
-    font-weight: 500;
-  }
-
-  .legend-controls {
-    padding: 12px;
+  .segmentation-selector {
+    padding: 12px 16px;
     border-bottom: 1px solid #eee;
+    background: #fafafa;
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 6px;
   }
 
-  .legend-btn {
+  .segmentation-selector label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .segmentation-dropdown {
     padding: 8px 12px;
-    font-size: 14px;
-    border: 1px solid #007bff;
-    background: #007bff;
-    color: white;
+    border: 1px solid #ddd;
     border-radius: 4px;
+    background: white;
+    font-size: 14px;
+    color: #333;
     cursor: pointer;
-    flex: 1;
-    min-width: 85px;
-    font-weight: 500;
     transition: all 0.2s ease;
   }
 
-  .legend-btn:hover {
-    background: #0056b3;
-    border-color: #0056b3;
+  .segmentation-dropdown:hover {
+    border-color: #007cba;
+    box-shadow: 0 0 0 2px rgba(0, 124, 186, 0.1);
   }
 
-  .legend-btn:focus {
-    outline: 2px solid #007bff;
-    outline-offset: 2px;
+  .segmentation-dropdown:focus {
+    outline: none;
+    border-color: #007cba;
+    box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.2);
   }
 
-  .legend-btn.secondary {
-    background: #6c757d;
-    border-color: #6c757d;
+  .legend-stats-section {
+    padding: 8px 16px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #eee;
   }
 
-  .legend-btn.secondary:hover {
-    background: #5a6268;
-    border-color: #545b62;
+  .legend-stats {
+    color: #666;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
   }
 
   .legend-clusters-container {
@@ -436,6 +337,7 @@
     background: #fafafa;
     position: relative;
   }
+
   .legend-cluster-item.highlighted {
     background-color: #ffeb3b !important;
     border: 2px solid #ff9800 !important;
@@ -462,10 +364,6 @@
     transform: translateY(-1px);
   }
 
-  .legend-cluster-item.focused:hover {
-    background: rgba(0, 123, 255, 0.15);
-  }
-
   .legend-cluster-item.labeled {
     background: #f8f9fa;
     border-color: #dee2e6;
@@ -480,23 +378,6 @@
   .legend-cluster-item.labeled .cluster-id,
   .legend-cluster-item.labeled .cluster-stats {
     color: #6c757d;
-  }
-
-  .legend-cluster-item.labeled.focused {
-    background: rgba(40, 167, 69, 0.1);
-    border-color: #28a745;
-    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.25);
-    opacity: 1;
-  }
-
-  .legend-cluster-item.labeled.focused .cluster-color-swatch {
-    opacity: 1;
-    filter: none;
-  }
-
-  .legend-cluster-item.labeled.focused .cluster-id,
-  .legend-cluster-item.labeled.focused .cluster-stats {
-    color: inherit;
   }
 
   .cluster-info {
@@ -531,7 +412,6 @@
     margin-bottom: 6px;
   }
 
-  /* Screen reader only content */
   .sr-only {
     position: absolute;
     width: 1px;
@@ -544,27 +424,14 @@
     border: 0;
   }
 
-  @keyframes clickPulse {
-    0% {
-      transform: translateY(-1px) scale(1);
-    }
-    50% {
-      transform: translateY(-2px) scale(1.01);
-    }
-    100% {
-      transform: translateY(-1px) scale(1);
-    }
-  }
-
   /* Responsive design */
   @media (max-width: 900px) {
-    .legend-controls {
-      flex-direction: column;
+    .segmentation-selector {
+      padding: 8px 12px;
     }
 
-    .legend-btn {
-      flex: none;
-      width: 100%;
+    .legend-header {
+      padding: 12px;
     }
   }
 
@@ -574,20 +441,15 @@
       border: 2px solid #000;
     }
 
-    .legend-cluster-item.focused {
-      border: 2px solid #0066cc;
-      background: #e6f3ff;
-    }
-
-    .legend-cluster-item.labeled {
-      border: 2px solid #666;
+    .segmentation-dropdown {
+      border: 2px solid #000;
     }
   }
 
   /* Reduced motion support */
   @media (prefers-reduced-motion: reduce) {
     .legend-cluster-item,
-    .legend-btn {
+    .segmentation-dropdown {
       transition: none;
     }
 

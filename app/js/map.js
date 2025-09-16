@@ -184,7 +184,7 @@ class MapManager {
   setOverlays(overlays) {
     this.overlays = overlays;
     this.geoRasterLayers.clear();
-    this.animationLayerControlName = "Cluster Animation";
+    this.animationLayerControlName = "Segmentations";
     this.preprocessOverlays().catch((error) => {
       console.error("Preprocessing failed:", error);
     });

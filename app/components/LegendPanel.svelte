@@ -12,9 +12,12 @@
     overlayData,
     onLabelChange,
   } = $props();
-
-  let activeTab = $state("clusters");
-
+  let activeTab = $state("data");
+  $effect(() => {
+    if (manifest && activeTab === "data") {
+      activeTab = "segmentations";
+    }
+  });
   function switchTab(tabId) {
     activeTab = tabId;
     console.log("Switched to tab:", tabId);
@@ -25,10 +28,10 @@
   <div class="panel-tabs">
     <button
       class="panel-tab"
-      class:active={activeTab === "clusters"}
-      onclick={() => switchTab("clusters")}
+      class:active={activeTab === "segmentations"}
+      onclick={() => switchTab("segmentations")}
     >
-      Clusters
+      Segmentations
     </button>
     <button
       class="panel-tab"
@@ -45,9 +48,8 @@
       Data
     </button>
   </div>
-
   <div class="panel-content">
-    {#if activeTab === "clusters"}
+    {#if activeTab === "segmentations"}
       <div class="tab-panel active">
         <ClusterLegend
           {clusterLabels}
@@ -60,7 +62,11 @@
       </div>
     {:else if activeTab === "landuse"}
       <div class="tab-panel active">
-        <LandUseLegend {clusterLabels} {currentSegmentationKey} />
+        <LandUseLegend
+          {clusterLabels}
+          {currentSegmentationKey}
+          {onLabelChange}
+        />
       </div>
     {:else if activeTab === "data"}
       <div class="tab-panel active">
@@ -88,11 +94,19 @@
     background: #f5f5f5;
     cursor: pointer;
     border-bottom: 2px solid transparent;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+
+  .panel-tab:hover {
+    background: #e9ecef;
   }
 
   .panel-tab.active {
     background: white;
     border-bottom-color: #007cba;
+    color: #007cba;
   }
 
   .panel-content {

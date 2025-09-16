@@ -31,7 +31,7 @@
     ) {
       layerGroup = L.layerGroup();
       layerGroup.addTo(mapManager.map);
-      mapManager.addOverlayLayer("Labeled Regions", layerGroup, false);
+      mapManager.addOverlayLayer("Land Use", layerGroup, false);
     }
   });
   $effect(() => {
@@ -71,7 +71,7 @@
         labeledLayer.destroy();
       }
       if (layerGroup && mapManager) {
-        mapManager.removeOverlayLayer("Labeled Regions");
+        mapManager.removeOverlayLayer("Land Use");
         mapManager.map.removeLayer(layerGroup);
       }
     };

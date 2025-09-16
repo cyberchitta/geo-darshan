@@ -5,9 +5,10 @@
   const { dataLoader } = getContext("managers");
   const labeledLayerContext = getContext("labeledLayer");
   let labeledLayer = $derived(labeledLayerContext?.instance);
-  let { clusterLabels } = $props();
+  let { clusterLabels, onLabelChange } = $props();
   let hierarchyLevel = $state(1);
   let isExporting = $state(false);
+  let fileInput = $state();
   const hierarchyLabels = {
     1: "Broad Categories",
     2: "General Types",
@@ -29,10 +30,92 @@
     }
   });
 
+  function saveLabels() {
+    const dataStr = JSON.stringify(clusterLabels, null, 2);
+    const dataBlob = new Blob([dataStr], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `cluster-labels-${new Date().toISOString().split("T")[0]}.json`;
+    link.click();
+    console.log("✅ Labels saved to file:", clusterLabels);
+  }
+
+  function loadLabelsFromFile() {
+    fileInput.click();
+  }
+
+  async function handleFileLoad(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const loadedLabels = JSON.parse(text);
+      console.log("📁 Loading labels from file:", loadedLabels);
+      const isValidFormat = Object.entries(loadedLabels).every(
+        ([segKey, labels]) => {
+          return typeof labels === "object" && !Array.isArray(labels);
+        }
+      );
+      if (!isValidFormat) {
+        throw new Error("Invalid label file format");
+      }
+      if (onLabelChange) {
+        onLabelChange(null, null, null, loadedLabels);
+      }
+      event.target.value = "";
+    } catch (error) {
+      console.error("Failed to load labels file:", error);
+      alert(`Failed to load labels: ${error.message}`);
+    }
+  }
+
+  function clearAllLabels() {
+    if (!confirm("Clear all cluster labels for ALL segmentations?")) return;
+    if (onLabelChange) {
+      onLabelChange(null, null, null, {});
+    }
+    console.log("✅ All labels cleared");
+  }
+
+  async function handleExport() {
+    if (!labeledLayer) {
+      alert("No labeled layer available for export");
+      return;
+    }
+    const stats = labeledLayer.getStats();
+    if (stats.totalLabels === 0) {
+      alert(
+        "No labeled clusters available for export. Please label some clusters first."
+      );
+      return;
+    }
+    if (!stats.isVisible) {
+      alert(
+        "Labeled regions layer is not visible. Please enable it first to generate composite."
+      );
+      return;
+    }
+    try {
+      isExporting = true;
+      const { ExportUtility } = await import("../js/export-utility.js");
+      const exporter = new ExportUtility(labeledLayer, dataLoader);
+      await exporter.exportLandCoverFiles();
+      alert("Land cover files exported successfully!");
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert(`Export failed: ${error.message}`);
+    } finally {
+      isExporting = false;
+    }
+  }
+
+  function handleHierarchyLevelChange(event) {
+    hierarchyLevel = parseInt(event.target.value);
+  }
+
   function extractLabeledPaths(allLabels) {
     const paths = new Set();
     if (!allLabels || typeof allLabels !== "object") {
-      console.log("🔍 No valid labels object");
       return paths;
     }
     Object.entries(allLabels).forEach(
@@ -42,7 +125,6 @@
             ([clusterId, landUsePath]) => {
               if (landUsePath && landUsePath !== "unlabeled") {
                 paths.add(landUsePath);
-                console.log(`🔍 Added path: ${landUsePath}`);
               }
             }
           );
@@ -114,41 +196,6 @@
     return partsA.length - partsB.length;
   }
 
-  function handleHierarchyLevelChange(event) {
-    hierarchyLevel = parseInt(event.target.value);
-  }
-
-  async function handleExport() {
-    if (!labeledLayer) {
-      alert("No labeled layer available for export");
-      return;
-    }
-    const stats = labeledLayer.getStats();
-    if (stats.totalLabels === 0) {
-      alert(
-        "No labeled clusters available for export. Please label some clusters first."
-      );
-      return;
-    }
-    if (!stats.isVisible) {
-      alert(
-        "Labeled regions layer is not visible. Please enable it first to generate composite."
-      );
-      return;
-    }
-    try {
-      isExporting = true;
-      const { ExportUtility } = await import("../js/export-utility.js");
-      const exporter = new ExportUtility(labeledLayer, dataLoader);
-      await exporter.exportLandCoverFiles();
-      alert("Land cover files exported successfully!");
-    } catch (error) {
-      console.error("Export failed:", error);
-      alert(`Export failed: ${error.message}`);
-    } finally {
-      isExporting = false;
-    }
-  }
   let promotedCount = $derived(
     displayItems.filter((item) => item.isPromoted).length
   );
@@ -164,13 +211,41 @@
   aria-labelledby="landuse-legend-title"
 >
   <div class="legend-header">
-    <h3 id="landuse-legend-title">Land Use Legend</h3>
-    <div class="legend-stats" aria-live="polite">
-      <span
-        >{labeledPaths.size > 0
-          ? statsText
-          : "Hierarchical Classification"}</span
+    <h3 id="landuse-legend-title">Land Use Classification</h3>
+  </div>
+  <div class="label-management-controls">
+    <div class="label-controls-row">
+      <button
+        class="label-btn"
+        onclick={loadLabelsFromFile}
+        aria-describedby="load-labels-desc"
       >
+        Load Labels
+      </button>
+      <input
+        bind:this={fileInput}
+        type="file"
+        accept=".json"
+        style="display: none"
+        onchange={handleFileLoad}
+      />
+      <button
+        class="label-btn"
+        onclick={saveLabels}
+        aria-describedby="save-labels-desc"
+      >
+        Save Labels
+      </button>
+      <button
+        class="label-btn secondary"
+        onclick={clearAllLabels}
+        aria-describedby="clear-labels-desc"
+      >
+        Clear All
+      </button>
+    </div>
+    <div class="legend-stats" aria-live="polite">
+      <span>{labeledPaths.size > 0 ? statsText : "No labeled regions"}</span>
     </div>
   </div>
   <div class="layer-control-group">
@@ -248,49 +323,104 @@
 
 <style>
   .land-use-legend {
-    padding: 15px;
     display: flex;
     flex-direction: column;
-    gap: 15px;
     height: 100%;
   }
 
   .legend-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-shrink: 0;
+    padding: 16px;
+    border-bottom: 1px solid #eee;
+    background: #f8f9fa;
   }
 
   .legend-header h3 {
     margin: 0;
-    color: #333;
+    font-size: 18px;
+    font-weight: 600;
+    color: #222;
+  }
+
+  .label-management-controls {
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    background: #fafafa;
+  }
+
+  .label-controls-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .label-btn {
+    padding: 8px 12px;
+    font-size: 14px;
+    border: 1px solid #007bff;
+    background: #007bff;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    flex: 1;
+    min-width: 80px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+
+  .label-btn:hover {
+    background: #0056b3;
+    border-color: #0056b3;
+  }
+
+  .label-btn:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+  }
+
+  .label-btn.secondary {
+    background: #6c757d;
+    border-color: #6c757d;
+  }
+
+  .label-btn.secondary:hover {
+    background: #5a6268;
+    border-color: #545b62;
   }
 
   .legend-stats {
-    font-size: 12px;
     color: #666;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
   }
 
   .layer-control-group {
+    padding: 15px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 15px;
+    border-bottom: 1px solid #eee;
   }
 
   .hierarchy-control {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 6px;
   }
 
   .hierarchy-control label {
     font-size: 12px;
-    font-weight: bold;
+    font-weight: 600;
     color: #333;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   .hierarchy-control input[type="range"] {
     width: 100%;
+    margin: 2px 0;
   }
 
   .hierarchy-control span {
@@ -310,9 +440,10 @@
     border: 1px solid #28a745;
     background: #28a745;
     color: white;
-    border-radius: 3px;
+    border-radius: 4px;
     cursor: pointer;
     font-size: 12px;
+    font-weight: 500;
     transition: all 0.2s ease;
   }
 
@@ -343,6 +474,7 @@
     overflow-y: auto;
     border: 1px solid #eee;
     border-radius: 4px;
+    margin: 0 15px 15px;
   }
 
   .legend-placeholder {
@@ -401,7 +533,6 @@
     font-weight: bold;
   }
 
-  /* Screen reader only content */
   .sr-only {
     position: absolute;
     width: 1px;
@@ -412,5 +543,32 @@
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
+  }
+
+  /* Responsive design */
+  @media (max-width: 900px) {
+    .label-controls-row {
+      flex-direction: column;
+    }
+
+    .label-btn {
+      flex: none;
+      width: 100%;
+    }
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .label-btn {
+      border: 2px solid;
+    }
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .label-btn,
+    .export-btn {
+      transition: none;
+    }
   }
 </style>
