@@ -1,21 +1,23 @@
 <script>
-  import { setContext, onMount } from "svelte";
+  import { setContext, getContext, onMount } from "svelte";
   import { STORAGE_KEYS } from "./js/utils.js";
   import { DataLoader } from "./js/data-loader.js";
   import { MapManager } from "./js/map.js";
   import { AnimationController } from "./js/animation.js";
-  import { LabeledCompositeLayer } from "./js/labeled-composite.js";
   import { LandUseHierarchy } from "./js/land-use-hierarchy.js";
   import { Cluster } from "./js/cluster.js";
+  import LabeledCompositeController from "./components/LabeledCompositeController.svelte";
   import LegendPanel from "./components/LegendPanel.svelte";
   import ControlsPanel from "./components/ControlsPanel.svelte";
 
   let {} = $props();
 
+  const labeledLayerContext = getContext("labeledLayer");
+  let labeledLayer = $derived(labeledLayerContext?.instance);
+
   let dataLoader = $state();
   let mapManager = $state();
   let animationController = $state();
-  let labeledLayer = $state();
 
   setContext("managers", {
     get dataLoader() {
@@ -26,9 +28,6 @@
     },
     get animationController() {
       return animationController;
-    },
-    get labeledLayer() {
-      return labeledLayer;
     },
   });
 
@@ -63,8 +62,6 @@
       setupEventListeners();
       setupKeyboardShortcuts();
       await mapManager.initialize();
-      labeledLayer = new LabeledCompositeLayer(mapManager, dataLoader);
-      mapManager.setLabeledLayer(labeledLayer);
       console.log("✅ All managers initialized");
     } catch (error) {
       console.error("Failed to initialize:", error);
@@ -310,19 +307,21 @@
   }
 </script>
 
-<LegendPanel
-  {clusterLabels}
-  {currentSegmentationKey}
-  {currentSegmentationData}
-  {selectedCluster}
-  {manifest}
-  {overlayData}
-  onLabelChange={handleLabelChange}
-/>
-
-<ControlsPanel
-  {currentFrame}
-  {totalFrames}
-  {isPlaying}
-  {currentSegmentationKey}
-/>
+{#if dataLoader && mapManager && animationController}
+  <LabeledCompositeController {overlayData} {clusterLabels} />
+  <LegendPanel
+    {clusterLabels}
+    {currentSegmentationKey}
+    {currentSegmentationData}
+    {selectedCluster}
+    {manifest}
+    {overlayData}
+    onLabelChange={handleLabelChange}
+  />
+  <ControlsPanel
+    {currentFrame}
+    {totalFrames}
+    {isPlaying}
+    {currentSegmentationKey}
+  />
+{/if}

@@ -2,12 +2,12 @@
   import { getContext } from "svelte";
   import { LandUseHierarchy } from "../js/land-use-hierarchy.js";
 
-  const { dataLoader, labeledLayer: contextLabeledLayer } =
-    getContext("managers");
-  let { clusterLabels, currentSegmentationKey } = $props();
+  const { dataLoader } = getContext("managers");
+  const labeledLayerContext = getContext("labeledLayer");
+  let labeledLayer = $derived(labeledLayerContext?.instance);
+  let { clusterLabels } = $props();
   let hierarchyLevel = $state(1);
   let isExporting = $state(false);
-  let labeledLayer = contextLabeledLayer;
   const hierarchyLabels = {
     1: "Broad Categories",
     2: "General Types",
@@ -30,7 +30,6 @@
   });
 
   function extractLabeledPaths(allLabels) {
-    console.log("🔍 Extracting paths from:", $state.snapshot(allLabels));
     const paths = new Set();
     if (!allLabels || typeof allLabels !== "object") {
       console.log("🔍 No valid labels object");
@@ -38,10 +37,6 @@
     }
     Object.entries(allLabels).forEach(
       ([segmentationKey, segmentationLabels]) => {
-        console.log(
-          `🔍 Processing segmentation ${segmentationKey}:`,
-          $state.snapshot(segmentationLabels)
-        );
         if (segmentationLabels && typeof segmentationLabels === "object") {
           Object.entries(segmentationLabels).forEach(
             ([clusterId, landUsePath]) => {
@@ -54,7 +49,6 @@
         }
       }
     );
-    console.log("🔍 Final extracted paths:", Array.from(paths));
     return paths;
   }
 

@@ -4,16 +4,14 @@ import { LandUseHierarchy } from "./land-use-hierarchy.js";
 import { RegionLabeler } from "./region-labeler.js";
 
 class LabeledCompositeLayer {
-  constructor(mapManager, dataLoader) {
+  constructor(mapManager, dataLoader, layerGroup) {
     this.mapManager = mapManager;
     this.dataLoader = dataLoader;
+    this.layerGroup = layerGroup;
     this.allLabels = new Map();
     this.overlayData = new Map();
     this.compositeLayer = null;
     this.opacity = 0.7;
-    this.layerGroup = L.layerGroup();
-    this.layerGroup.addTo(this.mapManager.map);
-    this.mapManager.addOverlayLayer("Labeled Regions", this.layerGroup, false);
     this.hierarchyLevel = 1;
     this.landUseColorCache = new Map();
     this.rules = {
@@ -23,7 +21,6 @@ class LabeledCompositeLayer {
     };
     this.regionLabeler = new RegionLabeler();
     this.regionHighlightLayer = null;
-    console.log("LabeledCompositeLayer initialized and registered with map");
   }
 
   setHierarchyLevel(level) {
@@ -61,7 +58,6 @@ class LabeledCompositeLayer {
     overlays.forEach((overlay) => {
       this.overlayData.set(overlay.segmentationKey, overlay);
     });
-    this.needsRegeneration = true;
     console.log(`Loaded ${overlays.length} segmentations for composite`);
   }
 
@@ -75,18 +71,9 @@ class LabeledCompositeLayer {
       this.allLabels.set(segmentationKey, labelMap);
     });
     console.log(`Updated labels for ${this.allLabels.size} segmentations`);
-    if (this.overlayData.size > 0) {
-      this.regenerateComposite();
-    }
   }
 
   async regenerateComposite() {
-    if (this.overlayData.size === 0 || this.allLabels.size === 0) {
-      console.warn(
-        "No overlay data or labels available for composite generation"
-      );
-      return;
-    }
     try {
       console.log("Generating composite raster with TensorFlow.js...");
       const startTime = performance.now();
@@ -105,6 +92,7 @@ class LabeledCompositeLayer {
       if (this.compositeLayer) {
         this.layerGroup.removeLayer(this.compositeLayer);
       }
+      console.log("🏗️ Creating new composite layer...");
       this.compositeLayer = this.mapManager.rasterHandler.createMapLayer(
         compositeGeoRaster,
         {
@@ -120,7 +108,16 @@ class LabeledCompositeLayer {
         `✅ Composite generated in ${(endTime - startTime).toFixed(2)}ms`
       );
     } catch (error) {
-      console.error("Failed to generate composite:", error);
+      console.error("❌ Failed to generate composite:", error);
+      console.error("❌ Stack trace:", error.stack);
+      if (this.compositeLayer) {
+        try {
+          this.layerGroup.removeLayer(this.compositeLayer);
+          this.compositeLayer = null;
+        } catch (cleanupError) {
+          console.error("❌ Failed to cleanup broken layer:", cleanupError);
+        }
+      }
     }
   }
 
@@ -365,14 +362,12 @@ class LabeledCompositeLayer {
 
   showSyntheticClusters() {
     if (this.compositeLayer) {
-      this.layerGroup.addLayer(this.compositeLayer);
       console.log("Synthetic clusters layer shown");
     }
   }
 
   hideSyntheticClusters() {
     if (this.compositeLayer) {
-      this.layerGroup.removeLayer(this.compositeLayer);
       console.log("Synthetic clusters layer hidden");
     }
   }
@@ -382,8 +377,6 @@ class LabeledCompositeLayer {
     if (this.compositeLayer) {
       this.layerGroup.removeLayer(this.compositeLayer);
     }
-    this.layerGroup.clearLayers();
-    this.mapManager.map.removeLayer(this.layerGroup);
     this.compositeLayer = null;
     this.allLabels.clear();
     this.overlayData.clear();
