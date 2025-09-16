@@ -2,20 +2,12 @@
   import { getContext } from "svelte";
 
   const { mapManager } = getContext("managers");
-
-  // Local component state
   let opacity = $state(0.8);
-
-  // Sync local state with external map manager
   $effect(() => {
     mapManager.setOverlayOpacity(opacity);
   });
-
-  // Derived computations
   let opacityPercent = $derived(Math.round(opacity * 100));
   let opacityDisplay = $derived(`${opacityPercent}%`);
-
-  // Update CSS custom property for visual feedback
   $effect(() => {
     if (typeof document !== "undefined") {
       const controlsEl = document.querySelector(".overlay-controls");
@@ -31,7 +23,6 @@
 
   function handleOpacityKeydown(event) {
     let newOpacity = opacity;
-
     switch (event.code) {
       case "Home":
         event.preventDefault();
@@ -70,7 +61,6 @@
       default:
         return;
     }
-
     if (newOpacity !== opacity) {
       opacity = newOpacity;
     }
@@ -94,53 +84,51 @@
   role="group"
   aria-labelledby="overlay-controls-title"
 >
-  <span id="overlay-controls-title" class="sr-only"
-    >Overlay display controls</span
+  <span id="overlay-controls-title" class="sr-only">Layer display controls</span
   >
-
   <div class="opacity-control">
-    <label for="opacity-slider" class="opacity-label">Opacity:</label>
-    <input
-      type="range"
-      id="opacity-slider"
-      min="0"
-      max="1"
-      step="0.01"
-      value={opacity}
-      oninput={handleOpacityChange}
-      onkeydown={handleOpacityKeydown}
-      aria-label="Cluster overlay opacity"
-      aria-describedby="opacity-value opacity-help"
-      aria-valuetext={opacityDisplay}
-    />
-    <span id="opacity-value" class="opacity-value" aria-live="polite">
-      {opacityDisplay}
-    </span>
-  </div>
-
-  <div
-    class="opacity-presets"
-    role="group"
-    aria-labelledby="opacity-presets-title"
-  >
-    <span id="opacity-presets-title" class="sr-only">Quick opacity presets</span
+    <label for="opacity-slider" class="opacity-label">Layer Opacity:</label>
+    <div class="opacity-slider-row">
+      <input
+        type="range"
+        id="opacity-slider"
+        min="0"
+        max="1"
+        step="0.01"
+        value={opacity}
+        oninput={handleOpacityChange}
+        onkeydown={handleOpacityKeydown}
+        aria-label="Map layer opacity"
+        aria-describedby="opacity-value opacity-help"
+        aria-valuetext={opacityDisplay}
+      />
+      <span id="opacity-value" class="opacity-value" aria-live="polite">
+        {opacityDisplay}
+      </span>
+    </div>
+    <div
+      class="opacity-presets"
+      role="group"
+      aria-labelledby="opacity-presets-title"
     >
-    {#each presets as preset}
-      <button
-        class="preset-btn"
-        class:active={Math.abs(opacity - preset.value) < 0.01}
-        onclick={() => setPresetOpacity(preset.value)}
-        aria-label="Set opacity to {preset.label}"
-        title="Set opacity to {preset.label}"
+      <span id="opacity-presets-title" class="sr-only"
+        >Quick opacity presets</span
       >
-        {preset.label}
-      </button>
-    {/each}
+      {#each presets as preset}
+        <button
+          class="preset-btn"
+          class:active={Math.abs(opacity - preset.value) < 0.01}
+          onclick={() => setPresetOpacity(preset.value)}
+          aria-label="Set opacity to {preset.label}"
+          title="Set opacity to {preset.label}"
+        >
+          {preset.label}
+        </button>
+      {/each}
+    </div>
   </div>
-
   <span id="opacity-help" class="sr-only">
-    Use arrow keys for fine control, Page Up/Down for larger steps, Home for 0%,
-    End for 100%, or Ctrl+0/5/1 for quick presets
+    Controls opacity for all map overlays including clusters and labeled regions
   </span>
 </div>
 
@@ -160,8 +148,8 @@
 
   .opacity-control {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    gap: 6px;
     flex: 1;
   }
 
@@ -236,19 +224,29 @@
     text-align: center;
   }
 
+  .opacity-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
   .opacity-presets {
     display: flex;
     gap: 4px;
+    justify-content: space-between;
   }
 
   .preset-btn {
-    padding: 4px 8px;
+    flex: 1;
+    padding: 2px 4px;
     border: 1px solid #ddd;
     background: white;
     border-radius: 3px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 10px;
     transition: all 0.2s ease;
+    min-height: 20px;
     min-width: 35px;
   }
 

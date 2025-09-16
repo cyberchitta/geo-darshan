@@ -107,6 +107,11 @@
         console.log("No labeled layer available for composite labeling");
       }
     });
+    mapManager.on("globalOpacityChanged", (opacity) => {
+      if (labeledLayer && labeledLayer.setOpacity) {
+        labeledLayer.setOpacity(opacity);
+      }
+    });
     window.addEventListener("clearData", () => {
       clearData();
     });

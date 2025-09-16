@@ -29,7 +29,7 @@
 {#if showControls}
   <div class="controls-panel" class:collapsed={isCollapsed}>
     <div class="controls-header">
-      <h2 class="controls-title">Playback Controls</h2>
+      <h2 class="controls-title">Map Controls</h2>
       <button
         class="collapse-toggle"
         class:collapsed={isCollapsed}
@@ -53,11 +53,11 @@
       class:collapsed={isCollapsed}
     >
       <div class="controls-row">
+        <div class="control-group overlay-group">
+          <OverlayControls />
+        </div>
         <div class="control-group interaction-group">
           <InteractionModeControls />
-        </div>
-        <div class="control-group animation-group">
-          <AnimationControls {currentFrame} {totalFrames} {isPlaying} />
         </div>
         <div class="control-group navigation-group">
           <NavigationControls
@@ -67,8 +67,8 @@
             {currentSegmentationKey}
           />
         </div>
-        <div class="control-group overlay-group">
-          <OverlayControls />
+        <div class="control-group animation-group">
+          <AnimationControls {currentFrame} {totalFrames} {isPlaying} />
         </div>
       </div>
     </div>
@@ -180,21 +180,6 @@
     border-bottom: none;
   }
 
-  .animation-group {
-    /* Primary controls - most prominent */
-    order: 1;
-  }
-
-  .navigation-group {
-    /* Secondary controls */
-    order: 2;
-  }
-
-  .overlay-group {
-    /* Tertiary controls */
-    order: 3;
-  }
-
   .collapsed-status {
     padding: 8px 15px;
     text-align: center;
@@ -222,18 +207,15 @@
     }
 
     .animation-group {
-      order: 1;
       flex: 0 0 auto;
     }
 
     .navigation-group {
-      order: 2;
       flex: 1 1 auto;
       min-width: 250px;
     }
 
     .overlay-group {
-      order: 3;
       flex: 0 0 auto;
     }
   }
