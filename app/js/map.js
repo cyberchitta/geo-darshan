@@ -14,6 +14,7 @@ class MapManager {
     this.listeners = {};
     this.overlayLayers = {};
     this.interactionMode = "view";
+    this.labeledLayer = null;
     if (this.rasterHandler) {
       console.log(`MapManager initialized with ${this.rasterHandler.name}`);
     } else {
@@ -189,6 +190,10 @@ class MapManager {
     });
   }
 
+  setLabeledLayer(labeledLayer) {
+    this.labeledLayer = labeledLayer;
+  }
+
   async preprocessOverlays() {
     if (!this.overlays || this.overlays.length === 0) {
       console.warn("No overlays to preprocess");
@@ -240,15 +245,28 @@ class MapManager {
       console.warn("No overlays loaded yet, cannot show frame");
       return;
     }
+    if (frameIndex === this.overlays.length) {
+      this.geoRasterLayers.forEach((layer) => {
+        if (layer.setOpacity) {
+          layer.setOpacity(0);
+        }
+      });
+      if (this.labeledLayer && this.labeledLayer.showSyntheticClusters) {
+        this.labeledLayer.showSyntheticClusters();
+      }
+      console.log(`✅ Displayed synthetic clusters frame`);
+      return;
+    }
     if (frameIndex < 0 || frameIndex >= this.overlays.length) {
       console.warn(
-        `Invalid frame index: ${frameIndex}, available: 0-${
-          this.overlays.length - 1
-        }`
+        `Invalid frame index: ${frameIndex}, available: 0-${this.overlays.length}`
       );
       return;
     }
     try {
+      if (this.labeledLayer && this.labeledLayer.hideSyntheticClusters) {
+        this.labeledLayer.hideSyntheticClusters();
+      }
       this.geoRasterLayers.forEach((layer, index) => {
         const opacity = index === frameIndex ? this.currentOpacity : 0;
         if (layer.setOpacity) {

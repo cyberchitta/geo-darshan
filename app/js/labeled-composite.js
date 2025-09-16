@@ -1,4 +1,4 @@
-import { extractKValue, hexToRgb } from "./utils.js";
+import { hexToRgb } from "./utils.js";
 import { Compositor } from "./compositor.js";
 import { LandUseHierarchy } from "./land-use-hierarchy.js";
 import { RegionLabeler } from "./region-labeler.js";
@@ -151,6 +151,21 @@ class LabeledCompositeLayer {
       console.log("No contiguous region found");
       return;
     }
+    const overlaps = this.regionLabeler.checkForOverlaps(contiguousRegion);
+    if (overlaps.size > 0) {
+      const choice = await this.showOverlapDialog(
+        overlaps,
+        contiguousRegion.length
+      );
+      if (!choice) {
+        this.clearRegionHighlight();
+        return;
+      }
+      if (choice.action === "merge") {
+        this.handleMergeWithExisting(contiguousRegion, choice.clusterId);
+        return;
+      }
+    }
     console.log(
       `Found contiguous region with ${contiguousRegion.length} pixels`
     );
@@ -175,20 +190,110 @@ class LabeledCompositeLayer {
   }
 
   showRegionLabelingUI(region, clickLatlng) {
-    const landUsePath = prompt(
-      `Label ${region.length} pixels as which land use? (Enter path like 'agriculture.cropland')`
+    const syntheticId = this.regionLabeler.labelRegion(region, "unlabeled");
+    console.log(
+      `Created synthetic cluster ${syntheticId} with ${region.length} pixels - switch to synthetic segmentation to label`
     );
-    if (landUsePath && landUsePath.trim()) {
-      const labeledCount = this.regionLabeler.labelRegion(
-        region,
-        landUsePath.trim()
-      );
-      console.log(`Successfully labeled ${labeledCount} pixels`);
-      if (this.compositeLayer && this.compositeLayer.redraw) {
-        this.compositeLayer.redraw();
-      }
+    if (this.compositeLayer && this.compositeLayer.redraw) {
+      this.compositeLayer.redraw();
+    }
+    this.mapManager.emit("syntheticClusterCreated", {
+      clusterId: syntheticId,
+      landUsePath: "unlabeled",
+      pixelCount: region.length,
+    });
+    this.clearRegionHighlight();
+    this.showBriefMessage(
+      `Created synthetic cluster ${syntheticId}. Switch to "composite_regions" to label it.`
+    );
+  }
+
+  async showOverlapDialog(overlaps, regionSize) {
+    return new Promise((resolve) => {
+      const dialog = document.createElement("div");
+      dialog.className = "overlap-dialog-overlay";
+      dialog.innerHTML = `
+      <div class="overlap-dialog">
+        <h3>Region Overlap Detected</h3>
+        <p>This ${regionSize}-pixel region overlaps with existing synthetic clusters:</p>
+        <ul class="overlap-list">
+          ${Array.from(overlaps.entries())
+            .map(
+              ([clusterId, landUsePath]) =>
+                `<li>Cluster ${clusterId}: ${landUsePath}</li>`
+            )
+            .join("")}
+        </ul>
+        <div class="overlap-actions">
+          <button class="dialog-btn primary" data-action="merge">Merge with Existing</button>
+          <button class="dialog-btn secondary" data-action="new">Create New Cluster</button>
+          <button class="dialog-btn cancel" data-action="cancel">Cancel</button>
+        </div>
+      </div>
+    `;
+      document.body.appendChild(dialog);
+      dialog.addEventListener("click", (e) => {
+        if (e.target.classList.contains("dialog-btn")) {
+          const action = e.target.dataset.action;
+          document.body.removeChild(dialog);
+          if (action === "cancel") {
+            resolve(null);
+          } else if (action === "merge") {
+            const firstClusterId = Array.from(overlaps.keys())[0];
+            resolve({ action: "merge", clusterId: firstClusterId });
+          } else if (action === "new") {
+            resolve({ action: "new" });
+          }
+        }
+      });
+      const handleEscape = (e) => {
+        if (e.key === "Escape") {
+          document.removeEventListener("keydown", handleEscape);
+          if (document.body.contains(dialog)) {
+            document.body.removeChild(dialog);
+          }
+          resolve(null);
+        }
+      };
+      document.addEventListener("keydown", handleEscape);
+    });
+  }
+
+  handleMergeWithExisting(region, existingClusterId) {
+    region.forEach((pixel) => {
+      this.compositeLayer.georasters[0].values[0][pixel.y][pixel.x] =
+        existingClusterId;
+    });
+    console.log(
+      `Merged ${region.length} pixels into existing synthetic cluster ${existingClusterId}`
+    );
+    if (this.compositeLayer && this.compositeLayer.redraw) {
+      this.compositeLayer.redraw();
     }
     this.clearRegionHighlight();
+  }
+
+  showBriefMessage(message) {
+    const messageEl = document.createElement("div");
+    messageEl.className = "brief-message";
+    messageEl.textContent = message;
+    messageEl.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #333;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 4px;
+    z-index: 9999;
+    font-size: 14px;
+  `;
+    document.body.appendChild(messageEl);
+    setTimeout(() => {
+      if (document.body.contains(messageEl)) {
+        document.body.removeChild(messageEl);
+      }
+    }, 3000);
   }
 
   clearRegionHighlight() {
@@ -256,6 +361,20 @@ class LabeledCompositeLayer {
       hierarchyLevel: this.hierarchyLevel,
       rules: this.rules,
     };
+  }
+
+  showSyntheticClusters() {
+    if (this.compositeLayer) {
+      this.layerGroup.addLayer(this.compositeLayer);
+      console.log("Synthetic clusters layer shown");
+    }
+  }
+
+  hideSyntheticClusters() {
+    if (this.compositeLayer) {
+      this.layerGroup.removeLayer(this.compositeLayer);
+      console.log("Synthetic clusters layer hidden");
+    }
   }
 
   destroy() {

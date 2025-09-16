@@ -64,6 +64,7 @@
       setupKeyboardShortcuts();
       await mapManager.initialize();
       labeledLayer = new LabeledCompositeLayer(mapManager, dataLoader);
+      mapManager.setLabeledLayer(labeledLayer);
       console.log("✅ All managers initialized");
     } catch (error) {
       console.error("Failed to initialize:", error);
@@ -113,6 +114,17 @@
         labeledLayer.setOpacity(opacity);
       }
     });
+    mapManager.on("syntheticClusterCreated", (syntheticInfo) => {
+      console.log("Synthetic cluster created:", syntheticInfo);
+      if (labeledLayer && labeledLayer.compositeLayer) {
+        Cluster.updateSyntheticClusters(
+          allClusterData,
+          labeledLayer.allLabels,
+          labeledLayer.compositeLayer.georasters[0]
+        );
+        allClusterData = { ...allClusterData };
+      }
+    });
     window.addEventListener("clearData", () => {
       clearData();
     });
@@ -152,12 +164,18 @@
     mapManager.setOverlays(overlays);
     if (labeledLayer) {
       labeledLayer.setOverlayData(overlays);
+      mapManager.setLabeledLayer(labeledLayer);
     }
     await new Promise((resolve) => {
       mapManager.fitBounds(manifestData.metadata.bounds);
       mapManager.map.whenReady(() => resolve());
     });
-    animationController.setFrames(manifestData.segmentation_keys, overlays);
+    const allSegmentationKeys = [
+      ...manifestData.segmentation_keys,
+      "composite_regions",
+    ];
+    const allOverlays = [...overlays, null];
+    animationController.setFrames(allSegmentationKeys, allOverlays);
     setTimeout(() => {
       animationController.showInitialFrame();
       console.log("✅ Initial frame displayed");
@@ -227,6 +245,17 @@
     }
   });
 
+  $effect(() => {
+    if (labelsReady && labeledLayer && labeledLayer.compositeLayer) {
+      Cluster.updateSyntheticClusters(
+        allClusterData,
+        labeledLayer.allLabels,
+        labeledLayer.compositeLayer.georasters[0]
+      );
+      allClusterData = { ...allClusterData };
+    }
+  });
+
   function loadSavedLabels() {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CLUSTER_LABELS);
@@ -262,7 +291,6 @@
       landUsePath,
       bulkLabels,
     });
-
     if (bulkLabels !== null) {
       console.log("🔧 Setting bulkLabels, keys:", Object.keys(bulkLabels));
       clusterLabels = bulkLabels;

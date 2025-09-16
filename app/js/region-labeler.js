@@ -1,10 +1,10 @@
 class RegionLabeler {
-  constructor(compositeData) {
-    this.compositeData = compositeData; // georaster data
-    this.compositeSegmentationMap = null; // from LabeledCompositeLayer
-    this.compositeSegmentations = null; // from LabeledCompositeLayer
-    this.allLabels = null; // cluster labels map
-    this.pixelLabels = new Map(); // "x,y" -> landUsePath for pixel-level labels
+  constructor() {
+    this.compositeData = null;
+    this.compositeSegmentationMap = null;
+    this.compositeSegmentations = null;
+    this.allLabels = null;
+    this.nextSyntheticId = 10000;
   }
 
   updateCompositeData(
@@ -17,6 +17,16 @@ class RegionLabeler {
     this.compositeSegmentationMap = segmentationMap;
     this.compositeSegmentations = segmentations;
     this.allLabels = allLabels;
+    this.initializeSyntheticTracking();
+  }
+
+  initializeSyntheticTracking() {
+    const syntheticLabels = this.allLabels.get("composite_regions");
+    if (syntheticLabels && syntheticLabels.size > 0) {
+      const existingIds = Array.from(syntheticLabels.keys());
+      this.nextSyntheticId =
+        Math.max(...existingIds.filter((id) => id >= 10000)) + 1;
+    }
   }
 
   latlngToPixelCoord(latlng) {
@@ -38,8 +48,8 @@ class RegionLabeler {
   }
 
   isPixelUnlabeled(pixelCoord) {
-    const key = `${pixelCoord.x},${pixelCoord.y}`;
-    if (this.pixelLabels.has(key)) {
+    const clusterId = this.compositeData.values[0][pixelCoord.y][pixelCoord.x];
+    if (clusterId >= 10000) {
       return false;
     }
     if (!this.compositeSegmentationMap || !this.compositeSegmentations) {
@@ -48,7 +58,6 @@ class RegionLabeler {
     const segmentationIndex =
       this.compositeSegmentationMap[pixelCoord.y][pixelCoord.x];
     const segmentationKey = this.compositeSegmentations[segmentationIndex];
-    const clusterId = this.compositeData.values[0][pixelCoord.y][pixelCoord.x];
     const labels = this.allLabels?.get(segmentationKey);
     if (!labels || !labels.has(clusterId)) {
       return true;
@@ -75,6 +84,49 @@ class RegionLabeler {
     return region;
   }
 
+  checkForOverlaps(region) {
+    const overlappingClusters = new Map(); // clusterId -> landUsePath
+    const syntheticLabels = this.allLabels.get("composite_regions");
+    for (const pixel of region) {
+      const clusterId = this.compositeData.values[0][pixel.y][pixel.x];
+      if (
+        clusterId >= 10000 &&
+        syntheticLabels &&
+        syntheticLabels.has(clusterId)
+      ) {
+        overlappingClusters.set(clusterId, syntheticLabels.get(clusterId));
+      }
+    }
+    return overlappingClusters;
+  }
+
+  getOrCreateSyntheticId(landUsePath) {
+    const syntheticLabels = this.allLabels.get("composite_regions");
+    if (syntheticLabels) {
+      for (const [clusterId, existingPath] of syntheticLabels) {
+        if (existingPath === landUsePath) {
+          return clusterId;
+        }
+      }
+    }
+    return this.nextSyntheticId++;
+  }
+
+  labelRegion(region, landUsePath) {
+    const syntheticId = this.getOrCreateSyntheticId(landUsePath);
+    region.forEach((pixel) => {
+      this.compositeData.values[0][pixel.y][pixel.x] = syntheticId;
+    });
+    if (!this.allLabels.has("composite_regions")) {
+      this.allLabels.set("composite_regions", new Map());
+    }
+    this.allLabels.get("composite_regions").set(syntheticId, landUsePath);
+    console.log(
+      `Labeled ${region.length} pixels as synthetic cluster ${syntheticId} (${landUsePath})`
+    );
+    return syntheticId;
+  }
+
   getNeighbors(pixel) {
     const neighbors = [];
     for (let dx = -1; dx <= 1; dx++) {
@@ -94,35 +146,6 @@ class RegionLabeler {
     return neighbors;
   }
 
-  labelRegion(region, landUsePath) {
-    region.forEach((pixel) => {
-      const key = `${pixel.x},${pixel.y}`;
-      this.pixelLabels.set(key, landUsePath);
-    });
-    console.log(`Labeled ${region.length} pixels as ${landUsePath}`);
-    return region.length;
-  }
-
-  getPixelLabel(pixelCoord) {
-    const key = `${pixelCoord.x},${pixelCoord.y}`;
-    if (this.pixelLabels.has(key)) {
-      return this.pixelLabels.get(key);
-    }
-    if (!this.compositeSegmentationMap || !this.compositeSegmentations) {
-      return null;
-    }
-    const segmentationIndex =
-      this.compositeSegmentationMap[pixelCoord.y][pixelCoord.x];
-    const segmentationKey = this.compositeSegmentations[segmentationIndex];
-    const clusterId = this.compositeData.values[0][pixelCoord.y][pixelCoord.x];
-    const labels = this.allLabels?.get(segmentationKey);
-    if (labels && labels.has(clusterId)) {
-      const label = labels.get(clusterId);
-      return label && label !== "unlabeled" ? label : null;
-    }
-    return null;
-  }
-
   pixelToLatLng(pixel) {
     const lng =
       this.compositeData.xmin + (pixel.x + 0.5) * this.compositeData.pixelWidth;
@@ -130,50 +153,6 @@ class RegionLabeler {
       this.compositeData.ymax -
       (pixel.y + 0.5) * this.compositeData.pixelHeight;
     return { lat, lng };
-  }
-
-  getStats() {
-    const totalPixels = this.compositeData.width * this.compositeData.height;
-    const pixelLevelLabels = this.pixelLabels.size;
-    let clusterLabeledPixels = 0;
-    for (let y = 0; y < this.compositeData.height; y++) {
-      for (let x = 0; x < this.compositeData.width; x++) {
-        const pixelCoord = { x, y };
-        if (
-          !this.pixelLabels.has(`${x},${y}`) &&
-          !this.isPixelUnlabeled(pixelCoord)
-        ) {
-          clusterLabeledPixels++;
-        }
-      }
-    }
-    return {
-      totalPixels,
-      pixelLevelLabels,
-      clusterLabeledPixels,
-      unlabeledPixels: totalPixels - pixelLevelLabels - clusterLabeledPixels,
-      percentComplete:
-        ((pixelLevelLabels + clusterLabeledPixels) / totalPixels) * 100,
-    };
-  }
-
-  clearPixelLabels() {
-    this.pixelLabels.clear();
-  }
-
-  exportPixelLabels() {
-    const labels = {};
-    for (const [key, value] of this.pixelLabels) {
-      labels[key] = value;
-    }
-    return labels;
-  }
-
-  importPixelLabels(labels) {
-    this.pixelLabels.clear();
-    Object.entries(labels).forEach(([key, value]) => {
-      this.pixelLabels.set(key, value);
-    });
   }
 }
 

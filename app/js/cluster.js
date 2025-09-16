@@ -1,3 +1,4 @@
+import { hexToRgb } from "./utils.js";
 export class Cluster {
   static async extractClusterData(overlays, manifest, dataLoader) {
     const clusterData = {};
@@ -32,7 +33,63 @@ export class Cluster {
       });
       clusterData[segmentationKey] = { clusters, colors };
     }
+    clusterData["composite_regions"] = {
+      clusters: [],
+      colors: new Map(),
+    };
     return clusterData;
+  }
+
+  static updateSyntheticClusters(clusterData, allLabels, compositeGeoRaster) {
+    const syntheticLabels = allLabels.get("composite_regions");
+    if (!syntheticLabels || syntheticLabels.size === 0) {
+      clusterData["composite_regions"] = { clusters: [], colors: new Map() };
+      return;
+    }
+    const pixelCounts = {};
+    const rasterData = compositeGeoRaster.values[0];
+    const height = compositeGeoRaster.height;
+    const width = compositeGeoRaster.width;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const clusterId = rasterData[y][x];
+        if (clusterId >= 10000) {
+          pixelCounts[clusterId] = (pixelCounts[clusterId] || 0) + 1;
+        }
+      }
+    }
+    const clusters = [];
+    const colors = new Map();
+    for (const [clusterId, landUsePath] of syntheticLabels) {
+      const pixelCount = pixelCounts[clusterId] || 0;
+      clusters.push({
+        id: clusterId,
+        pixelCount,
+        segmentationKey: "composite_regions",
+        area_ha: (pixelCount * 0.01).toFixed(2),
+      });
+      colors.set(clusterId, this.getSyntheticClusterColor(landUsePath));
+    }
+    clusterData["composite_regions"] = { clusters, colors };
+  }
+
+  static getSyntheticClusterColor(landUsePath) {
+    if (!landUsePath || landUsePath === "unlabeled") {
+      return "rgb(255, 255, 0)";
+    }
+    if (!window.LandUseHierarchy || !window.LandUseHierarchy.isLoaded()) {
+      throw new Error(
+        "LandUseHierarchy not loaded - cannot generate synthetic cluster colors"
+      );
+    }
+    const hierarchy = window.LandUseHierarchy.getInstance();
+    const color = hierarchy.getColorForPath(landUsePath);
+    if (!color) {
+      throw new Error(
+        `No color mapping found for land use path: ${landUsePath}`
+      );
+    }
+    return `rgb(${hexToRgb(color)})`;
   }
 
   static async countPixelsPerCluster(georaster, colorMapping) {

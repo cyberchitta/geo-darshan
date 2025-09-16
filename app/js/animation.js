@@ -31,6 +31,10 @@ class AnimationController {
     const sortedData = segmentationKeys
       .map((key, index) => ({ key, overlay: overlays[index] }))
       .sort((a, b) => compareSegmentationKeys(a.key, b.key));
+    sortedData.push({
+      key: "composite_regions",
+      overlay: null,
+    });
     this.frames = sortedData.map((item) => item.key);
     this.overlays = sortedData.map((item) => item.overlay);
     this.currentFrame = 0;

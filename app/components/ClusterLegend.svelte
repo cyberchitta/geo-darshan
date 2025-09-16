@@ -9,6 +9,7 @@
     currentSegmentationKey,
     currentSegmentationData,
     selectedCluster,
+    manifest,
     onLabelChange,
   } = $props();
 
@@ -43,6 +44,19 @@
   let progressText = $derived(
     `${labeledCount} of ${totalCount} clusters labeled`
   );
+  let selectedSegmentationKey = $derived(currentSegmentationKey);
+  let availableSegmentations = $derived(
+    manifest ? [...manifest.segmentation_keys, "composite_regions"] : []
+  );
+
+  function handleSegmentationChange(event) {
+    const newSegmentationKey = event.target.value;
+    const frameIndex = availableSegmentations.indexOf(newSegmentationKey);
+    if (frameIndex >= 0) {
+      const { animationController } = getContext("managers");
+      animationController.goToFrame(frameIndex);
+    }
+  }
 
   function handleClusterClick(clusterId) {
     selectCluster(clusterId);
@@ -145,27 +159,21 @@
   async function handleFileLoad(event) {
     const file = event.target.files[0];
     if (!file) return;
-
     try {
       const text = await file.text();
       const loadedLabels = JSON.parse(text);
       console.log("📁 Loading labels from file:", loadedLabels);
-
       const isValidFormat = Object.entries(loadedLabels).every(
         ([segKey, labels]) => {
           return typeof labels === "object" && !Array.isArray(labels);
         }
       );
-
       if (!isValidFormat) {
         throw new Error("Invalid label file format");
       }
-
-      // Call parent callback to update shared state
       if (onLabelChange) {
-        onLabelChange(null, null, null, loadedLabels); // Special case for bulk load
+        onLabelChange(null, null, null, loadedLabels);
       }
-
       announceChange(
         `Labels loaded: ${Object.keys(loadedLabels).length} segmentations`
       );
@@ -178,12 +186,9 @@
 
   function clearAllLabels() {
     if (!confirm("Clear all cluster labels for ALL segmentations?")) return;
-
-    // Call parent callback to clear all labels
     if (onLabelChange) {
-      onLabelChange(null, null, null, {}); // Special case for clear all
+      onLabelChange(null, null, null, {});
     }
-
     console.log("✅ All labels cleared");
     announceChange("All labels cleared");
   }
@@ -206,7 +211,6 @@
 <div aria-live="polite" aria-atomic="true" class="sr-only">
   {announcementText}
 </div>
-
 <div class="cluster-legend" role="region" aria-labelledby="legend-title">
   <div class="legend-header">
     <h3 id="legend-title">Cluster Legend</h3>
@@ -214,7 +218,6 @@
       <span aria-label="Progress: {progressText}">{progressText}</span>
     </div>
   </div>
-
   <div
     class="legend-controls"
     role="group"
@@ -223,7 +226,6 @@
     <span id="legend-controls-title" class="sr-only"
       >Legend management controls</span
     >
-
     <button
       class="legend-btn"
       onclick={loadLabelsFromFile}
@@ -234,7 +236,6 @@
     <span id="load-labels-desc" class="sr-only"
       >Load cluster labels from JSON file</span
     >
-
     <input
       bind:this={fileInput}
       type="file"
@@ -242,7 +243,6 @@
       style="display: none"
       onchange={handleFileLoad}
     />
-
     <button
       class="legend-btn"
       onclick={saveLabels}
@@ -253,7 +253,6 @@
     <span id="save-labels-desc" class="sr-only"
       >Download current cluster labels as JSON file</span
     >
-
     <button
       class="legend-btn secondary"
       onclick={clearAllLabels}
@@ -265,7 +264,20 @@
       >Remove all cluster labels from all segmentations</span
     >
   </div>
-
+  <div class="segmentation-selector">
+    <label for="segmentation-select">Segmentation:</label>
+    <select
+      id="segmentation-select"
+      value={selectedSegmentationKey || ""}
+      onchange={handleSegmentationChange}
+    >
+      {#each availableSegmentations as segKey}
+        <option value={segKey}>
+          {segKey === "composite_regions" ? "Synthetic Clusters" : segKey}
+        </option>
+      {/each}
+    </select>
+  </div>
   <div
     class="legend-clusters-container"
     role="list"

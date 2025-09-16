@@ -54,6 +54,7 @@
           {currentSegmentationKey}
           {currentSegmentationData}
           {selectedCluster}
+          {manifest}
           {onLabelChange}
         />
       </div>
