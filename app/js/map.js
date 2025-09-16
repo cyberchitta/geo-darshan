@@ -165,7 +165,15 @@ class MapManager {
     if (this.currentOverlay && this.currentOverlay.setOpacity) {
       this.currentOverlay.setOpacity(this.currentOpacity);
     }
-    console.log(`Overlay opacity set to ${this.currentOpacity}`);
+    this.geoRasterLayers.forEach((layer) => {
+      if (layer && layer.setOpacity) {
+        layer.setOpacity(
+          layer === this.currentOverlay ? this.currentOpacity : 0
+        );
+      }
+    });
+    this.emit("globalOpacityChanged", this.currentOpacity);
+    console.log(`Global layer opacity set to ${this.currentOpacity}`);
   }
 
   setDataLoader(dataLoader) {
@@ -392,7 +400,7 @@ class MapManager {
   }
 
   handleCompositeLabeling(latlng) {
-    console.log("Composite labeling not yet implemented", latlng);
+    this.emit("compositeClick", latlng);
   }
 
   async samplePixelAtCoordinate(latlng) {

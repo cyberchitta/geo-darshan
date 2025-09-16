@@ -1,5 +1,7 @@
 import { extractKValue, hexToRgb } from "./utils.js";
+import { Compositor } from "./compositor.js";
 import { LandUseHierarchy } from "./land-use-hierarchy.js";
+import { RegionLabeler } from "./region-labeler.js";
 
 class LabeledCompositeLayer {
   constructor(mapManager, dataLoader) {
@@ -19,6 +21,8 @@ class LabeledCompositeLayer {
       requireLabeled: true,
       fallbackToLower: true,
     };
+    this.regionLabeler = new RegionLabeler();
+    this.regionHighlightLayer = null;
     console.log("LabeledCompositeLayer initialized and registered with map");
   }
 
@@ -86,12 +90,23 @@ class LabeledCompositeLayer {
     try {
       console.log("Generating composite raster with TensorFlow.js...");
       const startTime = performance.now();
-      const composite = await this.generateCompositeRaster();
+      const result = await Compositor.generateCompositeRaster(
+        this.overlayData,
+        this.allLabels,
+        this.rules
+      );
+      this.compositeSegmentationMap = result.segmentationIds;
+      this.compositeSegmentations = result.segmentations;
+      const compositeGeoRaster = {
+        ...result.refGeoRaster,
+        values: [result.compositeData],
+        numberOfRasters: 1,
+      };
       if (this.compositeLayer) {
         this.layerGroup.removeLayer(this.compositeLayer);
       }
       this.compositeLayer = this.mapManager.rasterHandler.createMapLayer(
-        composite,
+        compositeGeoRaster,
         {
           opacity: this.opacity,
           pixelValuesToColorFn: (values) =>
@@ -109,79 +124,77 @@ class LabeledCompositeLayer {
     }
   }
 
-  async generateCompositeRaster() {
-    const segmentations = Array.from(this.overlayData.keys()).sort((a, b) =>
-      this.compareSegmentationsByRule(a, b)
-    );
-    if (segmentations.length === 0) {
-      throw new Error("No segmentations available");
+  async handleCompositeClick(latlng) {
+    if (!this.compositeLayer || !this.compositeLayer.georasters[0]) {
+      console.log("No composite layer available for labeling");
+      return;
     }
-    const firstOverlay = this.overlayData.get(segmentations[0]);
-    const refGeoRaster = firstOverlay.georaster;
-    const height = refGeoRaster.height;
-    const width = refGeoRaster.width;
+    this.regionLabeler.updateCompositeData(
+      this.compositeLayer.georasters[0],
+      this.compositeSegmentationMap,
+      this.compositeSegmentations,
+      this.allLabels
+    );
+    const pixelCoord = this.regionLabeler.latlngToPixelCoord(latlng);
+    if (!pixelCoord) {
+      console.log("Click outside composite bounds");
+      return;
+    }
+    const isUnlabeled = this.regionLabeler.isPixelUnlabeled(pixelCoord);
+    if (!isUnlabeled) {
+      console.log("Pixel is already labeled");
+      return;
+    }
+    const contiguousRegion =
+      this.regionLabeler.findContiguousRegion(pixelCoord);
+    if (contiguousRegion.length === 0) {
+      console.log("No contiguous region found");
+      return;
+    }
     console.log(
-      `Compositing ${segmentations.length} segmentations at ${width}x${height}`
+      `Found contiguous region with ${contiguousRegion.length} pixels`
     );
-    let bestClusterIds = tf.zeros([height, width], "int32");
-    let bestSegmentationIds = tf.zeros([height, width], "int32");
-    let hasLabel = tf.zeros([height, width], "bool");
-    for (let i = 0; i < segmentations.length; i++) {
-      const segKey = segmentations[i];
-      const overlay = this.overlayData.get(segKey);
-      const labels = this.allLabels.get(segKey) || new Map();
-      if (labels.size === 0) continue;
-      const rasterData = overlay.georaster.values[0];
-      const regularArray = Array.from(rasterData, (row) => Array.from(row));
-      const rasterTensor = tf.tensor2d(regularArray, [height, width], "int32");
-      const labeledClusterIds = Array.from(labels.keys());
-      let labelMask = tf.zeros([height, width], "bool");
-      for (const clusterId of labeledClusterIds) {
-        const clusterMask = tf.equal(rasterTensor, clusterId);
-        labelMask = tf.logicalOr(labelMask, clusterMask);
-        clusterMask.dispose();
-      }
-      const notHasLabel = tf.logicalNot(hasLabel);
-      const shouldUpdate = tf.logicalAnd(labelMask, notHasLabel);
-      bestClusterIds = tf.where(shouldUpdate, rasterTensor, bestClusterIds);
-      bestSegmentationIds = tf.where(
-        shouldUpdate,
-        tf.fill([height, width], i),
-        bestSegmentationIds
-      );
-      hasLabel = tf.logicalOr(hasLabel, labelMask);
-      rasterTensor.dispose();
-      labelMask.dispose();
-      shouldUpdate.dispose();
-      notHasLabel.dispose();
-    }
-    const compositeData = await bestClusterIds.array();
-    const segmentationIds = await bestSegmentationIds.array();
-    this.compositeSegmentationMap = segmentationIds;
-    this.compositeSegmentations = segmentations;
-    const compositeGeoRaster = {
-      ...refGeoRaster,
-      values: [compositeData],
-      numberOfRasters: 1,
-    };
-    bestClusterIds.dispose();
-    bestSegmentationIds.dispose();
-    hasLabel.dispose();
-    return compositeGeoRaster;
+    this.highlightRegion(contiguousRegion);
+    this.showRegionLabelingUI(contiguousRegion, latlng);
   }
 
-  compareSegmentationsByRule(segKeyA, segKeyB) {
-    const kA = extractKValue(segKeyA);
-    const kB = extractKValue(segKeyB);
-    switch (this.rules.priority) {
-      case "highest_k":
-        return kB - kA; // Higher K first
-      case "lowest_k":
-        return kA - kB; // Lower K first
-      case "most_specific":
-        return kB - kA; // Default to highest K
-      default:
-        return kB - kA;
+  highlightRegion(region) {
+    this.clearRegionHighlight();
+    const boundaryPoints = region.map((pixel) => {
+      const coords = this.regionLabeler.pixelToLatLng(pixel);
+      return [coords.lat, coords.lng];
+    });
+    if (boundaryPoints.length > 0) {
+      this.regionHighlightLayer = L.polygon(boundaryPoints, {
+        color: "#ff0000",
+        weight: 2,
+        fillOpacity: 0.1,
+        fillColor: "#ff0000",
+      }).addTo(this.mapManager.map);
+    }
+  }
+
+  showRegionLabelingUI(region, clickLatlng) {
+    const landUsePath = prompt(
+      `Label ${region.length} pixels as which land use? (Enter path like 'agriculture.cropland')`
+    );
+    if (landUsePath && landUsePath.trim()) {
+      const labeledCount = this.regionLabeler.labelRegion(
+        region,
+        landUsePath.trim()
+      );
+      console.log(`Successfully labeled ${labeledCount} pixels`);
+      if (this.compositeLayer && this.compositeLayer.redraw) {
+        this.compositeLayer.redraw();
+      }
+    }
+    this.clearRegionHighlight();
+  }
+
+  clearRegionHighlight() {
+    if (this.regionHighlightLayer) {
+      this.mapManager.map.removeLayer(this.regionHighlightLayer);
+      this.regionHighlightLayer = null;
     }
   }
 
@@ -190,17 +203,17 @@ class LabeledCompositeLayer {
       return null;
     }
     const clusterId = values[0];
-
-    // Find which segmentation this pixel came from
-    // Use the pixel coordinates to look up in compositeSegmentationMap
-    // For now, use a fallback approach - try to find the cluster in any segmentation
+    // Check for pixel-level labels first (would need pixel coordinates)
+    // For now, this will be handled when we can pass pixel coordinates
     for (const [segKey, labels] of this.allLabels) {
       if (labels.has(clusterId)) {
         const landUseLabel = labels.get(clusterId);
-        return this.resolveLandUseColor(landUseLabel);
+        if (landUseLabel && landUseLabel !== "unlabeled") {
+          return this.resolveLandUseColor(landUseLabel);
+        }
       }
     }
-    return "rgba(128,128,128,0.8)";
+    return "rgba(255, 255, 0, 0.8)"; // Yellow for unlabeled
   }
 
   setOpacity(opacity) {
@@ -246,6 +259,7 @@ class LabeledCompositeLayer {
   }
 
   destroy() {
+    this.clearRegionHighlight();
     if (this.compositeLayer) {
       this.layerGroup.removeLayer(this.compositeLayer);
     }
@@ -255,6 +269,7 @@ class LabeledCompositeLayer {
     this.allLabels.clear();
     this.overlayData.clear();
     this.landUseColorCache.clear();
+    this.regionLabeler = null;
     console.log("LabeledCompositeLayer destroyed");
   }
 }

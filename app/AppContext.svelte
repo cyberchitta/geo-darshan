@@ -100,6 +100,13 @@
         latlng,
       };
     });
+    mapManager.on("compositeClick", (latlng) => {
+      if (labeledLayer && labeledLayer.handleCompositeClick) {
+        labeledLayer.handleCompositeClick(latlng);
+      } else {
+        console.log("No labeled layer available for composite labeling");
+      }
+    });
     window.addEventListener("clearData", () => {
       clearData();
     });
