@@ -36,6 +36,7 @@
   let totalFrames = $state(0);
   let isPlaying = $state(false);
   let currentSegmentationKey = $state(null);
+  let labelsReady = $state(false);
   let clusterLabels = $state({});
   let manifest = $state(null);
   let overlayData = $state([]);
@@ -204,17 +205,19 @@
   }
 
   $effect(() => {
-    $inspect("💾 Saving labels to localStorage:", clusterLabels);
-    try {
-      localStorage.setItem(
-        STORAGE_KEYS.CLUSTER_LABELS,
-        JSON.stringify({
-          labels: clusterLabels,
-          timestamp: new Date().toISOString(),
-        })
-      );
-    } catch (error) {
-      console.warn("Failed to save labels to localStorage:", error);
+    if (labelsReady) {
+      $inspect("💾 Saving labels to localStorage:", clusterLabels);
+      try {
+        localStorage.setItem(
+          STORAGE_KEYS.CLUSTER_LABELS,
+          JSON.stringify({
+            labels: clusterLabels,
+            timestamp: new Date().toISOString(),
+          })
+        );
+      } catch (error) {
+        console.warn("Failed to save labels to localStorage:", error);
+      }
     }
     if (labeledLayer) {
       labeledLayer.updateLabels(clusterLabels);
@@ -235,12 +238,15 @@
             $state.snapshot(data.labels)
           );
           clusterLabels = data.labels;
+          labelsReady = true;
           return;
         }
       }
       console.log("🔄 No saved labels found");
+      labelsReady = true;
     } catch (error) {
       console.warn("Failed to load saved labels:", error);
+      labelsReady = true;
     }
   }
 
@@ -250,8 +256,20 @@
     landUsePath,
     bulkLabels = null
   ) {
+    console.log("🔧 handleLabelChange called:", {
+      segmentationKey,
+      clusterId,
+      landUsePath,
+      bulkLabels,
+    });
+
     if (bulkLabels !== null) {
+      console.log("🔧 Setting bulkLabels, keys:", Object.keys(bulkLabels));
       clusterLabels = bulkLabels;
+      console.log(
+        "🔧 clusterLabels after bulk set:",
+        $state.snapshot(clusterLabels)
+      );
     } else if (segmentationKey && clusterId !== null) {
       clusterLabels = {
         ...clusterLabels,
