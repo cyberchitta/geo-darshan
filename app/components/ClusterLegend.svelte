@@ -3,7 +3,6 @@
   import LandUseDropdown from "./LandUseDropdown.svelte";
 
   const { dataLoader } = getContext("managers");
-
   let {
     clusterLabels,
     currentSegmentationKey,
@@ -12,6 +11,7 @@
     manifest,
     onLabelChange,
   } = $props();
+  let fileInput = $state();
   $effect(() => {
     if (
       selectedCluster &&
@@ -150,6 +150,53 @@
     };
     return colorNames[color] || `color ${color}`;
   }
+
+  function saveLabels() {
+    const dataStr = JSON.stringify(clusterLabels, null, 2);
+    const dataBlob = new Blob([dataStr], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `cluster-labels-${new Date().toISOString().split("T")[0]}.json`;
+    link.click();
+    console.log("✅ Labels saved to file:", clusterLabels);
+  }
+
+  function loadLabelsFromFile() {
+    fileInput.click();
+  }
+
+  async function handleFileLoad(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const loadedLabels = JSON.parse(text);
+      console.log("📁 Loading labels from file:", loadedLabels);
+      const isValidFormat = Object.entries(loadedLabels).every(
+        ([segKey, labels]) => {
+          return typeof labels === "object" && !Array.isArray(labels);
+        }
+      );
+      if (!isValidFormat) {
+        throw new Error("Invalid label file format");
+      }
+      if (onLabelChange) {
+        onLabelChange(null, null, null, loadedLabels);
+      }
+      event.target.value = "";
+    } catch (error) {
+      console.error("Failed to load labels file:", error);
+      alert(`Failed to load labels: ${error.message}`);
+    }
+  }
+
+  function clearAllLabels() {
+    if (!confirm("Clear all cluster labels for ALL segmentations?")) return;
+    if (onLabelChange) {
+      onLabelChange(null, null, null, {});
+    }
+    console.log("✅ All labels cleared");
+  }
 </script>
 
 <div aria-live="polite" aria-atomic="true" class="sr-only">
@@ -173,6 +220,38 @@
         </option>
       {/each}
     </select>
+  </div>
+  <div class="label-management-controls">
+    <div class="label-controls-row">
+      <button
+        class="label-btn"
+        onclick={loadLabelsFromFile}
+        aria-describedby="load-labels-desc"
+      >
+        Load Labels
+      </button>
+      <input
+        bind:this={fileInput}
+        type="file"
+        accept=".json"
+        style="display: none"
+        onchange={handleFileLoad}
+      />
+      <button
+        class="label-btn"
+        onclick={saveLabels}
+        aria-describedby="save-labels-desc"
+      >
+        Save Labels
+      </button>
+      <button
+        class="label-btn secondary"
+        onclick={clearAllLabels}
+        aria-describedby="clear-labels-desc"
+      >
+        Clear All
+      </button>
+    </div>
   </div>
   <div class="legend-stats-section">
     <div class="legend-stats" aria-live="polite">
@@ -296,6 +375,53 @@
     outline: none;
     border-color: #007cba;
     box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.2);
+  }
+
+  .label-management-controls {
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    background: #fafafa;
+  }
+
+  .label-controls-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .label-btn {
+    padding: 8px 12px;
+    font-size: 14px;
+    border: 1px solid #007bff;
+    background: #007bff;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    flex: 1;
+    min-width: 80px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+
+  .label-btn:hover {
+    background: #0056b3;
+    border-color: #0056b3;
+  }
+
+  .label-btn:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+  }
+
+  .label-btn.secondary {
+    background: #6c757d;
+    border-color: #6c757d;
+  }
+
+  .label-btn.secondary:hover {
+    background: #5a6268;
+    border-color: #545b62;
   }
 
   .legend-stats-section {
@@ -433,6 +559,15 @@
     .legend-header {
       padding: 12px;
     }
+
+    .label-controls-row {
+      flex-direction: column;
+    }
+
+    .label-btn {
+      flex: none;
+      width: 100%;
+    }
   }
 
   /* High contrast mode support */
@@ -444,12 +579,17 @@
     .segmentation-dropdown {
       border: 2px solid #000;
     }
+
+    .label-btn {
+      border: 2px solid;
+    }
   }
 
   /* Reduced motion support */
   @media (prefers-reduced-motion: reduce) {
     .legend-cluster-item,
-    .segmentation-dropdown {
+    .segmentation-dropdown,
+    .label-btn {
       transition: none;
     }
 
