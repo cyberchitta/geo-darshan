@@ -30,7 +30,7 @@
   });
 
   function extractLabeledPaths(allLabels) {
-    console.log("🔍 Extracting paths from:", allLabels);
+    console.log("🔍 Extracting paths from:", $state.snapshot(allLabels));
     const paths = new Set();
     if (!allLabels || typeof allLabels !== "object") {
       console.log("🔍 No valid labels object");
@@ -40,7 +40,7 @@
       ([segmentationKey, segmentationLabels]) => {
         console.log(
           `🔍 Processing segmentation ${segmentationKey}:`,
-          segmentationLabels
+          $state.snapshot(segmentationLabels)
         );
         if (segmentationLabels && typeof segmentationLabels === "object") {
           Object.entries(segmentationLabels).forEach(

@@ -192,10 +192,7 @@
   }
 
   $effect(() => {
-    console.log(
-      "💾 Saving labels to localStorage:",
-      $state.snapshot(clusterLabels)
-    );
+    $inspect("💾 Saving labels to localStorage:", clusterLabels);
     try {
       localStorage.setItem(
         STORAGE_KEYS.CLUSTER_LABELS,
