@@ -4,36 +4,25 @@
 
   const { dataLoader, labeledLayer: contextLabeledLayer } =
     getContext("managers");
-
-  // Props from parent (AppContext will pass these)
   let { clusterLabels, currentSegmentationKey } = $props();
-
-  // Local component state
   let hierarchyLevel = $state(1);
   let isExporting = $state(false);
   let labeledLayer = contextLabeledLayer;
-
-  // Reactive hierarchy level with labels
   const hierarchyLabels = {
     1: "Broad Categories",
     2: "General Types",
     3: "Specific Uses",
     4: "Detailed Classification",
   };
-
   let hierarchyLabelText = $derived(
     hierarchyLabels[hierarchyLevel] || `Level ${hierarchyLevel}`
   );
-
   let labeledPaths = $derived(extractLabeledPaths(clusterLabels || {}));
-
   let displayItems = $derived(
     LandUseHierarchy.isLoaded() && labeledPaths.size > 0
       ? computeDisplayItems(labeledPaths, hierarchyLevel)
       : []
   );
-
-  // Sync hierarchyLevel with labeledLayer
   $effect(() => {
     if (labeledLayer) {
       labeledLayer.setHierarchyLevel(hierarchyLevel);
@@ -43,12 +32,10 @@
   function extractLabeledPaths(allLabels) {
     console.log("🔍 Extracting paths from:", allLabels);
     const paths = new Set();
-
     if (!allLabels || typeof allLabels !== "object") {
       console.log("🔍 No valid labels object");
       return paths;
     }
-
     Object.entries(allLabels).forEach(
       ([segmentationKey, segmentationLabels]) => {
         console.log(
@@ -67,7 +54,6 @@
         }
       }
     );
-
     console.log("🔍 Final extracted paths:", Array.from(paths));
     return paths;
   }
@@ -76,19 +62,15 @@
     if (!LandUseHierarchy.isLoaded() || labeledPaths.size === 0) {
       return [];
     }
-
     const hierarchy = LandUseHierarchy.getInstance();
     const relevantPaths = getRelevantPathsForLevel(labeledPaths, targetLevel);
     const items = [];
-
     const hierarchyItems = hierarchy.getHierarchyItemsAtLevel(targetLevel);
-
     for (const item of hierarchyItems) {
       if (relevantPaths.has(item.path)) {
         items.push(item);
       }
     }
-
     for (const path of relevantPaths) {
       const pathParts = path.split(".");
       if (pathParts.length < targetLevel) {
@@ -105,7 +87,6 @@
         }
       }
     }
-
     return items.sort((a, b) => compareHierarchicalPaths(a.path, b.path));
   }
 
@@ -129,7 +110,6 @@
     const partsA = pathA.split(".");
     const partsB = pathB.split(".");
     const maxLength = Math.max(partsA.length, partsB.length);
-
     for (let i = 0; i < maxLength; i++) {
       const partA = partsA[i] || "";
       const partB = partsB[i] || "";
@@ -149,7 +129,6 @@
       alert("No labeled layer available for export");
       return;
     }
-
     const stats = labeledLayer.getStats();
     if (stats.totalLabels === 0) {
       alert(
@@ -157,14 +136,12 @@
       );
       return;
     }
-
     if (!stats.isVisible) {
       alert(
         "Labeled regions layer is not visible. Please enable it first to generate composite."
       );
       return;
     }
-
     try {
       isExporting = true;
       const { ExportUtility } = await import("../js/export-utility.js");
@@ -178,8 +155,6 @@
       isExporting = false;
     }
   }
-
-  // Calculate stats
   let promotedCount = $derived(
     displayItems.filter((item) => item.isPromoted).length
   );
@@ -204,7 +179,6 @@
       >
     </div>
   </div>
-
   <div class="layer-control-group">
     <div class="hierarchy-control">
       <label for="hierarchy-level-slider">Detail Level:</label>
@@ -220,7 +194,6 @@
       />
       <span id="hierarchy-level-desc">{hierarchyLabelText}</span>
     </div>
-
     <div class="export-control">
       <button
         class="export-btn"
@@ -236,7 +209,6 @@
       </span>
     </div>
   </div>
-
   <div
     class="legend-items-container"
     role="list"
@@ -245,7 +217,6 @@
     <span id="landuse-items-title" class="sr-only">
       Land use categories currently in use
     </span>
-
     {#if displayItems.length === 0}
       <div class="legend-placeholder" role="status">
         {labeledPaths.size === 0
