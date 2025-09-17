@@ -4,7 +4,7 @@
   import { DataLoader } from "./js/data-loader.js";
   import { MapManager } from "./js/map.js";
   import { AnimationController } from "./js/animation.js";
-  import { LandUseHierarchy } from "./js/land-use-hierarchy.js";
+  import { LandUseHierarchy } from "./js/land-use.js";
   import { Cluster } from "./js/cluster.js";
   import LabeledCompositeController from "./components/LabeledCompositeController.svelte";
   import LegendPanel from "./components/LegendPanel.svelte";
@@ -109,17 +109,6 @@
     mapManager.on("globalOpacityChanged", (opacity) => {
       if (labeledLayer && labeledLayer.setOpacity) {
         labeledLayer.setOpacity(opacity);
-      }
-    });
-    mapManager.on("syntheticClusterCreated", (syntheticInfo) => {
-      console.log("Synthetic cluster created:", syntheticInfo);
-      if (labeledLayer && labeledLayer.compositeLayer) {
-        Cluster.updateSyntheticClusters(
-          allClusterData,
-          labeledLayer.allLabels,
-          labeledLayer.compositeLayer.georasters[0]
-        );
-        allClusterData = { ...allClusterData };
       }
     });
     window.addEventListener("clearData", () => {
@@ -242,17 +231,6 @@
     }
   });
 
-  $effect(() => {
-    if (labelsReady && labeledLayer && labeledLayer.compositeLayer) {
-      Cluster.updateSyntheticClusters(
-        allClusterData,
-        labeledLayer.allLabels,
-        labeledLayer.compositeLayer.georasters[0]
-      );
-      allClusterData = { ...allClusterData };
-    }
-  });
-
   function loadSavedLabels() {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CLUSTER_LABELS);
@@ -308,7 +286,11 @@
 </script>
 
 {#if dataLoader && mapManager && animationController}
-  <LabeledCompositeController {overlayData} {clusterLabels} />
+  <LabeledCompositeController
+    {overlayData}
+    {clusterLabels}
+    {animationController}
+  />
   <LegendPanel
     {clusterLabels}
     {currentSegmentationKey}

@@ -3,11 +3,7 @@
   import { LabeledCompositeLayer } from "../js/labeled-composite.js";
 
   const { mapManager, dataLoader } = getContext("managers");
-  console.log("🔍 Got context:", {
-    mapManager: !!mapManager,
-    dataLoader: !!dataLoader,
-  });
-  let { overlayData = [], clusterLabels = {} } = $props();
+  let { overlayData = [], clusterLabels = {}, animationController } = $props();
   let labeledLayer = $state(null);
   let layerGroup = $state(null);
   let isCompositeReady = $state(false);
@@ -41,6 +37,7 @@
         dataLoader,
         layerGroup
       );
+      labeledLayer.setAnimationController(animationController);
       mapManager.setLabeledLayer(labeledLayer);
     }
   });

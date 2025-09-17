@@ -72,7 +72,7 @@ class MapManager {
       opacity: 0,
       resolution: this.getOptimalResolution(georaster),
       pixelValuesToColorFn: (values) =>
-        this.convertPixelsToColor(values, segmentationKey),
+        this.convertPixelsToColor(values, overlayData),
       zIndex: 1000,
     });
     layer._segmentationKey = segmentationKey;
@@ -80,12 +80,19 @@ class MapManager {
     return layer;
   }
 
-  convertPixelsToColor(values, segmentationKey) {
+  convertPixelsToColor(values, overlayData) {
     if (!values || values.some((v) => v === null || v === undefined)) {
       return null;
     }
     if (values.length === 1) {
-      const clusterValue = values[0];
+      const pixelValue = values[0];
+      if (
+        overlayData.colorMapping &&
+        overlayData.colorMapping.method === "land_use_based"
+      ) {
+        return this.convertSyntheticPixelsToColor(values, overlayData);
+      }
+      const segmentationKey = overlayData.segmentationKey;
       const colorMapping =
         this.dataLoader?.getColorMappingForSegmentation(segmentationKey);
       if (!colorMapping) {
@@ -93,12 +100,12 @@ class MapManager {
           `Color mapping not found for segmentation: ${segmentationKey}`
         );
       }
-      const baseColor = this.mapClusterValueToColor(clusterValue, colorMapping);
+      const baseColor = this.mapClusterValueToColor(pixelValue, colorMapping);
       if (
         this.allClusterLabels &&
         this.allClusterLabels[segmentationKey] &&
-        this.allClusterLabels[segmentationKey][clusterValue] &&
-        this.allClusterLabels[segmentationKey][clusterValue] !== "unlabeled"
+        this.allClusterLabels[segmentationKey][pixelValue] &&
+        this.allClusterLabels[segmentationKey][pixelValue] !== "unlabeled"
       ) {
         const grayColor = convertToGrayscale(baseColor);
         return `rgba(${grayColor.r},${grayColor.g},${grayColor.b},${
@@ -113,6 +120,30 @@ class MapManager {
       return `rgb(${Math.round(values[0])},${Math.round(
         values[1]
       )},${Math.round(values[2])})`;
+    }
+    return null;
+  }
+
+  convertSyntheticPixelsToColor(values, overlayData) {
+    if (!values || values.some((v) => v === null || v === undefined)) {
+      return null;
+    }
+    if (values.length === 1) {
+      const landUseClusterId = values[0];
+      if (landUseClusterId === -1) {
+        return null; // Transparent
+      }
+      const colorMapping = overlayData.colorMapping;
+      if (!colorMapping || !colorMapping.colors_rgb) {
+        console.warn("No color mapping found for synthetic overlay");
+        return "rgb(128,128,128)";
+      }
+      const color = colorMapping.colors_rgb[landUseClusterId];
+      if (color && color.length >= 3) {
+        return `rgba(${Math.round(color[0] * 255)},${Math.round(color[1] * 255)},${Math.round(color[2] * 255)},1)`;
+      }
+      console.warn(`No color defined for land use cluster ${landUseClusterId}`);
+      return "rgb(128,128,128)";
     }
     return null;
   }
@@ -194,6 +225,67 @@ class MapManager {
     this.labeledLayer = labeledLayer;
   }
 
+  async addOverlay(overlayData) {
+    try {
+      console.log(`Adding overlay: ${overlayData.segmentationKey}`);
+      const geoRasterLayer = await this.createGeoRasterLayer(overlayData);
+      geoRasterLayer.addTo(this.map);
+      if (this.animationLayerGroup) {
+        this.animationLayerGroup.addLayer(geoRasterLayer);
+      }
+      geoRasterLayer.setOpacity(0);
+      this.overlays.push(overlayData);
+      const frameIndex = this.overlays.length - 1;
+      this.geoRasterLayers.set(frameIndex, geoRasterLayer);
+      console.log(
+        `✅ Added overlay: ${overlayData.segmentationKey} at index ${frameIndex}`
+      );
+      return frameIndex;
+    } catch (error) {
+      console.error(
+        `Failed to add overlay ${overlayData.segmentationKey}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  removeOverlay(segmentationKey) {
+    const overlayIndex = this.overlays.findIndex(
+      (overlay) => overlay.segmentationKey === segmentationKey
+    );
+    if (overlayIndex >= 0) {
+      const layer = this.geoRasterLayers.get(overlayIndex);
+      if (layer) {
+        if (this.map.hasLayer(layer)) {
+          this.map.removeLayer(layer);
+        }
+        if (
+          this.animationLayerGroup &&
+          this.animationLayerGroup.hasLayer(layer)
+        ) {
+          this.animationLayerGroup.removeLayer(layer);
+        }
+      }
+      this.overlays.splice(overlayIndex, 1);
+      this.geoRasterLayers.delete(overlayIndex);
+      const remainingLayers = new Map();
+      for (let i = overlayIndex; i < this.overlays.length; i++) {
+        const layer = this.geoRasterLayers.get(i + 1);
+        if (layer) {
+          remainingLayers.set(i, layer);
+        }
+      }
+      for (const [index, layer] of remainingLayers) {
+        this.geoRasterLayers.delete(index + 1);
+        this.geoRasterLayers.set(index, layer);
+      }
+      console.log(
+        `✅ Removed overlay: ${segmentationKey} from index ${overlayIndex}`
+      );
+    }
+  }
+
   async preprocessOverlays() {
     if (!this.overlays || this.overlays.length === 0) {
       console.warn("No overlays to preprocess");
@@ -245,20 +337,6 @@ class MapManager {
       console.warn("No overlays loaded yet, cannot show frame");
       return;
     }
-    if (frameIndex >= this.overlays.length) {
-      this.geoRasterLayers.forEach((layer) => {
-        if (layer.setOpacity) {
-          layer.setOpacity(0);
-        }
-      });
-      if (this.labeledLayer && this.labeledLayer.showSyntheticClusters) {
-        this.labeledLayer.showSyntheticClusters();
-      }
-      console.log(
-        `✅ Displayed synthetic clusters frame (index ${frameIndex})`
-      );
-      return;
-    }
     if (frameIndex < 0 || frameIndex >= this.overlays.length) {
       console.warn(
         `Invalid frame index: ${frameIndex}, available: 0-${this.overlays.length - 1}`
@@ -266,9 +344,6 @@ class MapManager {
       return;
     }
     try {
-      if (this.labeledLayer && this.labeledLayer.hideSyntheticClusters) {
-        this.labeledLayer.hideSyntheticClusters();
-      }
       this.geoRasterLayers.forEach((layer, index) => {
         const opacity = index === frameIndex ? this.currentOpacity : 0;
         if (layer.setOpacity) {
@@ -276,7 +351,9 @@ class MapManager {
         }
       });
       this.currentOverlay = this.geoRasterLayers.get(frameIndex);
-      console.log(`✅ Displayed frame ${frameIndex} (opacity switch only)`);
+      console.log(
+        `✅ Displayed frame ${frameIndex} (${this.overlays[frameIndex].segmentationKey})`
+      );
     } catch (error) {
       console.error(`Failed to show frame ${frameIndex}:`, error);
     }

@@ -9,7 +9,7 @@ class AnimationController {
     this.overlays = [];
     this.speed = 1.0;
     this.animationTimer = null;
-    this.baseFrameDuration = 1000; // 1 second per frame at 1x speed
+    this.baseFrameDuration = 1000;
 
     console.log("AnimationController initialized");
   }
@@ -38,6 +38,37 @@ class AnimationController {
     console.log(`Animation frames set: ${this.frames.length} frames`);
     console.log(`Segmentation keys: ${this.frames.join(", ")}`);
     this.emit("framesReady", this.frames.length);
+  }
+
+  addOverlay(segmentationKey, overlay) {
+    this.removeOverlay(segmentationKey);
+    this.frames.push(segmentationKey);
+    this.overlays.push(overlay);
+    console.log(
+      `Added overlay: ${segmentationKey}, total frames: ${this.frames.length}`
+    );
+    this.emit("framesReady", this.frames.length);
+  }
+
+  removeOverlay(segmentationKey) {
+    const index = this.frames.indexOf(segmentationKey);
+    if (index >= 0) {
+      this.frames.splice(index, 1);
+      this.overlays.splice(index, 1);
+      if (this.currentFrame >= index && this.currentFrame > 0) {
+        this.currentFrame--;
+      }
+      if (this.currentFrame >= this.frames.length && this.frames.length > 0) {
+        this.currentFrame = this.frames.length - 1;
+      }
+      console.log(
+        `Removed overlay: ${segmentationKey}, total frames: ${this.frames.length}`
+      );
+      this.emit("framesReady", this.frames.length);
+      if (this.frames.length > 0) {
+        this.updateFrame();
+      }
+    }
   }
 
   showInitialFrame() {

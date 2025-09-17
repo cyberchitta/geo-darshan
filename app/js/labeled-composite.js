@@ -1,6 +1,6 @@
 import { hexToRgb } from "./utils.js";
 import { Compositor } from "./compositor.js";
-import { LandUseHierarchy } from "./land-use.js";
+import { LandUseHierarchy, LandUseMapper } from "./land-use.js";
 import { RegionLabeler } from "./region-labeler.js";
 
 class LabeledCompositeLayer {
@@ -20,6 +20,13 @@ class LabeledCompositeLayer {
     };
     this.regionLabeler = new RegionLabeler();
     this.regionHighlightLayer = null;
+    this.animationController = null;
+    this.hasSyntheticOverlay = false;
+    console.log("LabeledCompositeLayer initialized");
+  }
+
+  setAnimationController(animationController) {
+    this.animationController = animationController;
   }
 
   setHierarchyLevel(level) {
@@ -27,27 +34,13 @@ class LabeledCompositeLayer {
       this.hierarchyLevel = level;
       this.landUseColorCache.clear();
       console.log(`Hierarchy level set to ${level}`);
+      if (this.hasSyntheticOverlay) {
+        this.regenerateSyntheticOverlay();
+      }
       if (this.overlayData.size > 0 && this.allLabels.size > 0) {
         this.regenerateComposite();
       }
     }
-  }
-
-  resolveLandUseColor(landUsePath) {
-    if (!landUsePath) return "rgba(128,128,128,0.8)";
-    if (!LandUseHierarchy.isLoaded()) {
-      console.warn("LandUseHierarchy not loaded");
-      return "rgba(128,128,128,0.8)";
-    }
-    const cacheKey = `${landUsePath}:${this.hierarchyLevel}`;
-    if (this.landUseColorCache.has(cacheKey)) {
-      return this.landUseColorCache.get(cacheKey);
-    }
-    const hierarchy = LandUseHierarchy.getInstance();
-    const color = hierarchy.getColorForPath(landUsePath, this.hierarchyLevel);
-    const rgbColor = color ? `rgb(${hexToRgb(color)})` : "rgb(128,128,128)";
-    this.landUseColorCache.set(cacheKey, rgbColor);
-    return rgbColor;
   }
 
   setOverlayData(overlays) {
@@ -67,6 +60,9 @@ class LabeledCompositeLayer {
       });
       this.allLabels.set(segmentationKey, labelMap);
     });
+    if (this.hasSyntheticOverlay) {
+      this.regenerateSyntheticOverlay();
+    }
     console.log(`Updated labels for ${this.allLabels.size} segmentations`);
   }
 
@@ -100,6 +96,7 @@ class LabeledCompositeLayer {
       );
       this.layerGroup.addLayer(this.compositeLayer);
       this.compositeLayer.setOpacity(this.mapManager.currentOpacity);
+      await this.generateSyntheticOverlay();
       const endTime = performance.now();
       console.log(
         `✅ Composite generated in ${(endTime - startTime).toFixed(2)}ms`
@@ -116,6 +113,136 @@ class LabeledCompositeLayer {
         }
       }
     }
+  }
+
+  async generateSyntheticOverlay() {
+    if (
+      !this.compositeLayer ||
+      !LandUseHierarchy.isLoaded() ||
+      !this.animationController
+    ) {
+      console.log("Cannot generate synthetic overlay - missing dependencies");
+      return;
+    }
+    try {
+      console.log("Generating synthetic overlay...");
+      const startTime = performance.now();
+      const hierarchy = LandUseHierarchy.getInstance();
+      const compositeGeoRaster = this.compositeLayer.georasters[0];
+      const mapper = new LandUseMapper(
+        hierarchy,
+        compositeGeoRaster,
+        this.compositeSegmentationMap,
+        this.compositeSegmentations,
+        this.allLabels,
+        this.hierarchyLevel
+      );
+      const pixelMapping = mapper.generatePixelMapping();
+      const landUseRasterData = mapper.createLandUseRaster();
+      const colorMapping = LandUseMapper.createColorMapping(
+        pixelMapping,
+        hierarchy,
+        this.hierarchyLevel
+      );
+      const syntheticOverlay = {
+        segmentationKey: "composite_regions",
+        filename: "synthetic_clusters.tif",
+        georaster: {
+          ...compositeGeoRaster,
+          values: [landUseRasterData],
+          numberOfRasters: 1,
+        },
+        bounds:
+          compositeGeoRaster.bounds ||
+          this.overlayData.values().next().value?.bounds,
+        stats: {
+          clusters: Object.keys(pixelMapping).length,
+          unlabeled_pixels: this.countUnlabeledPixels(landUseRasterData),
+        },
+        colorMapping: {
+          method: "land_use_based",
+          colors_rgb: this.convertColorMappingToRgbArray(colorMapping),
+          nodata_value: -1,
+        },
+        pixelMapping,
+      };
+      if (this.hasSyntheticOverlay) {
+        this.animationController.removeOverlay("composite_regions");
+        this.mapManager.removeOverlay("composite_regions");
+      }
+      await this.mapManager.addOverlay(syntheticOverlay);
+      this.animationController.addOverlay(
+        "composite_regions",
+        syntheticOverlay
+      );
+      this.hasSyntheticOverlay = true;
+      const endTime = performance.now();
+      console.log(
+        `✅ Synthetic overlay generated in ${(endTime - startTime).toFixed(2)}ms`
+      );
+      console.log(
+        `Generated ${Object.keys(pixelMapping).length} land-use clusters`
+      );
+    } catch (error) {
+      console.error("❌ Failed to generate synthetic overlay:", error);
+      this.hasSyntheticOverlay = false;
+    }
+  }
+
+  async regenerateSyntheticOverlay() {
+    if (this.hasSyntheticOverlay) {
+      console.log("Regenerating synthetic overlay...");
+      await this.generateSyntheticOverlay();
+    }
+  }
+
+  removeSyntheticOverlay() {
+    if (this.hasSyntheticOverlay) {
+      console.log("Removing synthetic overlay...");
+      this.animationController.removeOverlay("composite_regions");
+      this.mapManager.removeOverlay("composite_regions");
+      this.hasSyntheticOverlay = false;
+    }
+  }
+
+  convertColorMappingToRgbArray(colorMapping) {
+    const rgbArray = [];
+    Object.entries(colorMapping).forEach(([id, hexColor]) => {
+      const index = parseInt(id);
+      const rgb = hexToRgb(hexColor);
+      const rgbValues = rgb.split(",").map((v) => parseInt(v.trim()) / 255);
+      rgbArray[index] = rgbValues;
+    });
+    return rgbArray;
+  }
+
+  countUnlabeledPixels(rasterData) {
+    let count = 0;
+    for (let y = 0; y < rasterData.length; y++) {
+      for (let x = 0; x < rasterData[y].length; x++) {
+        if (rasterData[y][x] === -1) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  resolveLandUseColor(landUsePath) {
+    if (!landUsePath) return "rgba(128,128,128,0.8)";
+    if (!LandUseHierarchy.isLoaded()) {
+      console.warn("LandUseHierarchy not loaded");
+      return "rgba(128,128,128,0.8)";
+    }
+    const cacheKey = `${landUsePath}:${this.hierarchyLevel}`;
+    if (this.landUseColorCache.has(cacheKey)) {
+      return this.landUseColorCache.get(cacheKey);
+    }
+    const hierarchy = LandUseHierarchy.getInstance();
+    const color = hierarchy.getColorForPath(landUsePath, this.hierarchyLevel);
+    const rgbColor = color ? `rgb(${hexToRgb(color)})` : "rgb(128,128,128)";
+    this.landUseColorCache.set(cacheKey, rgbColor);
+    return rgbColor;
   }
 
   async handleCompositeClick(latlng) {
@@ -186,16 +313,12 @@ class LabeledCompositeLayer {
   showRegionLabelingUI(region, clickLatlng) {
     const syntheticId = this.regionLabeler.labelRegion(region, "unlabeled");
     console.log(
-      `Created synthetic cluster ${syntheticId} with ${region.length} pixels - switch to synthetic segmentation to label`
+      `Created synthetic cluster ${syntheticId} with ${region.length} pixels`
     );
     if (this.compositeLayer && this.compositeLayer.redraw) {
       this.compositeLayer.redraw();
     }
-    this.mapManager.emit("syntheticClusterCreated", {
-      clusterId: syntheticId,
-      landUsePath: "unlabeled",
-      pixelCount: region.length,
-    });
+    this.regenerateSyntheticOverlay();
     this.clearRegionHighlight();
     this.showBriefMessage(
       `Created synthetic cluster ${syntheticId}. Switch to "composite_regions" to label it.`
@@ -264,6 +387,7 @@ class LabeledCompositeLayer {
     if (this.compositeLayer && this.compositeLayer.redraw) {
       this.compositeLayer.redraw();
     }
+    this.regenerateSyntheticOverlay();
     this.clearRegionHighlight();
   }
 
@@ -302,8 +426,6 @@ class LabeledCompositeLayer {
       return null;
     }
     const clusterId = values[0];
-    // Check for pixel-level labels first (would need pixel coordinates)
-    // For now, this will be handled when we can pass pixel coordinates
     for (const [segKey, labels] of this.allLabels) {
       if (labels.has(clusterId)) {
         const landUseLabel = labels.get(clusterId);
@@ -351,26 +473,15 @@ class LabeledCompositeLayer {
       labeledSegmentations,
       totalLabels,
       isVisible: this.mapManager.map.hasLayer(this.layerGroup),
-      opacity: this.opacity,
       hierarchyLevel: this.hierarchyLevel,
       rules: this.rules,
+      hasSyntheticOverlay: this.hasSyntheticOverlay,
     };
-  }
-
-  showSyntheticClusters() {
-    if (this.compositeLayer) {
-      console.log("Synthetic clusters layer shown");
-    }
-  }
-
-  hideSyntheticClusters() {
-    if (this.compositeLayer) {
-      console.log("Synthetic clusters layer hidden");
-    }
   }
 
   destroy() {
     this.clearRegionHighlight();
+    this.removeSyntheticOverlay();
     if (this.compositeLayer) {
       this.layerGroup.removeLayer(this.compositeLayer);
     }
@@ -379,6 +490,7 @@ class LabeledCompositeLayer {
     this.overlayData.clear();
     this.landUseColorCache.clear();
     this.regionLabeler = null;
+    this.animationController = null;
     console.log("LabeledCompositeLayer destroyed");
   }
 }

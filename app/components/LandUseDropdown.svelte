@@ -1,5 +1,5 @@
 <script>
-  import { LandUseHierarchy } from "../js/land-use-hierarchy.js";
+  import { LandUseHierarchy } from "../js/land-use.js";
 
   // Props (already using correct Svelte 5 syntax)
   let {

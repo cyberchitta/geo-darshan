@@ -1,6 +1,6 @@
 <script>
   import { getContext } from "svelte";
-  import { LandUseHierarchy } from "../js/land-use-hierarchy.js";
+  import { LandUseHierarchy } from "../js/land-use.js";
 
   const { dataLoader } = getContext("managers");
   const labeledLayerContext = getContext("labeledLayer");
