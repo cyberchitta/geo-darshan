@@ -1,5 +1,5 @@
 <script>
-  import { setContext, getContext, onMount } from "svelte";
+  import { getContext, onMount } from "svelte";
   import { STORAGE_KEYS } from "./js/utils.js";
   import DataController from "./controllers/DataController.svelte";
   import SegmentationController from "./controllers/SegmentationController.svelte";
@@ -17,24 +17,14 @@
   let mapState = $derived(mapController?.getState());
   const labeledLayerContext = getContext("labeledLayer");
   let labeledLayer = $derived(labeledLayerContext?.instance);
-  setContext("managers", {
-    get dataLoader() {
-      return dataState.loader;
-    },
-    get mapManager() {
-      return mapState.mapManager;
-    },
-    get segmentationManager() {
-      return segmentationController?.getManager();
-    },
+  const appState = $derived({
+    data: dataState,
+    map: mapState,
+    segmentation: segmentationState,
+    labeledLayer,
   });
   let labelsReady = $state(false);
   let clusterLabels = $state({});
-  let currentSegmentationData = $derived(
-    segmentationState.currentSegmentationKey
-      ? dataState.clusterData?.[segmentationState.currentSegmentationKey]
-      : null
-  );
   $effect(() => {
     console.log("Effect running, manifest:", !!dataState.manifest);
     if (dataState?.manifest) {
@@ -174,17 +164,12 @@
     overlayData={dataController?.getOverlays()}
     {clusterLabels}
     segmentationManager={segmentationController?.getManager()}
+    mapManager={mapState.mapManager}
+    dataLoader={dataState.loader}
   />
 {/if}
 
 {#if dataState?.loader && mapState?.mapManager && segmentationController}
-  <LegendPanel
-    {dataState}
-    {clusterLabels}
-    currentSegmentationKey={segmentationState.currentSegmentationKey}
-    {currentSegmentationData}
-    selectedCluster={mapState.selectedCluster}
-    onLabelChange={handleLabelChange}
-  />
+  <LegendPanel {appState} {clusterLabels} onLabelChange={handleLabelChange} />
   <ControlsPanel {segmentationState} {mapState} />
 {/if}

@@ -2,14 +2,13 @@
   import { getContext } from "svelte";
   import LandUseDropdown from "./LandUseDropdown.svelte";
 
-  const { dataLoader } = getContext("managers");
   let {
     clusterLabels,
-    currentSegmentationKey,
-    currentSegmentationData,
+    segmentationState,
+    dataState,
     selectedCluster,
-    manifest,
     onLabelChange,
+    onSegmentationChange,
   } = $props();
   let fileInput = $state();
   $effect(() => {
@@ -21,14 +20,24 @@
       highlightCluster(selectedCluster.clusterId);
     }
   });
-  let focusedClusterId = $state(null);
-  let announcementText = $state("");
-  let clusters = $derived(currentSegmentationData?.clusters || []);
-  let clusterColors = $derived(currentSegmentationData?.colors || new Map());
+  let clusters = $derived(
+    dataState.clusterData?.[segmentationState.currentSegmentationKey]
+      ?.clusters || []
+  );
+  let clusterColors = $derived(
+    dataState.clusterData?.[segmentationState.currentSegmentationKey]?.colors ||
+      new Map()
+  );
   let currentLabels = $derived(
-    currentSegmentationKey && clusterLabels[currentSegmentationKey]
-      ? clusterLabels[currentSegmentationKey]
+    segmentationState.currentSegmentationKey &&
+      clusterLabels[segmentationState.currentSegmentationKey]
+      ? clusterLabels[segmentationState.currentSegmentationKey]
       : {}
+  );
+  let availableSegmentations = $derived(
+    dataState.manifest
+      ? [...dataState.manifest.segmentation_keys, "composite_regions"]
+      : []
   );
   let labeledCount = $derived(
     Object.keys(currentLabels).filter((id) => {
@@ -36,21 +45,22 @@
       return label && label !== "unlabeled";
     }).length
   );
+  let currentSegmentationKey = $derived(
+    segmentationState.currentSegmentationKey
+  );
+  let selectedSegmentationKey = $derived(currentSegmentationKey);
   let totalCount = $derived(clusters.length);
   let progressText = $derived(
     `${labeledCount} of ${totalCount} clusters labeled`
   );
-  let selectedSegmentationKey = $derived(currentSegmentationKey);
-  let availableSegmentations = $derived(
-    manifest ? [...manifest.segmentation_keys, "composite_regions"] : []
-  );
+  let focusedClusterId = $state(null);
+  let announcementText = $state("");
 
   function handleSegmentationChange(event) {
     const newSegmentationKey = event.target.value;
     const frameIndex = availableSegmentations.indexOf(newSegmentationKey);
     if (frameIndex >= 0) {
-      const { animationController } = getContext("managers");
-      animationController.goToFrame(frameIndex);
+      onSegmentationChange?.(frameIndex);
     }
   }
 

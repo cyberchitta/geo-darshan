@@ -1,9 +1,14 @@
 <script>
-  import { getContext, setContext, onMount } from "svelte";
+  import { setContext, onMount } from "svelte";
   import { LabeledCompositeLayer } from "../js/labeled-composite.js";
 
-  const { mapManager, dataLoader } = getContext("managers");
-  let { overlayData = [], clusterLabels = {}, segmentationManager } = $props();
+  let {
+    overlayData = [],
+    clusterLabels = {},
+    segmentationManager,
+    mapManager,
+    dataLoader,
+  } = $props();
   let labeledLayer = $state(null);
   let layerGroup = $state(null);
   let isCompositeReady = $state(false);

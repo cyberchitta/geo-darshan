@@ -1,11 +1,7 @@
 <script>
-  import { getContext } from "svelte";
   import { LandUseHierarchy } from "../js/land-use.js";
 
-  const { dataLoader } = getContext("managers");
-  const labeledLayerContext = getContext("labeledLayer");
-  let labeledLayer = $derived(labeledLayerContext?.instance);
-  let { clusterLabels } = $props();
+  let { clusterLabels, dataLoader, labeledLayer } = $props();
   let hierarchyLevel = $state(1);
   let isExporting = $state(false);
   const hierarchyLabels = {
