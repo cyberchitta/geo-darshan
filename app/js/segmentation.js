@@ -1,6 +1,6 @@
 import { compareSegmentationKeys } from "./utils.js";
 
-class AnimationController {
+class SegmentationManager {
   constructor() {
     this.listeners = {};
     this.isPlaying = false;
@@ -10,8 +10,7 @@ class AnimationController {
     this.speed = 1.0;
     this.animationTimer = null;
     this.baseFrameDuration = 1000;
-
-    console.log("AnimationController initialized");
+    console.log("SegmentationManager initialized");
   }
 
   on(event, callback) {
@@ -35,7 +34,7 @@ class AnimationController {
     this.frames = frameData.map((item) => item.key);
     this.overlays = frameData.map((item) => item.overlay);
     this.currentFrame = 0;
-    console.log(`Animation frames set: ${this.frames.length} frames`);
+    console.log(`Segmentation frames set: ${this.frames.length} frames`);
     console.log(`Segmentation keys: ${this.frames.join(", ")}`);
     this.emit("framesReady", this.frames.length);
   }
@@ -224,7 +223,7 @@ class AnimationController {
       this.updateFrame();
     }
     this.emit("playStateChanged", false);
-    console.log("Animation reset to beginning");
+    console.log("Segmentation manager reset to beginning");
   }
 
   destroy() {
@@ -232,8 +231,8 @@ class AnimationController {
     this.frames = [];
     this.overlays = [];
     this.listeners = {};
-    console.log("AnimationController destroyed");
+    console.log("SegmentationManager destroyed");
   }
 }
 
-export { AnimationController };
+export { SegmentationManager };

@@ -20,13 +20,13 @@ class LabeledCompositeLayer {
     };
     this.regionLabeler = new RegionLabeler();
     this.regionHighlightLayer = null;
-    this.animationController = null;
+    this.segmentationManager = null;
     this.hasSyntheticOverlay = false;
     console.log("LabeledCompositeLayer initialized");
   }
 
-  setAnimationController(animationController) {
-    this.animationController = animationController;
+  setSegmentationManager(segmentationManager) {
+    this.segmentationManager = segmentationManager;
   }
 
   setHierarchyLevel(level) {
@@ -119,7 +119,7 @@ class LabeledCompositeLayer {
     if (
       !this.compositeLayer ||
       !LandUseHierarchy.isLoaded() ||
-      !this.animationController
+      !this.segmentationManager
     ) {
       console.log("Cannot generate synthetic overlay - missing dependencies");
       return;
@@ -167,11 +167,11 @@ class LabeledCompositeLayer {
         pixelMapping,
       };
       if (this.hasSyntheticOverlay) {
-        this.animationController.removeOverlay("composite_regions");
+        this.segmentationManager.removeOverlay("composite_regions");
         this.mapManager.removeOverlay("composite_regions");
       }
       await this.mapManager.addOverlay(syntheticOverlay);
-      this.animationController.addOverlay(
+      this.segmentationManager.addOverlay(
         "composite_regions",
         syntheticOverlay
       );
@@ -199,7 +199,7 @@ class LabeledCompositeLayer {
   removeSyntheticOverlay() {
     if (this.hasSyntheticOverlay) {
       console.log("Removing synthetic overlay...");
-      this.animationController.removeOverlay("composite_regions");
+      this.segmentationManager.removeOverlay("composite_regions");
       this.mapManager.removeOverlay("composite_regions");
       this.hasSyntheticOverlay = false;
     }
@@ -490,7 +490,7 @@ class LabeledCompositeLayer {
     this.overlayData.clear();
     this.landUseColorCache.clear();
     this.regionLabeler = null;
-    this.animationController = null;
+    this.segmentationManager = null;
     console.log("LabeledCompositeLayer destroyed");
   }
 }

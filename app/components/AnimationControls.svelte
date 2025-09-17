@@ -1,39 +1,32 @@
 <script>
   import { getContext } from "svelte";
 
-  const { animationController } = getContext("managers");
+  const { segmentationManager } = getContext("managers");
 
-  // Props from parent (AppContext will pass these)
   let { currentFrame, totalFrames, isPlaying } = $props();
-
-  // Local component state
   let speed = $state(1.0);
-
-  // Sync local state with external controller
   $effect(() => {
-    animationController.setSpeed(speed);
+    segmentationManager.setSpeed(speed);
   });
-
-  // Derived computations
   let canStep = $derived(totalFrames > 0);
   let canPlay = $derived(totalFrames > 1);
   let speedDisplay = $derived(`${speed.toFixed(1)}x`);
 
   function handleStepBack() {
     if (canStep && !isPlaying) {
-      animationController.stepBack();
+      segmentationManager.stepBack();
     }
   }
 
   function handlePlayPause() {
     if (canPlay) {
-      animationController.togglePlayPause();
+      segmentationManager.togglePlayPause();
     }
   }
 
   function handleStepForward() {
     if (canStep && !isPlaying) {
-      animationController.stepForward();
+      segmentationManager.stepForward();
     }
   }
 

@@ -3,7 +3,7 @@
   import { STORAGE_KEYS } from "./js/utils.js";
   import { DataLoader } from "./js/data-loader.js";
   import { MapManager } from "./js/map.js";
-  import { AnimationController } from "./js/animation.js";
+  import { SegmentationManager } from "./js/segmentation.js";
   import { LandUseHierarchy } from "./js/land-use.js";
   import { Cluster } from "./js/cluster.js";
   import LabeledCompositeController from "./components/LabeledCompositeController.svelte";
@@ -17,7 +17,7 @@
 
   let dataLoader = $state();
   let mapManager = $state();
-  let animationController = $state();
+  let segmentationManager = $state();
 
   setContext("managers", {
     get dataLoader() {
@@ -26,8 +26,8 @@
     get mapManager() {
       return mapManager;
     },
-    get animationController() {
-      return animationController;
+    get segmentationManager() {
+      return segmentationManager;
     },
   });
 
@@ -58,7 +58,7 @@
       }
       dataLoader = new DataLoader(rasterHandler);
       mapManager = new MapManager("map", rasterHandler);
-      animationController = new AnimationController();
+      segmentationManager = new SegmentationManager();
       setupEventListeners();
       setupKeyboardShortcuts();
       await mapManager.initialize();
@@ -71,17 +71,17 @@
   });
 
   function setupEventListeners() {
-    animationController.on("frameChanged", (frameIndex, segmentationKey) => {
+    segmentationManager.on("frameChanged", (frameIndex, segmentationKey) => {
       console.log("Frame changed:", frameIndex, segmentationKey);
       currentFrame = frameIndex;
       currentSegmentationKey = segmentationKey;
       mapManager.showFrame(frameIndex);
     });
-    animationController.on("framesReady", (frameCount) => {
+    segmentationManager.on("framesReady", (frameCount) => {
       console.log("Frames ready:", frameCount);
       totalFrames = frameCount;
     });
-    animationController.on("playStateChanged", (playing) => {
+    segmentationManager.on("playStateChanged", (playing) => {
       console.log("Play state changed:", playing);
       isPlaying = playing;
     });
@@ -122,15 +122,15 @@
       switch (e.code) {
         case "Space":
           e.preventDefault();
-          animationController.togglePlayPause();
+          segmentationManager.togglePlayPause();
           break;
         case "ArrowLeft":
           e.preventDefault();
-          animationController.stepBack();
+          segmentationManager.stepBack();
           break;
         case "ArrowRight":
           e.preventDefault();
-          animationController.stepForward();
+          segmentationManager.stepForward();
           break;
       }
     });
@@ -161,9 +161,9 @@
       "composite_regions",
     ];
     const allOverlays = [...overlays, null];
-    animationController.setFrames(allSegmentationKeys, allOverlays);
+    segmentationManager.setFrames(allSegmentationKeys, allOverlays);
     setTimeout(() => {
-      animationController.showInitialFrame();
+      segmentationManager.showInitialFrame();
       console.log("✅ Initial frame displayed");
     }, 100);
     showLoading(false);
@@ -178,7 +178,7 @@
 
   function clearData() {
     if (!confirm("Clear all loaded data? This will reset the viewer.")) return;
-    animationController.destroy();
+    segmentationManager.destroy();
     mapManager.clearOverlays();
     currentFrame = 0;
     totalFrames = 0;
@@ -192,7 +192,7 @@
   }
 
   function getCurrentSegmentationKey() {
-    const frameInfo = animationController.getCurrentFrameInfo();
+    const frameInfo = segmentationManager.getCurrentFrameInfo();
     return frameInfo.segmentationKey;
   }
 
@@ -285,11 +285,11 @@
   }
 </script>
 
-{#if dataLoader && mapManager && animationController}
+{#if dataLoader && mapManager && segmentationManager}
   <LabeledCompositeController
     {overlayData}
     {clusterLabels}
-    {animationController}
+    {segmentationManager}
   />
   <LegendPanel
     {clusterLabels}
