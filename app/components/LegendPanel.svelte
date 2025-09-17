@@ -4,17 +4,16 @@
   import DataSection from "./DataSection.svelte";
 
   let {
+    dataState,
     clusterLabels,
     currentSegmentationKey,
     currentSegmentationData,
     selectedCluster,
-    manifest,
-    overlayData,
     onLabelChange,
   } = $props();
   let activeTab = $state("data");
   $effect(() => {
-    if (manifest && activeTab === "data") {
+    if (dataState.manifest && activeTab === "data") {
       activeTab = "segmentations";
     }
   });
@@ -56,7 +55,7 @@
           {currentSegmentationKey}
           {currentSegmentationData}
           {selectedCluster}
-          {manifest}
+          manifest={dataState.manifest}
           {onLabelChange}
         />
       </div>
@@ -70,7 +69,7 @@
       </div>
     {:else if activeTab === "data"}
       <div class="tab-panel active">
-        <DataSection {manifest} {overlayData} />
+        <DataSection {dataState} />
       </div>
     {/if}
   </div>

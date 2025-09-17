@@ -1,28 +1,20 @@
 <script>
-  import { getContext } from "svelte";
-
-  const { dataLoader } = getContext("managers");
-
-  // Props from parent (AppContext will pass these)
-  let { manifest, overlayData } = $props();
-
-  // Local component state
+  let { dataState } = $props();
   let isDatasetInfoCollapsed = $state(false);
   let fileInput = $state();
-
-  // Derived computations
+  let manifest = $derived(dataState.manifest);
+  let isLoading = $derived(dataState.isLoading);
+  let error = $derived(dataState.error);
   let dataStatus = $derived(
     manifest
       ? `${manifest.segmentation_keys.length} frames loaded`
       : "No data loaded"
   );
-
   let dataBounds = $derived(
     manifest
       ? `Bounds: ${manifest.metadata.bounds.map((b) => b.toFixed(6)).join(", ")}`
       : ""
   );
-
   let dataShape = $derived(
     manifest ? `Shape: ${manifest.metadata.shape.join(" × ")}` : ""
   );
@@ -33,13 +25,16 @@
 
   function handleFileSelect(e) {
     const files = e.target.files;
-    if (files && files.length > 0) {
-      dataLoader.loadFromFolder(files);
+    if (files && files.length > 0 && dataState.loadFromFolder) {
+      dataState.loadFromFolder(files);
     }
   }
 
   function clearData() {
     if (confirm("Clear all loaded data? This will reset the viewer.")) {
+      if (dataState.clearData) {
+        dataState.clearData();
+      }
       window.dispatchEvent(new CustomEvent("clearData"));
     }
   }
@@ -62,8 +57,12 @@
   </div>
 
   <div class="data-controls">
-    <button class="data-btn primary" onclick={selectFolder}>
-      Select Data Folder
+    <button
+      class="data-btn primary"
+      disabled={isLoading}
+      onclick={selectFolder}
+    >
+      {isLoading ? "Loading..." : "Select Data Folder"}
     </button>
     <input
       bind:this={fileInput}
@@ -75,6 +74,11 @@
     />
     <button class="data-btn secondary" onclick={clearData}> Clear Data </button>
   </div>
+  {#if error}
+    <div class="error-message">
+      Error: {error}
+    </div>
+  {/if}
 
   <div class="dataset-info">
     <button

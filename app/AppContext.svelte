@@ -1,27 +1,28 @@
 <script>
   import { setContext, getContext, onMount } from "svelte";
   import { STORAGE_KEYS } from "./js/utils.js";
-  import { DataLoader } from "./js/data-loader.js";
   import { MapManager } from "./js/map.js";
   import { SegmentationManager } from "./js/segmentation.js";
   import { LandUseHierarchy } from "./js/land-use.js";
-  import { Cluster } from "./js/cluster.js";
+  import DataController from "./controllers/DataController.svelte";
   import LabeledCompositeController from "./components/LabeledCompositeController.svelte";
   import LegendPanel from "./components/LegendPanel.svelte";
   import ControlsPanel from "./components/ControlsPanel.svelte";
 
   let {} = $props();
 
+  let dataController = $state();
+  let dataState = $derived(dataController?.getState() || {});
+
   const labeledLayerContext = getContext("labeledLayer");
   let labeledLayer = $derived(labeledLayerContext?.instance);
 
-  let dataLoader = $state();
   let mapManager = $state();
   let segmentationManager = $state();
 
   setContext("managers", {
     get dataLoader() {
-      return dataLoader;
+      return dataState.loader;
     },
     get mapManager() {
       return mapManager;
@@ -37,14 +38,18 @@
   let currentSegmentationKey = $state(null);
   let labelsReady = $state(false);
   let clusterLabels = $state({});
-  let manifest = $state(null);
-  let overlayData = $state([]);
-  let allClusterData = $state({});
   let selectedCluster = $state(null);
-
   let currentSegmentationData = $derived(
-    currentSegmentationKey ? allClusterData[currentSegmentationKey] : null
+    currentSegmentationKey
+      ? dataState.clusterData?.[currentSegmentationKey]
+      : null
   );
+
+  $effect(() => {
+    if (dataState.manifest) {
+      handleDataLoaded(dataState.manifest, dataController.getOverlays());
+    }
+  });
 
   onMount(async () => {
     console.log("AppContext mounted, initializing managers...");
@@ -56,7 +61,6 @@
           "Raster handler not found. Make sure it's injected from HTML."
         );
       }
-      dataLoader = new DataLoader(rasterHandler);
       mapManager = new MapManager("map", rasterHandler);
       segmentationManager = new SegmentationManager();
       setupEventListeners();
@@ -84,12 +88,6 @@
     segmentationManager.on("playStateChanged", (playing) => {
       console.log("Play state changed:", playing);
       isPlaying = playing;
-    });
-    dataLoader.on("loadComplete", (manifestData, overlays) => {
-      handleDataLoaded(manifestData, overlays);
-    });
-    dataLoader.on("loadError", (error) => {
-      handleLoadError(error);
     });
     mapManager.on("clusterClicked", (clusterValue, latlng) => {
       console.log("Cluster clicked:", clusterValue);
@@ -136,28 +134,21 @@
     });
   }
 
-  async function handleDataLoaded(manifestData, overlays) {
+  async function handleDataLoaded(manifest, overlays) {
     console.log("=== DATA LOADING START ===");
     console.log("Overlays received:", overlays.length);
-    manifest = manifestData;
-    overlayData = overlays;
-    mapManager.setDataLoader(dataLoader);
-    allClusterData = await Cluster.extractClusterData(
-      overlays,
-      manifestData,
-      dataLoader
-    );
+    mapManager.setDataLoader(dataState.loader);
     mapManager.setOverlays(overlays);
     if (labeledLayer) {
       labeledLayer.setOverlayData(overlays);
       mapManager.setLabeledLayer(labeledLayer);
     }
     await new Promise((resolve) => {
-      mapManager.fitBounds(manifestData.metadata.bounds);
+      mapManager.fitBounds(manifest.metadata.bounds);
       mapManager.map.whenReady(() => resolve());
     });
     const allSegmentationKeys = [
-      ...manifestData.segmentation_keys,
+      ...manifest.segmentation_keys,
       "composite_regions",
     ];
     const allOverlays = [...overlays, null];
@@ -170,23 +161,17 @@
     console.log("✅ Data loading complete");
   }
 
-  function handleLoadError(error) {
-    console.error("Load error:", error);
-    showError(`Failed to load data: ${error.message}`);
-    showLoading(false);
-  }
-
   function clearData() {
     if (!confirm("Clear all loaded data? This will reset the viewer.")) return;
+    if (dataState.clearData) {
+      dataState.clearData();
+    }
     segmentationManager.destroy();
     mapManager.clearOverlays();
     currentFrame = 0;
     totalFrames = 0;
     isPlaying = false;
     currentSegmentationKey = null;
-    manifest = null;
-    overlayData = [];
-    allClusterData = {};
     selectedCluster = null;
     console.log("✅ Data cleared");
   }
@@ -210,7 +195,6 @@
 
   $effect(() => {
     if (labelsReady) {
-      $inspect("💾 Saving labels to localStorage:", clusterLabels);
       try {
         localStorage.setItem(
           STORAGE_KEYS.CLUSTER_LABELS,
@@ -285,19 +269,22 @@
   }
 </script>
 
-{#if dataLoader && mapManager && segmentationManager}
+<DataController bind:this={dataController} />
+
+{#if dataState.loader && mapManager && segmentationManager && dataState.manifest}
   <LabeledCompositeController
-    {overlayData}
+    overlayData={dataController?.getOverlays()}
     {clusterLabels}
     {segmentationManager}
   />
+{/if}
+{#if dataState.loader && mapManager && segmentationManager}
   <LegendPanel
+    {dataState}
     {clusterLabels}
     {currentSegmentationKey}
     {currentSegmentationData}
     {selectedCluster}
-    {manifest}
-    {overlayData}
     onLabelChange={handleLabelChange}
   />
   <ControlsPanel
