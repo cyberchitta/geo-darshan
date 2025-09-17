@@ -138,93 +138,115 @@ class LandUseHierarchy {
   }
 }
 
-class LandUseDropdown {
-  constructor(clusterId, onSelectionChange = null) {
-    if (!LandUseHierarchy.isLoaded()) {
-      throw new Error(
-        "LandUseHierarchy must be loaded before creating dropdowns"
-      );
-    }
-
-    this.clusterId = clusterId;
-    this.hierarchy = LandUseHierarchy.getInstance();
-    this.onSelectionChange = onSelectionChange;
-    this.currentSelection = "unlabeled";
-    this.element = this.createDropdownElement();
+class LandUseMapper {
+  constructor(
+    hierarchy,
+    compositeData,
+    segmentationMap,
+    segmentations,
+    allLabels,
+    hierarchyLevel
+  ) {
+    this.hierarchy = hierarchy;
+    this.compositeData = compositeData;
+    this.segmentationMap = segmentationMap;
+    this.segmentations = segmentations;
+    this.allLabels = allLabels;
+    this.hierarchyLevel = hierarchyLevel;
   }
 
-  createDropdownElement() {
-    const container = document.createElement("div");
-    container.className = "land-use-dropdown-container";
-    const select = document.createElement("select");
-    select.className = "land-use-dropdown";
-    select.id = `cluster-${this.clusterId}-dropdown`;
-    const options = this.hierarchy.getSelectableOptions();
-    options.forEach((option) => {
-      const optionElement = document.createElement("option");
-      optionElement.value = option.path;
-      optionElement.textContent = this.formatOptionText(option);
-      optionElement.title = option.description;
-      if (option.level > 0) {
-        optionElement.style.paddingLeft = `${option.level * 20}px`;
-      }
-      if (!option.isLeaf) {
-        optionElement.style.fontWeight = "bold";
-      }
-      select.appendChild(optionElement);
-    });
-
-    select.addEventListener("change", (e) => {
-      this.currentSelection = e.target.value;
-      this.updateDisplayStyle();
-      if (this.onSelectionChange) {
-        const selectedOption = options.find(
-          (opt) => opt.path === e.target.value
-        );
-        this.onSelectionChange(this.clusterId, selectedOption);
-      }
-    });
-    container.appendChild(select);
-    return container;
-  }
-
-  formatOptionText(option) {
-    const indent = "  ".repeat(option.level);
-    const prefix = option.isLeaf ? "• " : "▶ ";
-    return `${indent}${prefix}${option.displayPath.split(" > ").pop()}`;
-  }
-
-  updateDisplayStyle() {
-    const select = this.element.querySelector("select");
-    select.classList.remove("unlabeled", "intermediate", "leaf");
-    if (this.currentSelection === "unlabeled") {
-      select.classList.add("unlabeled");
-    } else {
-      const option = this.hierarchy.flatPaths.find(
-        (opt) => opt.path === this.currentSelection
-      );
-      if (option) {
-        select.classList.add(option.isLeaf ? "leaf" : "intermediate");
+  generatePixelMapping() {
+    const uniqueLandUses = new Set();
+    const height = this.compositeData.height;
+    const width = this.compositeData.width;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const clusterId = this.compositeData.values[0][y][x];
+        const landUsePath = this.getPixelLandUsePath(clusterId, x, y);
+        if (landUsePath && landUsePath !== "unlabeled") {
+          const truncatedPath = this.truncateToHierarchyLevel(landUsePath);
+          uniqueLandUses.add(truncatedPath);
+        }
       }
     }
+    const pixelMapping = {};
+    let nextId = 0;
+    Array.from(uniqueLandUses)
+      .sort()
+      .forEach((landUsePath) => {
+        pixelMapping[nextId.toString()] = landUsePath;
+        nextId++;
+      });
+    return pixelMapping;
   }
 
-  setSelection(path) {
-    this.currentSelection = path;
-    const select = this.element.querySelector("select");
-    select.value = path;
-    this.updateDisplayStyle();
+  createLandUseRaster() {
+    const pixelMapping = this.generatePixelMapping();
+    const landUseToId = new Map();
+    Object.entries(pixelMapping).forEach(([id, landUsePath]) => {
+      landUseToId.set(landUsePath, parseInt(id));
+    });
+    const height = this.compositeData.height;
+    const width = this.compositeData.width;
+    const rasterData = new Array(height);
+    for (let y = 0; y < height; y++) {
+      rasterData[y] = new Array(width);
+      for (let x = 0; x < width; x++) {
+        const clusterId = this.compositeData.values[0][y][x];
+        const landUsePath = this.getPixelLandUsePath(clusterId, x, y);
+        if (!landUsePath || landUsePath === "unlabeled") {
+          rasterData[y][x] = -1;
+        } else {
+          const truncatedPath = this.truncateToHierarchyLevel(landUsePath);
+          const landUseId = landUseToId.get(truncatedPath);
+          rasterData[y][x] = landUseId !== undefined ? landUseId : -1;
+        }
+      }
+    }
+    return rasterData;
   }
 
-  getSelection() {
-    return {
-      clusterId: this.clusterId,
-      path: this.currentSelection,
-      option: this.hierarchy
-        .getSelectableOptions()
-        .find((opt) => opt.path === this.currentSelection),
-    };
+  static createColorMapping(pixelMapping, hierarchy, hierarchyLevel) {
+    const colorMapping = {};
+    Object.entries(pixelMapping).forEach(([id, landUsePath]) => {
+      try {
+        const color = hierarchy.getColorForPath(landUsePath, hierarchyLevel);
+        colorMapping[id] = color;
+      } catch (error) {
+        console.warn(`No color found for land use path: ${landUsePath}`, error);
+        colorMapping[id] = "#888888"; // Fallback gray
+      }
+    });
+    return colorMapping;
+  }
+
+  getPixelLandUsePath(clusterId, x, y) {
+    if (clusterId >= 10000) {
+      const syntheticLabels = this.allLabels.get("composite_regions");
+      return syntheticLabels?.get(clusterId) || "unlabeled";
+    }
+    if (!this.segmentationMap || !this.segmentations) {
+      return "unlabeled";
+    }
+    const segmentationIndex = this.segmentationMap[y][x];
+    const segmentationKey = this.segmentations[segmentationIndex];
+    const labels = this.allLabels?.get(segmentationKey);
+    if (!labels || !labels.has(clusterId)) {
+      return "unlabeled";
+    }
+    return labels.get(clusterId) || "unlabeled";
+  }
+
+  truncateToHierarchyLevel(landUsePath) {
+    if (!landUsePath || landUsePath === "unlabeled") {
+      return landUsePath;
+    }
+    const pathParts = landUsePath.split(".");
+    if (pathParts.length <= this.hierarchyLevel) {
+      return landUsePath;
+    }
+    return pathParts.slice(0, this.hierarchyLevel).join(".");
   }
 }
 
-export { LandUseHierarchy, LandUseDropdown };
+export { LandUseHierarchy, LandUseMapper };

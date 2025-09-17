@@ -1,6 +1,6 @@
 import { hexToRgb } from "./utils.js";
 import { Compositor } from "./compositor.js";
-import { LandUseHierarchy } from "./land-use-hierarchy.js";
+import { LandUseHierarchy } from "./land-use.js";
 import { RegionLabeler } from "./region-labeler.js";
 
 class LabeledCompositeLayer {
