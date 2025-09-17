@@ -24,6 +24,7 @@
       loader,
       loadFromFolder,
       clearData,
+      getOverlays,
     };
   }
 

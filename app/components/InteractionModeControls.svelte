@@ -1,8 +1,5 @@
 <script>
-  import { getContext } from "svelte";
-
-  const { mapManager } = getContext("managers");
-
+  let { mapState } = $props();
   let interactionMode = $state("view");
 
   const modes = [
@@ -26,10 +23,9 @@
     },
   ];
 
-  // Sync with map manager
   $effect(() => {
-    if (mapManager.setInteractionMode) {
-      mapManager.setInteractionMode(interactionMode);
+    if (mapState?.setInteractionMode) {
+      mapState.setInteractionMode(interactionMode);
     }
   });
 

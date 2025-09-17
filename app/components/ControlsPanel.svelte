@@ -4,26 +4,13 @@
   import NavigationControls from "./NavigationControls.svelte";
   import OverlayControls from "./OverlayControls.svelte";
 
-  let { segmentationState } = $props();
-
+  let { segmentationState, mapState } = $props();
   let totalFrames = $derived(segmentationState.totalFrames || 0);
-  let currentFrame = $derived(segmentationState.currentFrame || 0);
-  let isPlaying = $derived(segmentationState.isPlaying || false);
-  let currentSegmentationKey = $derived(
-    segmentationState.currentSegmentationKey
-  );
-  let isCollapsed = $state(false);
   let showControls = $derived(totalFrames > 0);
+  let isCollapsed = $state(false);
 
   function toggleCollapsed() {
     isCollapsed = !isCollapsed;
-  }
-
-  function handleKeydownToggle(event) {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      toggleCollapsed();
-    }
   }
 </script>
 
@@ -35,30 +22,18 @@
         class="collapse-toggle"
         class:collapsed={isCollapsed}
         onclick={toggleCollapsed}
-        onkeydown={handleKeydownToggle}
         aria-expanded={!isCollapsed}
-        aria-controls="controls-content"
-        aria-label={isCollapsed
-          ? "Expand controls panel"
-          : "Collapse controls panel"}
-        title={isCollapsed ? "Expand Controls" : "Collapse Controls"}
       >
-        <span class="chevron" aria-hidden="true">
-          {isCollapsed ? "▲" : "▼"}
-        </span>
+        <span class="chevron">{isCollapsed ? "▲" : "▼"}</span>
       </button>
     </div>
-    <div
-      class="controls-content"
-      id="controls-content"
-      class:collapsed={isCollapsed}
-    >
+    <div class="controls-content" class:collapsed={isCollapsed}>
       <div class="controls-row">
         <div class="control-group overlay-group">
-          <OverlayControls />
+          <OverlayControls {mapState} />
         </div>
         <div class="control-group interaction-group">
-          <InteractionModeControls />
+          <InteractionModeControls {mapState} />
         </div>
         <div class="control-group navigation-group">
           <NavigationControls {segmentationState} />
@@ -68,11 +43,6 @@
         </div>
       </div>
     </div>
-    {#if isCollapsed}
-      <div class="collapsed-status" aria-live="polite">
-        <span class="sr-only">Controls panel collapsed</span>
-      </div>
-    {/if}
   </div>
 {/if}
 

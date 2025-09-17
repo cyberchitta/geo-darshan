@@ -1,10 +1,12 @@
 <script>
   import { getContext } from "svelte";
 
-  const { mapManager } = getContext("managers");
+  let { mapState } = $props();
   let opacity = $state(0.8);
   $effect(() => {
-    mapManager.setOverlayOpacity(opacity);
+    if (mapState?.setOpacity) {
+      mapState.setOpacity(opacity);
+    }
   });
   let opacityPercent = $derived(Math.round(opacity * 100));
   let opacityDisplay = $derived(`${opacityPercent}%`);
