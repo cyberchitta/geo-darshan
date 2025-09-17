@@ -1,5 +1,5 @@
 <script>
-  import { onMount, getContext } from "svelte";
+  import { onMount } from "svelte";
   import { SegmentationManager } from "../js/segmentation.js";
 
   let {} = $props();

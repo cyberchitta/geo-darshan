@@ -1,5 +1,5 @@
 <script>
-  import { getContext, onMount } from "svelte";
+  import { onMount } from "svelte";
   import { STORAGE_KEYS } from "./js/utils.js";
   import DataController from "./controllers/DataController.svelte";
   import SegmentationController from "./controllers/SegmentationController.svelte";
@@ -12,11 +12,12 @@
   let dataController = $state();
   let segmentationController = $state();
   let mapController = $state();
+  let labeledCompositeController = $state();
+  let labeledCompositeState = $derived(labeledCompositeController?.getState());
   let dataState = $derived(dataController?.getState());
   let segmentationState = $derived(segmentationController?.getState());
   let mapState = $derived(mapController?.getState());
-  const labeledLayerContext = getContext("labeledLayer");
-  let labeledLayer = $derived(labeledLayerContext?.instance);
+  let labeledLayer = $derived(labeledCompositeState?.labeledLayer);
   const appState = $derived({
     data: dataState,
     map: mapState,
@@ -161,6 +162,7 @@
 {/if}
 {#if dataState?.loader && mapState?.mapManager && segmentationController && dataState?.manifest}
   <LabeledCompositeController
+    bind:this={labeledCompositeController}
     overlayData={dataController?.getOverlays()}
     {clusterLabels}
     segmentationManager={segmentationController?.getManager()}

@@ -1,5 +1,5 @@
 <script>
-  import { onMount, getContext } from "svelte";
+  import { onMount } from "svelte";
   import { MapManager } from "../js/map.js";
   import { LandUseHierarchy } from "../js/land-use.js";
 

@@ -1,5 +1,5 @@
 <script>
-  import { setContext, onMount } from "svelte";
+  import { onMount } from "svelte";
   import { LabeledCompositeLayer } from "../js/labeled-composite.js";
 
   let {
@@ -11,18 +11,20 @@
   } = $props();
   let labeledLayer = $state(null);
   let layerGroup = $state(null);
-  let isCompositeReady = $state(false);
-  setContext("labeledLayer", {
-    get instance() {
-      return labeledLayer;
-    },
-    get isReady() {
-      return !!labeledLayer && isCompositeReady;
-    },
-  });
   let hasOverlays = $derived(overlayData.length > 0);
   let hasLabels = $derived(Object.keys(clusterLabels).length > 0);
   let shouldHaveComposite = $derived(hasOverlays && hasLabels);
+  let isCompositeReady = $state(false);
+  const stateObject = {
+    get labeledLayer() {
+      return labeledLayer;
+    },
+  };
+
+  export function getState() {
+    return stateObject;
+  }
+
   $effect(() => {
     if (
       mapManager &&

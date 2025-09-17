@@ -1,6 +1,4 @@
 <script>
-  import { getContext } from "svelte";
-
   let { mapState } = $props();
   let opacity = $state(0.8);
   $effect(() => {

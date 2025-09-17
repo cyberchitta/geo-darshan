@@ -1,5 +1,4 @@
 <script>
-  import { getContext } from "svelte";
   import LandUseDropdown from "./LandUseDropdown.svelte";
 
   let {
