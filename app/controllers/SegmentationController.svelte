@@ -23,27 +23,38 @@
     return manager;
   }
 
+  const stateObject = {
+    get currentFrame() {
+      return currentFrame;
+    },
+    get totalFrames() {
+      return totalFrames;
+    },
+    get isPlaying() {
+      return isPlaying;
+    },
+    get currentSegmentationKey() {
+      return currentSegmentationKey;
+    },
+    get frameInfo() {
+      return frameInfo;
+    },
+    togglePlayPause: () => manager?.togglePlayPause(),
+    stepForward: () => manager?.stepForward(),
+    stepBack: () => manager?.stepBack(),
+    goToFrame: (frameIndex) => manager?.goToFrame(frameIndex),
+    setSpeed: (speed) => manager?.setSpeed(speed),
+    setFrames: (segmentationKeys, overlays) =>
+      manager?.setFrames(segmentationKeys, overlays),
+    addOverlay: (segmentationKey, overlay) =>
+      manager?.addOverlay(segmentationKey, overlay),
+    removeOverlay: (segmentationKey) => manager?.removeOverlay(segmentationKey),
+    showInitialFrame: () => manager?.showInitialFrame(),
+    reset: () => manager?.reset(),
+  };
+
   export function getState() {
-    return {
-      currentFrame,
-      totalFrames,
-      isPlaying,
-      currentSegmentationKey,
-      frameInfo,
-      togglePlayPause: () => manager?.togglePlayPause(),
-      stepForward: () => manager?.stepForward(),
-      stepBack: () => manager?.stepBack(),
-      goToFrame: (frameIndex) => manager?.goToFrame(frameIndex),
-      setSpeed: (speed) => manager?.setSpeed(speed),
-      setFrames: (segmentationKeys, overlays) =>
-        manager?.setFrames(segmentationKeys, overlays),
-      addOverlay: (segmentationKey, overlay) =>
-        manager?.addOverlay(segmentationKey, overlay),
-      removeOverlay: (segmentationKey) =>
-        manager?.removeOverlay(segmentationKey),
-      showInitialFrame: () => manager?.showInitialFrame(),
-      reset: () => manager?.reset(),
-    };
+    return stateObject;
   }
 
   onMount(() => {

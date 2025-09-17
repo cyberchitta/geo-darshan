@@ -4,7 +4,7 @@
   import DataController from "./controllers/DataController.svelte";
   import SegmentationController from "./controllers/SegmentationController.svelte";
   import MapController from "./controllers/MapController.svelte";
-  import LabeledCompositeController from "./components/LabeledCompositeController.svelte";
+  import LabeledCompositeController from "./controllers/LabeledCompositeController.svelte";
   import LegendPanel from "./components/LegendPanel.svelte";
   import ControlsPanel from "./components/ControlsPanel.svelte";
 
@@ -12,9 +12,9 @@
   let dataController = $state();
   let segmentationController = $state();
   let mapController = $state();
-  let dataState = $derived(dataController?.getState() || {});
-  let segmentationState = $derived(segmentationController?.getState() || {});
-  let mapState = $derived(mapController?.getState() || {});
+  let dataState = $derived(dataController?.getState());
+  let segmentationState = $derived(segmentationController?.getState());
+  let mapState = $derived(mapController?.getState());
   const labeledLayerContext = getContext("labeledLayer");
   let labeledLayer = $derived(labeledLayerContext?.instance);
   setContext("managers", {
@@ -36,7 +36,8 @@
       : null
   );
   $effect(() => {
-    if (dataState.manifest) {
+    console.log("Effect running, manifest:", !!dataState.manifest);
+    if (dataState?.manifest) {
       coordinateDataLoading(dataState.manifest, dataController.getOverlays());
     }
   });
@@ -160,7 +161,7 @@
 <DataController bind:this={dataController} />
 <SegmentationController bind:this={segmentationController} />
 
-{#if dataState.loader}
+{#if dataState?.loader}
   <MapController
     bind:this={mapController}
     {dataState}
@@ -168,7 +169,7 @@
     {labeledLayer}
   />
 {/if}
-{#if dataState.loader && mapState.mapManager && segmentationController && dataState.manifest}
+{#if dataState?.loader && mapState?.mapManager && segmentationController && dataState?.manifest}
   <LabeledCompositeController
     overlayData={dataController?.getOverlays()}
     {clusterLabels}
@@ -176,7 +177,7 @@
   />
 {/if}
 
-{#if dataState.loader && mapState.mapManager && segmentationController}
+{#if dataState?.loader && mapState?.mapManager && segmentationController}
   <LegendPanel
     {dataState}
     {clusterLabels}

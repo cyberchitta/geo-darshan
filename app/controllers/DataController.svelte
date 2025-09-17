@@ -15,17 +15,29 @@
     return overlays;
   }
 
+  const stateObject = {
+    get isLoading() {
+      return isLoading;
+    },
+    get error() {
+      return error;
+    },
+    get manifest() {
+      return manifest;
+    },
+    get clusterData() {
+      return clusterData;
+    },
+    get loader() {
+      return loader;
+    },
+    loadFromFolder,
+    clearData,
+    getOverlays,
+  };
+
   export function getState() {
-    return {
-      isLoading,
-      error,
-      manifest,
-      clusterData,
-      loader,
-      loadFromFolder,
-      clearData,
-      getOverlays,
-    };
+    return stateObject;
   }
 
   onMount(() => {

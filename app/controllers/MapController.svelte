@@ -11,17 +11,29 @@
   let isReady = $derived(!!mapManager);
   let manifest = $derived(dataState.manifest);
 
+  const stateObject = {
+    get mapManager() {
+      return mapManager;
+    },
+    get opacity() {
+      return opacity;
+    },
+    get interactionMode() {
+      return interactionMode;
+    },
+    get selectedCluster() {
+      return selectedCluster;
+    },
+    get isReady() {
+      return isReady;
+    },
+    setOpacity: (value) => (opacity = value),
+    setInteractionMode: (mode) => (interactionMode = mode),
+    clearSelectedCluster: () => (selectedCluster = null),
+  };
+
   export function getState() {
-    return {
-      mapManager,
-      opacity,
-      interactionMode,
-      selectedCluster,
-      isReady,
-      setOpacity: (value) => (opacity = value),
-      setInteractionMode: (mode) => (interactionMode = mode),
-      clearSelectedCluster: () => (selectedCluster = null),
-    };
+    return stateObject;
   }
 
   export function getManager() {
