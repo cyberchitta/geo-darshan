@@ -1,12 +1,11 @@
 <script>
-  import { getContext } from "svelte";
-
-  const { segmentationManager } = getContext("managers");
-
-  let { currentFrame, totalFrames, isPlaying } = $props();
+  let { segmentationState } = $props();
+  let currentFrame = $derived(segmentationState.currentFrame || 0);
+  let totalFrames = $derived(segmentationState.totalFrames || 0);
+  let isPlaying = $derived(segmentationState.isPlaying || false);
   let speed = $state(1.0);
   $effect(() => {
-    segmentationManager.setSpeed(speed);
+    segmentationState.setSpeed?.(speed);
   });
   let canStep = $derived(totalFrames > 0);
   let canPlay = $derived(totalFrames > 1);
@@ -14,19 +13,19 @@
 
   function handleStepBack() {
     if (canStep && !isPlaying) {
-      segmentationManager.stepBack();
+      segmentationState.stepBack?.();
     }
   }
 
   function handlePlayPause() {
     if (canPlay) {
-      segmentationManager.togglePlayPause();
+      segmentationState.togglePlayPause?.();
     }
   }
 
   function handleStepForward() {
     if (canStep && !isPlaying) {
-      segmentationManager.stepForward();
+      segmentationState.stepForward?.();
     }
   }
 
@@ -54,7 +53,6 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
-<!-- Rest of template stays the same, just update reactive references -->
 <div
   class="animation-controls"
   role="group"

@@ -4,14 +4,15 @@
   import NavigationControls from "./NavigationControls.svelte";
   import OverlayControls from "./OverlayControls.svelte";
 
-  // Props from parent (AppContext will pass these)
-  let { totalFrames, currentFrame, isPlaying, currentSegmentationKey } =
-    $props();
+  let { segmentationState } = $props();
 
-  // Local component state
+  let totalFrames = $derived(segmentationState.totalFrames || 0);
+  let currentFrame = $derived(segmentationState.currentFrame || 0);
+  let isPlaying = $derived(segmentationState.isPlaying || false);
+  let currentSegmentationKey = $derived(
+    segmentationState.currentSegmentationKey
+  );
   let isCollapsed = $state(false);
-
-  // Show controls only when data is loaded
   let showControls = $derived(totalFrames > 0);
 
   function toggleCollapsed() {
@@ -60,15 +61,10 @@
           <InteractionModeControls />
         </div>
         <div class="control-group navigation-group">
-          <NavigationControls
-            {currentFrame}
-            {totalFrames}
-            {isPlaying}
-            {currentSegmentationKey}
-          />
+          <NavigationControls {segmentationState} />
         </div>
         <div class="control-group animation-group">
-          <AnimationControls {currentFrame} {totalFrames} {isPlaying} />
+          <AnimationControls {segmentationState} />
         </div>
       </div>
     </div>

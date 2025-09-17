@@ -1,14 +1,13 @@
 <script>
-  import { getContext } from "svelte";
   import { extractKValue } from "../js/utils.js";
 
-  const { animationController } = getContext("managers");
-
-  // Props from parent (AppContext will pass these)
-  let { currentFrame, totalFrames, isPlaying, currentSegmentationKey } =
-    $props();
-
-  // Derived computations
+  let { segmentationState } = $props();
+  let currentFrame = $derived(segmentationState.currentFrame || 0);
+  let totalFrames = $derived(segmentationState.totalFrames || 0);
+  let isPlaying = $derived(segmentationState.isPlaying || false);
+  let currentSegmentationKey = $derived(
+    segmentationState.currentSegmentationKey
+  );
   let currentK = $derived(
     currentSegmentationKey ? extractKValue(currentSegmentationKey) : null
   );
@@ -18,8 +17,6 @@
   let kDisplayText = $derived(
     currentK !== null ? `${currentK} clusters` : "-- clusters"
   );
-
-  // Update CSS custom properties for progress bar
   $effect(() => {
     if (typeof document !== "undefined") {
       const progressEl = document.querySelector(".frame-progress");
@@ -33,7 +30,7 @@
   function handleFrameChange(event) {
     if (!isPlaying && canNavigate) {
       const frameIndex = parseInt(event.target.value);
-      animationController.goToFrame(frameIndex);
+      segmentationState.goToFrame?.(frameIndex);
     }
   }
 
@@ -46,21 +43,21 @@
     switch (event.code) {
       case "Home":
         event.preventDefault();
-        animationController.goToFrame(0);
+        segmentationState.goToFrame?.(0);
         break;
       case "End":
         event.preventDefault();
-        animationController.goToFrame(totalFrames - 1);
+        segmentationState.goToFrame?.(totalFrames - 1);
         break;
       case "PageUp":
         event.preventDefault();
         const prevFrame = Math.max(0, currentFrame - 5);
-        animationController.goToFrame(prevFrame);
+        segmentationState.goToFrame?.(prevFrame);
         break;
       case "PageDown":
         event.preventDefault();
         const nextFrame = Math.min(totalFrames - 1, currentFrame + 5);
-        animationController.goToFrame(nextFrame);
+        segmentationState.goToFrame?.(nextFrame);
         break;
     }
   }

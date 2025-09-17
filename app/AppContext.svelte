@@ -2,9 +2,9 @@
   import { setContext, getContext, onMount } from "svelte";
   import { STORAGE_KEYS } from "./js/utils.js";
   import { MapManager } from "./js/map.js";
-  import { SegmentationManager } from "./js/segmentation.js";
   import { LandUseHierarchy } from "./js/land-use.js";
   import DataController from "./controllers/DataController.svelte";
+  import SegmentationController from "./controllers/SegmentationController.svelte";
   import LabeledCompositeController from "./components/LabeledCompositeController.svelte";
   import LegendPanel from "./components/LegendPanel.svelte";
   import ControlsPanel from "./components/ControlsPanel.svelte";
@@ -12,13 +12,14 @@
   let {} = $props();
 
   let dataController = $state();
+  let segmentationController = $state();
   let dataState = $derived(dataController?.getState() || {});
+  let segmentationState = $derived(segmentationController?.getState() || {});
 
   const labeledLayerContext = getContext("labeledLayer");
   let labeledLayer = $derived(labeledLayerContext?.instance);
 
   let mapManager = $state();
-  let segmentationManager = $state();
 
   setContext("managers", {
     get dataLoader() {
@@ -28,26 +29,32 @@
       return mapManager;
     },
     get segmentationManager() {
-      return segmentationManager;
+      return segmentationController?.getManager();
     },
   });
 
-  let currentFrame = $state(0);
-  let totalFrames = $state(0);
-  let isPlaying = $state(false);
-  let currentSegmentationKey = $state(null);
   let labelsReady = $state(false);
   let clusterLabels = $state({});
   let selectedCluster = $state(null);
   let currentSegmentationData = $derived(
-    currentSegmentationKey
-      ? dataState.clusterData?.[currentSegmentationKey]
+    segmentationState.currentSegmentationKey
+      ? dataState.clusterData?.[segmentationState.currentSegmentationKey]
       : null
   );
 
   $effect(() => {
     if (dataState.manifest) {
       handleDataLoaded(dataState.manifest, dataController.getOverlays());
+    }
+  });
+  $effect(() => {
+    if (segmentationController && mapManager) {
+      const segManager = segmentationController.getManager();
+      if (segManager) {
+        segManager.on("frameChanged", (frameIndex) => {
+          mapManager.showFrame(frameIndex);
+        });
+      }
     }
   });
 
@@ -62,7 +69,6 @@
         );
       }
       mapManager = new MapManager("map", rasterHandler);
-      segmentationManager = new SegmentationManager();
       setupEventListeners();
       setupKeyboardShortcuts();
       await mapManager.initialize();
@@ -75,28 +81,15 @@
   });
 
   function setupEventListeners() {
-    segmentationManager.on("frameChanged", (frameIndex, segmentationKey) => {
-      console.log("Frame changed:", frameIndex, segmentationKey);
-      currentFrame = frameIndex;
-      currentSegmentationKey = segmentationKey;
-      mapManager.showFrame(frameIndex);
-    });
-    segmentationManager.on("framesReady", (frameCount) => {
-      console.log("Frames ready:", frameCount);
-      totalFrames = frameCount;
-    });
-    segmentationManager.on("playStateChanged", (playing) => {
-      console.log("Play state changed:", playing);
-      isPlaying = playing;
-    });
     mapManager.on("clusterClicked", (clusterValue, latlng) => {
       console.log("Cluster clicked:", clusterValue);
       selectedCluster = {
         clusterId: clusterValue,
-        segmentationKey: currentSegmentationKey,
+        segmentationKey: segmentationState.currentSegmentationKey,
         latlng,
       };
     });
+
     mapManager.on("compositeClick", (latlng) => {
       if (labeledLayer && labeledLayer.handleCompositeClick) {
         labeledLayer.handleCompositeClick(latlng);
@@ -104,11 +97,13 @@
         console.log("No labeled layer available for composite labeling");
       }
     });
+
     mapManager.on("globalOpacityChanged", (opacity) => {
       if (labeledLayer && labeledLayer.setOpacity) {
         labeledLayer.setOpacity(opacity);
       }
     });
+
     window.addEventListener("clearData", () => {
       clearData();
     });
@@ -120,15 +115,15 @@
       switch (e.code) {
         case "Space":
           e.preventDefault();
-          segmentationManager.togglePlayPause();
+          segmentationState.togglePlayPause?.();
           break;
         case "ArrowLeft":
           e.preventDefault();
-          segmentationManager.stepBack();
+          segmentationState.stepBack?.();
           break;
         case "ArrowRight":
           e.preventDefault();
-          segmentationManager.stepForward();
+          segmentationState.stepForward?.();
           break;
       }
     });
@@ -143,20 +138,24 @@
       labeledLayer.setOverlayData(overlays);
       mapManager.setLabeledLayer(labeledLayer);
     }
+
     await new Promise((resolve) => {
       mapManager.fitBounds(manifest.metadata.bounds);
       mapManager.map.whenReady(() => resolve());
     });
+
     const allSegmentationKeys = [
       ...manifest.segmentation_keys,
       "composite_regions",
     ];
     const allOverlays = [...overlays, null];
-    segmentationManager.setFrames(allSegmentationKeys, allOverlays);
+    segmentationState.setFrames?.(allSegmentationKeys, allOverlays);
+
     setTimeout(() => {
-      segmentationManager.showInitialFrame();
+      segmentationState.showInitialFrame?.();
       console.log("✅ Initial frame displayed");
     }, 100);
+
     showLoading(false);
     console.log("✅ Data loading complete");
   }
@@ -166,19 +165,10 @@
     if (dataState.clearData) {
       dataState.clearData();
     }
-    segmentationManager.destroy();
+    segmentationState.reset?.();
     mapManager.clearOverlays();
-    currentFrame = 0;
-    totalFrames = 0;
-    isPlaying = false;
-    currentSegmentationKey = null;
     selectedCluster = null;
     console.log("✅ Data cleared");
-  }
-
-  function getCurrentSegmentationKey() {
-    const frameInfo = segmentationManager.getCurrentFrameInfo();
-    return frameInfo.segmentationKey;
   }
 
   function showLoading(show) {
@@ -270,27 +260,23 @@
 </script>
 
 <DataController bind:this={dataController} />
+<SegmentationController bind:this={segmentationController} />
 
-{#if dataState.loader && mapManager && segmentationManager && dataState.manifest}
+{#if dataState.loader && mapManager && segmentationController && dataState.manifest}
   <LabeledCompositeController
     overlayData={dataController?.getOverlays()}
     {clusterLabels}
-    {segmentationManager}
+    segmentationManager={segmentationController?.getManager()}
   />
 {/if}
-{#if dataState.loader && mapManager && segmentationManager}
+{#if dataState.loader && mapManager && segmentationController}
   <LegendPanel
     {dataState}
     {clusterLabels}
-    {currentSegmentationKey}
+    currentSegmentationKey={segmentationState.currentSegmentationKey}
     {currentSegmentationData}
     {selectedCluster}
     onLabelChange={handleLabelChange}
   />
-  <ControlsPanel
-    {currentFrame}
-    {totalFrames}
-    {isPlaying}
-    {currentSegmentationKey}
-  />
+  <ControlsPanel {segmentationState} />
 {/if}
