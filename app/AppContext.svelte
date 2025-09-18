@@ -4,7 +4,7 @@
   import DataController from "./controllers/DataController.svelte";
   import SegmentationController from "./controllers/SegmentationController.svelte";
   import MapController from "./controllers/MapController.svelte";
-  import LabeledCompositeController from "./controllers/LabeledCompositeController.svelte";
+  import CompositeController from "./controllers/CompositeController.svelte";
   import LegendPanel from "./components/LegendPanel.svelte";
   import ControlsPanel from "./components/ControlsPanel.svelte";
 
@@ -161,7 +161,7 @@
   />
 {/if}
 {#if dataState?.loader && mapState?.mapManager && segmentationController && dataState?.manifest}
-  <LabeledCompositeController
+  <CompositeController
     bind:this={labeledCompositeController}
     overlayData={dataController?.getOverlays()}
     {clusterLabels}

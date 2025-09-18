@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { LabeledCompositeLayer } from "../js/labeled-composite.js";
+  import { CompositeLayer } from "../js/composite-layer.js";
 
   let {
     overlayData = [],
@@ -39,11 +39,7 @@
   });
   $effect(() => {
     if (layerGroup && dataLoader && !labeledLayer) {
-      labeledLayer = new LabeledCompositeLayer(
-        mapManager,
-        dataLoader,
-        layerGroup
-      );
+      labeledLayer = new CompositeLayer(mapManager, dataLoader, layerGroup);
       labeledLayer.setSegmentationManager(segmentationManager);
       mapManager.setLabeledLayer(labeledLayer);
     }
