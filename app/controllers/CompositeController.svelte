@@ -3,7 +3,6 @@
   import { CompositeLayer } from "../js/composite-layer.js";
 
   let {
-    overlayData = [],
     clusterLabels = {},
     dataState,
     segmentationManager,
@@ -12,9 +11,9 @@
   } = $props();
   let labeledLayer = $state(null);
   let layerGroup = $state(null);
-  let hasOverlays = $derived(overlayData.length > 0);
+  let hasSegmentations = $derived(dataState?.segmentations?.size > 0);
   let hasLabels = $derived(Object.keys(clusterLabels).length > 0);
-  let shouldHaveComposite = $derived(hasOverlays && hasLabels);
+  let shouldHaveComposite = $derived(hasSegmentations && hasLabels);
   let isCompositeReady = $state(false);
   const stateObject = {
     get labeledLayer() {
@@ -47,9 +46,6 @@
   });
   $effect(() => {
     if (!labeledLayer) return;
-    if (hasOverlays) {
-      labeledLayer.setOverlayData(overlayData);
-    }
     if (dataState?.segmentations) {
       labeledLayer.setSegmentations(dataState.segmentations);
     }

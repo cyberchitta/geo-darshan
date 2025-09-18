@@ -47,9 +47,6 @@
 
   function coordinateDataLoading(manifest, overlays) {
     console.log("=== COORDINATING DATA LOADING ===");
-    if (labeledLayer) {
-      labeledLayer.setOverlayData(overlays);
-    }
     const allSegmentationKeys = [
       ...manifest.segmentation_keys,
       "composite_regions",

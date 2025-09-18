@@ -9,7 +9,6 @@ class CompositeLayer {
     this.dataLoader = dataLoader;
     this.layerGroup = layerGroup;
     this.allLabels = new Map();
-    this.overlayData = new Map();
     this.segmentations = new Map();
     this.compositeLayer = null;
     this.hierarchyLevel = 1;
@@ -38,22 +37,15 @@ class CompositeLayer {
       if (this.hasSyntheticOverlay) {
         this.regenerateSyntheticOverlay();
       }
-      if (this.overlayData.size > 0 && this.allLabels.size > 0) {
+      if (this.segmentations.size > 0 && this.allLabels.size > 0) {
         this.regenerateComposite();
       }
     }
   }
 
-  setOverlayData(overlays) {
-    this.overlayData.clear();
-    overlays.forEach((overlay) => {
-      this.overlayData.set(overlay.segmentationKey, overlay);
-    });
-    console.log(`Loaded ${overlays.length} segmentations for composite`);
-  }
-
   setSegmentations(segmentations) {
     this.segmentations = segmentations;
+    console.log(`Loaded ${segmentations.size} segmentations for composite`);
   }
 
   updateLabels(allLabels) {
@@ -149,6 +141,8 @@ class CompositeLayer {
         hierarchy,
         this.hierarchyLevel
       );
+      const firstSegmentation = this.segmentations.values().next().value;
+      const bounds = firstSegmentation?.georaster?.bounds;
       const syntheticOverlay = {
         segmentationKey: "composite_regions",
         filename: "synthetic_clusters.tif",
@@ -157,9 +151,7 @@ class CompositeLayer {
           values: [landUseRasterData],
           numberOfRasters: 1,
         },
-        bounds:
-          compositeGeoRaster.bounds ||
-          this.overlayData.values().next().value?.bounds,
+        bounds,
         stats: {
           clusters: Object.keys(pixelMapping).length,
           unlabeled_pixels: this.countUnlabeledPixels(landUseRasterData),
@@ -468,7 +460,7 @@ class CompositeLayer {
   }
 
   getStats() {
-    const totalSegmentations = this.overlayData.size;
+    const totalSegmentations = this.segmentations.size;
     const labeledSegmentations = this.allLabels.size;
     const totalLabels = Array.from(this.allLabels.values()).reduce(
       (sum, labels) => sum + labels.size,
@@ -493,7 +485,7 @@ class CompositeLayer {
     }
     this.compositeLayer = null;
     this.allLabels.clear();
-    this.overlayData.clear();
+    this.segmentations.clear();
     this.landUseColorCache.clear();
     this.regionLabeler = null;
     this.segmentationManager = null;
