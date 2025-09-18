@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { SegmentationManager } from "../js/segmentation.js";
+  import { SegmentationLayer } from "../js/segmentation-layer.js";
 
   let {} = $props();
   let currentFrame = $state(0);
@@ -58,7 +58,7 @@
   }
 
   onMount(() => {
-    manager = new SegmentationManager();
+    manager = new SegmentationLayer();
     setupEventListeners();
     return () => {
       if (manager) {

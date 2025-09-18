@@ -1,6 +1,4 @@
-import { compareSegmentationKeys } from "./utils.js";
-
-class SegmentationManager {
+class SegmentationLayer {
   constructor() {
     this.listeners = {};
     this.isPlaying = false;
@@ -10,7 +8,7 @@ class SegmentationManager {
     this.speed = 1.0;
     this.animationTimer = null;
     this.baseFrameDuration = 1000;
-    console.log("SegmentationManager initialized");
+    console.log("SegmentationLayer initialized");
   }
 
   on(event, callback) {
@@ -231,8 +229,8 @@ class SegmentationManager {
     this.frames = [];
     this.overlays = [];
     this.listeners = {};
-    console.log("SegmentationManager destroyed");
+    console.log("SegmentationLayer destroyed");
   }
 }
 
-export { SegmentationManager };
+export { SegmentationLayer as SegmentationLayer };
