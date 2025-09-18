@@ -165,12 +165,12 @@
     bind:this={labeledCompositeController}
     overlayData={dataController?.getOverlays()}
     {clusterLabels}
+    {dataState}
     segmentationManager={segmentationController?.getManager()}
     mapManager={mapState.mapManager}
     dataLoader={dataState.loader}
   />
 {/if}
-
 {#if dataState?.loader && mapState?.mapManager && segmentationController}
   <LegendPanel {appState} {clusterLabels} onLabelChange={handleLabelChange} />
   <ControlsPanel {segmentationState} {mapState} />

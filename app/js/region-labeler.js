@@ -1,9 +1,12 @@
+import { hexToRgb } from "./utils.js";
+
 class RegionLabeler {
   constructor() {
     this.compositeData = null;
     this.compositeSegmentationMap = null;
     this.compositeSegmentations = null;
     this.allLabels = null;
+    this.segmentations = null;
     this.nextSyntheticId = 10000;
   }
 
@@ -11,22 +14,31 @@ class RegionLabeler {
     compositeData,
     segmentationMap,
     segmentations,
-    allLabels
+    allLabels,
+    segmentationsMap
   ) {
     this.compositeData = compositeData;
     this.compositeSegmentationMap = segmentationMap;
     this.compositeSegmentations = segmentations;
     this.allLabels = allLabels;
+    this.segmentations = segmentationsMap;
     this.initializeSyntheticTracking();
   }
 
   initializeSyntheticTracking() {
     const syntheticLabels = this.allLabels.get("composite_regions");
+    const syntheticSeg = this.segmentations?.get("composite_regions");
+    let maxId = 9999;
     if (syntheticLabels && syntheticLabels.size > 0) {
       const existingIds = Array.from(syntheticLabels.keys());
-      this.nextSyntheticId =
-        Math.max(...existingIds.filter((id) => id >= 10000)) + 1;
+      maxId = Math.max(maxId, ...existingIds.filter((id) => id >= 10000));
     }
+    if (syntheticSeg) {
+      const clusters = syntheticSeg.getAllClusters();
+      const existingIds = clusters.map((c) => c.id);
+      maxId = Math.max(maxId, ...existingIds.filter((id) => id >= 10000));
+    }
+    this.nextSyntheticId = maxId + 1;
   }
 
   latlngToPixelCoord(latlng) {
@@ -117,6 +129,11 @@ class RegionLabeler {
     region.forEach((pixel) => {
       this.compositeData.values[0][pixel.y][pixel.x] = syntheticId;
     });
+    let syntheticSeg = this.segmentations?.get("composite_regions");
+    if (syntheticSeg) {
+      const color = this.getColorForLandUse(landUsePath);
+      syntheticSeg.addCluster(syntheticId, region.length, landUsePath, color);
+    }
     if (!this.allLabels.has("composite_regions")) {
       this.allLabels.set("composite_regions", new Map());
     }
@@ -125,6 +142,21 @@ class RegionLabeler {
       `Labeled ${region.length} pixels as synthetic cluster ${syntheticId} (${landUsePath})`
     );
     return syntheticId;
+  }
+
+  getColorForLandUse(landUsePath) {
+    if (!landUsePath || landUsePath === "unlabeled") {
+      return "rgb(255, 255, 0)";
+    }
+    if (!window.LandUseHierarchy || !window.LandUseHierarchy.isLoaded()) {
+      return "rgb(128, 128, 128)";
+    }
+    const hierarchy = window.LandUseHierarchy.getInstance();
+    const color = hierarchy.getColorForPath(landUsePath);
+    if (!color) {
+      return "rgb(128, 128, 128)";
+    }
+    return `rgb(${hexToRgb(color)})`;
   }
 
   getNeighbors(pixel) {

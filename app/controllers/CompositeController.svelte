@@ -5,6 +5,7 @@
   let {
     overlayData = [],
     clusterLabels = {},
+    dataState,
     segmentationManager,
     mapManager,
     dataLoader,
@@ -48,6 +49,9 @@
     if (!labeledLayer) return;
     if (hasOverlays) {
       labeledLayer.setOverlayData(overlayData);
+    }
+    if (dataState?.segmentations) {
+      labeledLayer.setSegmentations(dataState.segmentations);
     }
     if (hasLabels) {
       labeledLayer.updateLabels(clusterLabels);

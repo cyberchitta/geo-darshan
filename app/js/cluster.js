@@ -1,43 +1,42 @@
 import { hexToRgb } from "./utils.js";
+import { Segmentation } from "./segmentation.js";
 export class Cluster {
-  static async extractClusterData(overlays, manifest, dataLoader) {
-    const clusterData = {};
+  static async extractSegmentations(overlays, manifest, dataLoader) {
+    const segmentations = new Map();
     for (let index = 0; index < overlays.length; index++) {
       const overlay = overlays[index];
       const segmentationKey = manifest.segmentation_keys[index];
       const colorMapping =
         dataLoader.getColorMappingForSegmentation(segmentationKey);
+      const segmentation = Segmentation.fromFile(
+        segmentationKey,
+        overlay.georaster,
+        colorMapping,
+        overlay.stats
+      );
       const pixelCounts = await this.countPixelsPerCluster(
         overlay.georaster,
         colorMapping
       );
-      const clusters = [];
-      const colors = new Map();
       Object.entries(pixelCounts).forEach(([clusterId, count]) => {
         const id = parseInt(clusterId);
-        clusters.push({
-          id,
-          pixelCount: count,
-          segmentationKey,
-          area_ha: (count * 0.01).toFixed(2),
-        });
-        if (colorMapping?.colors_rgb[id]) {
-          const rgb = colorMapping.colors_rgb[id];
-          colors.set(
-            id,
-            `rgb(${Math.round(rgb[0] * 255)}, ${Math.round(
-              rgb[1] * 255
-            )}, ${Math.round(rgb[2] * 255)})`
-          );
-        }
+        const color = this.getClusterColor(id, colorMapping);
+        segmentation.addCluster(id, count, "unlabeled", color);
       });
-      clusterData[segmentationKey] = { clusters, colors };
+      segmentation.finalize();
+      segmentations.set(segmentationKey, segmentation);
     }
-    clusterData["composite_regions"] = {
-      clusters: [],
-      colors: new Map(),
-    };
-    return clusterData;
+    segmentations.set("composite_regions", Segmentation.createSynthetic());
+    return segmentations;
+  }
+
+  static getClusterColor(clusterId, colorMapping) {
+    if (!colorMapping?.colors_rgb) return "rgb(128,128,128)";
+    const color = colorMapping.colors_rgb[clusterId];
+    if (color && color.length >= 3) {
+      return `rgb(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)})`;
+    }
+    return "rgb(128,128,128)";
   }
 
   static updateSyntheticClusters(clusterData, allLabels, compositeGeoRaster) {

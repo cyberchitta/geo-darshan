@@ -19,24 +19,24 @@
       highlightCluster(selectedCluster.clusterId);
     }
   });
-  let clusters = $derived(
-    dataState.clusterData?.[segmentationState.currentSegmentationKey]
-      ?.clusters || []
+  let currentSegmentation = $derived(
+    dataState.segmentations?.get(segmentationState.currentSegmentationKey)
   );
-  let clusterColors = $derived(
-    dataState.clusterData?.[segmentationState.currentSegmentationKey]?.colors ||
-      new Map()
+
+  let clusters = $derived(currentSegmentation?.getAllClusters() || []);
+
+  let clusterColors = $derived(currentSegmentation?.getColors() || new Map());
+
+  let availableSegmentations = $derived(
+    dataState.manifest
+      ? [...dataState.manifest.segmentation_keys, "composite_regions"]
+      : []
   );
   let currentLabels = $derived(
     segmentationState.currentSegmentationKey &&
       clusterLabels[segmentationState.currentSegmentationKey]
       ? clusterLabels[segmentationState.currentSegmentationKey]
       : {}
-  );
-  let availableSegmentations = $derived(
-    dataState.manifest
-      ? [...dataState.manifest.segmentation_keys, "composite_regions"]
-      : []
   );
   let labeledCount = $derived(
     Object.keys(currentLabels).filter((id) => {

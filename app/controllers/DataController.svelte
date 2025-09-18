@@ -7,7 +7,7 @@
   let isLoading = $state(false);
   let error = $state(null);
   let manifest = $state(null);
-  let clusterData = $state({});
+  let segmentations = $state(new Map());
   let loader = $state(null);
   let overlays = [];
 
@@ -25,8 +25,8 @@
     get manifest() {
       return manifest;
     },
-    get clusterData() {
-      return clusterData;
+    get segmentations() {
+      return segmentations;
     },
     get loader() {
       return loader;
@@ -60,7 +60,7 @@
     try {
       console.log("DataController: Processing loaded data...");
       overlays = overlayData;
-      clusterData = await Cluster.extractClusterData(
+      segmentations = await Cluster.extractSegmentations(
         overlayData,
         manifestData,
         loader
@@ -102,7 +102,7 @@
     console.log("DataController: Clearing all data");
     manifest = null;
     overlays = [];
-    clusterData = {};
+    segmentations = new Map();
     isLoading = false;
     error = null;
   }

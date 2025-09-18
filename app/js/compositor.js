@@ -1,26 +1,26 @@
 import { extractKValue } from "./utils.js";
 
 export class Compositor {
-  static async generateCompositeRaster(overlayData, allLabels, rules) {
-    const segmentations = Array.from(overlayData.keys()).sort((a, b) =>
-      this.compareSegmentationsByRule(a, b, rules)
-    );
-    if (segmentations.length === 0) {
+  static async generateCompositeRaster(segmentations, allLabels, rules) {
+    const segmentationKeys = Array.from(segmentations.keys())
+      .filter((key) => key !== "composite_regions")
+      .sort((a, b) => this.compareSegmentationsByRule(a, b, rules));
+    if (segmentationKeys.length === 0) {
       throw new Error("No segmentations available");
     }
-    const firstOverlay = overlayData.get(segmentations[0]);
-    const refGeoRaster = firstOverlay.georaster;
+    const firstSegmentation = segmentations.get(segmentationKeys[0]);
+    const refGeoRaster = firstSegmentation.georaster;
     const height = refGeoRaster.height;
     const width = refGeoRaster.width;
     let bestClusterIds = tf.zeros([height, width], "int32");
     let bestSegmentationIds = tf.zeros([height, width], "int32");
     let hasLabel = tf.zeros([height, width], "bool");
-    for (let i = 0; i < segmentations.length; i++) {
-      const segKey = segmentations[i];
-      const overlay = overlayData.get(segKey);
+    for (let i = 0; i < segmentationKeys.length; i++) {
+      const segKey = segmentationKeys[i];
+      const segmentation = segmentations.get(segKey);
       const labels = allLabels.get(segKey) || new Map();
       if (labels.size === 0) continue;
-      const rasterData = overlay.georaster.values[0];
+      const rasterData = segmentation.georaster.values[0];
       const regularArray = Array.from(rasterData, (row) => Array.from(row));
       const rasterTensor = tf.tensor2d(regularArray, [height, width], "int32");
       const labeledClusterIds = Array.from(labels.keys());
@@ -52,7 +52,7 @@ export class Compositor {
     return {
       compositeData,
       segmentationIds,
-      segmentations,
+      segmentations: segmentationKeys,
       refGeoRaster,
     };
   }

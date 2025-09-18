@@ -10,6 +10,7 @@ class CompositeLayer {
     this.layerGroup = layerGroup;
     this.allLabels = new Map();
     this.overlayData = new Map();
+    this.segmentations = new Map();
     this.compositeLayer = null;
     this.hierarchyLevel = 1;
     this.landUseColorCache = new Map();
@@ -51,6 +52,10 @@ class CompositeLayer {
     console.log(`Loaded ${overlays.length} segmentations for composite`);
   }
 
+  setSegmentations(segmentations) {
+    this.segmentations = segmentations;
+  }
+
   updateLabels(allLabels) {
     this.allLabels.clear();
     Object.entries(allLabels).forEach(([segmentationKey, labels]) => {
@@ -71,7 +76,7 @@ class CompositeLayer {
       console.log("Generating composite raster with TensorFlow.js...");
       const startTime = performance.now();
       const result = await Compositor.generateCompositeRaster(
-        this.overlayData,
+        this.segmentations,
         this.allLabels,
         this.rules
       );
@@ -254,7 +259,8 @@ class CompositeLayer {
       this.compositeLayer.georasters[0],
       this.compositeSegmentationMap,
       this.compositeSegmentations,
-      this.allLabels
+      this.allLabels,
+      this.segmentations
     );
     const pixelCoord = this.regionLabeler.latlngToPixelCoord(latlng);
     if (!pixelCoord) {
