@@ -1,4 +1,4 @@
-class SegmentationLayer {
+class SegmentationViewer {
   constructor() {
     this.listeners = {};
     this.isPlaying = false;
@@ -8,7 +8,7 @@ class SegmentationLayer {
     this.speed = 1.0;
     this.animationTimer = null;
     this.baseFrameDuration = 1000;
-    console.log("SegmentationLayer initialized");
+    console.log("SegmentationViewer initialized");
   }
 
   on(event, callback) {
@@ -229,8 +229,8 @@ class SegmentationLayer {
     this.frames = [];
     this.overlays = [];
     this.listeners = {};
-    console.log("SegmentationLayer destroyed");
+    console.log("SegmentationViewer destroyed");
   }
 }
 
-export { SegmentationLayer as SegmentationLayer };
+export { SegmentationViewer };

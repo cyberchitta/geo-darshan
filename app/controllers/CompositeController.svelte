@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { CompositeLayer } from "../js/composite-layer.js";
+  import { CompositeViewer } from "../js/composite-viewer.js";
 
   let {
     clusterLabels = {},
@@ -39,7 +39,7 @@
   });
   $effect(() => {
     if (layerGroup && dataLoader && !labeledLayer) {
-      labeledLayer = new CompositeLayer(mapManager, dataLoader, layerGroup);
+      labeledLayer = new CompositeViewer(mapManager, dataLoader, layerGroup);
       labeledLayer.setSegmentationManager(segmentationManager);
       mapManager.setLabeledLayer(labeledLayer);
     }

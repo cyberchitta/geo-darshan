@@ -3,7 +3,7 @@ import { Compositor } from "./compositor.js";
 import { LandUseHierarchy, LandUseMapper } from "./land-use.js";
 import { RegionLabeler } from "./region-labeler.js";
 
-class CompositeLayer {
+class CompositeViewer {
   constructor(mapManager, dataLoader, layerGroup) {
     this.mapManager = mapManager;
     this.dataLoader = dataLoader;
@@ -22,7 +22,7 @@ class CompositeLayer {
     this.regionHighlightLayer = null;
     this.segmentationManager = null;
     this.hasSyntheticOverlay = false;
-    console.log("CompositeLayer initialized");
+    console.log("CompositeViewer initialized");
   }
 
   setSegmentationManager(segmentationManager) {
@@ -489,8 +489,8 @@ class CompositeLayer {
     this.landUseColorCache.clear();
     this.regionLabeler = null;
     this.segmentationManager = null;
-    console.log("CompositeLayer destroyed");
+    console.log("CompositeViewer destroyed");
   }
 }
 
-export { CompositeLayer as CompositeLayer };
+export { CompositeViewer };
