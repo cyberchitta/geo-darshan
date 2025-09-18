@@ -8,8 +8,6 @@ class CompositeViewer {
     this.mapManager = mapManager;
     this.dataLoader = dataLoader;
     this.layerGroup = layerGroup;
-    this.allLabels = new Map();
-    this.segmentations = new Map();
     this.compositeLayer = null;
     this.hierarchyLevel = 1;
     this.landUseColorCache = new Map();
@@ -20,13 +18,20 @@ class CompositeViewer {
     };
     this.regionLabeler = new RegionLabeler();
     this.regionHighlightLayer = null;
-    this.segmentationManager = null;
-    this.hasSyntheticOverlay = false;
+    this.compositeSegmentationMap = null;
+    this.compositeSegmentations = null;
     console.log("CompositeViewer initialized");
   }
 
-  setSegmentationManager(segmentationManager) {
-    this.segmentationManager = segmentationManager;
+  getCompositeState() {
+    if (!this.compositeLayer || !this.compositeSegmentationMap) {
+      return null;
+    }
+    return {
+      georaster: this.compositeLayer.georasters[0],
+      segmentationMap: this.compositeSegmentationMap,
+      segmentations: this.compositeSegmentations,
+    };
   }
 
   setHierarchyLevel(level) {
@@ -34,42 +39,16 @@ class CompositeViewer {
       this.hierarchyLevel = level;
       this.landUseColorCache.clear();
       console.log(`Hierarchy level set to ${level}`);
-      if (this.hasSyntheticOverlay) {
-        this.regenerateSyntheticOverlay();
-      }
-      if (this.segmentations.size > 0 && this.allLabels.size > 0) {
-        this.regenerateComposite();
-      }
     }
   }
 
-  setSegmentations(segmentations) {
-    this.segmentations = segmentations;
-    console.log(`Loaded ${segmentations.size} segmentations for composite`);
-  }
-
-  updateLabels(allLabels) {
-    this.allLabels.clear();
-    Object.entries(allLabels).forEach(([segmentationKey, labels]) => {
-      const labelMap = new Map();
-      Object.entries(labels).forEach(([clusterId, label]) => {
-        labelMap.set(parseInt(clusterId), label);
-      });
-      this.allLabels.set(segmentationKey, labelMap);
-    });
-    if (this.hasSyntheticOverlay) {
-      this.regenerateSyntheticOverlay();
-    }
-    console.log(`Updated labels for ${this.allLabels.size} segmentations`);
-  }
-
-  async regenerateComposite() {
+  async generateComposite(segmentations, allLabels) {
     try {
       console.log("Generating composite raster with TensorFlow.js...");
       const startTime = performance.now();
       const result = await Compositor.generateCompositeRaster(
-        this.segmentations,
-        this.allLabels,
+        segmentations,
+        allLabels,
         this.rules
       );
       this.compositeSegmentationMap = result.segmentationIds;
@@ -87,17 +66,22 @@ class CompositeViewer {
         compositeGeoRaster,
         {
           pixelValuesToColorFn: (values) =>
-            this.convertCompositePixelToColor(values),
+            this.convertCompositePixelToColor(values, allLabels),
           zIndex: 2000,
         }
       );
       this.layerGroup.addLayer(this.compositeLayer);
       this.compositeLayer.setOpacity(this.mapManager.currentOpacity);
-      await this.generateSyntheticOverlay();
       const endTime = performance.now();
       console.log(
         `✅ Composite generated in ${(endTime - startTime).toFixed(2)}ms`
       );
+      return {
+        compositeLayer: this.compositeLayer,
+        segmentationMap: result.segmentationIds,
+        segmentations: result.segmentations,
+        georaster: compositeGeoRaster,
+      };
     } catch (error) {
       console.error("❌ Failed to generate composite:", error);
       console.error("❌ Stack trace:", error.stack);
@@ -109,29 +93,29 @@ class CompositeViewer {
           console.error("❌ Failed to cleanup broken layer:", cleanupError);
         }
       }
+      throw error;
     }
   }
 
-  async generateSyntheticOverlay() {
-    if (
-      !this.compositeLayer ||
-      !LandUseHierarchy.isLoaded() ||
-      !this.segmentationManager
-    ) {
-      console.log("Cannot generate synthetic overlay - missing dependencies");
-      return;
+  generateSyntheticOverlay(
+    compositeGeoRaster,
+    segmentationMap,
+    segmentations,
+    allLabels
+  ) {
+    if (!LandUseHierarchy.isLoaded()) {
+      throw new Error("LandUseHierarchy not loaded");
     }
     try {
       console.log("Generating synthetic overlay...");
       const startTime = performance.now();
       const hierarchy = LandUseHierarchy.getInstance();
-      const compositeGeoRaster = this.compositeLayer.georasters[0];
       const mapper = new LandUseMapper(
         hierarchy,
         compositeGeoRaster,
-        this.compositeSegmentationMap,
-        this.compositeSegmentations,
-        this.allLabels,
+        segmentationMap,
+        segmentations,
+        allLabels,
         this.hierarchyLevel
       );
       const pixelMapping = mapper.generatePixelMapping();
@@ -141,8 +125,6 @@ class CompositeViewer {
         hierarchy,
         this.hierarchyLevel
       );
-      const firstSegmentation = this.segmentations.values().next().value;
-      const bounds = firstSegmentation?.georaster?.bounds;
       const syntheticOverlay = {
         segmentationKey: "composite_regions",
         filename: "synthetic_clusters.tif",
@@ -151,7 +133,7 @@ class CompositeViewer {
           values: [landUseRasterData],
           numberOfRasters: 1,
         },
-        bounds,
+        bounds: compositeGeoRaster.bounds,
         stats: {
           clusters: Object.keys(pixelMapping).length,
           unlabeled_pixels: this.countUnlabeledPixels(landUseRasterData),
@@ -163,16 +145,6 @@ class CompositeViewer {
         },
         pixelMapping,
       };
-      if (this.hasSyntheticOverlay) {
-        this.segmentationManager.removeOverlay("composite_regions");
-        this.mapManager.removeOverlay("composite_regions");
-      }
-      await this.mapManager.addOverlay(syntheticOverlay);
-      this.segmentationManager.addOverlay(
-        "composite_regions",
-        syntheticOverlay
-      );
-      this.hasSyntheticOverlay = true;
       const endTime = performance.now();
       console.log(
         `✅ Synthetic overlay generated in ${(endTime - startTime).toFixed(2)}ms`
@@ -180,25 +152,10 @@ class CompositeViewer {
       console.log(
         `Generated ${Object.keys(pixelMapping).length} land-use clusters`
       );
+      return syntheticOverlay;
     } catch (error) {
       console.error("❌ Failed to generate synthetic overlay:", error);
-      this.hasSyntheticOverlay = false;
-    }
-  }
-
-  async regenerateSyntheticOverlay() {
-    if (this.hasSyntheticOverlay) {
-      console.log("Regenerating synthetic overlay...");
-      await this.generateSyntheticOverlay();
-    }
-  }
-
-  removeSyntheticOverlay() {
-    if (this.hasSyntheticOverlay) {
-      console.log("Removing synthetic overlay...");
-      this.segmentationManager.removeOverlay("composite_regions");
-      this.mapManager.removeOverlay("composite_regions");
-      this.hasSyntheticOverlay = false;
+      throw error;
     }
   }
 
@@ -242,33 +199,40 @@ class CompositeViewer {
     return rgbColor;
   }
 
-  async handleCompositeClick(latlng) {
-    if (!this.compositeLayer || !this.compositeLayer.georasters[0]) {
+  async handleCompositeClick(
+    latlng,
+    compositeGeoRaster,
+    segmentationMap,
+    segmentations,
+    allLabels,
+    segmentationsData
+  ) {
+    if (!compositeGeoRaster) {
       console.log("No composite layer available for labeling");
-      return;
+      return null;
     }
     this.regionLabeler.updateCompositeData(
-      this.compositeLayer.georasters[0],
-      this.compositeSegmentationMap,
-      this.compositeSegmentations,
-      this.allLabels,
-      this.segmentations
+      compositeGeoRaster,
+      segmentationMap,
+      segmentations,
+      allLabels,
+      segmentationsData
     );
     const pixelCoord = this.regionLabeler.latlngToPixelCoord(latlng);
     if (!pixelCoord) {
       console.log("Click outside composite bounds");
-      return;
+      return null;
     }
     const isUnlabeled = this.regionLabeler.isPixelUnlabeled(pixelCoord);
     if (!isUnlabeled) {
       console.log("Pixel is already labeled");
-      return;
+      return null;
     }
     const contiguousRegion =
       this.regionLabeler.findContiguousRegion(pixelCoord);
     if (contiguousRegion.length === 0) {
       console.log("No contiguous region found");
-      return;
+      return null;
     }
     const overlaps = this.regionLabeler.checkForOverlaps(contiguousRegion);
     if (overlaps.size > 0) {
@@ -278,18 +242,37 @@ class CompositeViewer {
       );
       if (!choice) {
         this.clearRegionHighlight();
-        return;
+        return null;
       }
       if (choice.action === "merge") {
-        this.handleMergeWithExisting(contiguousRegion, choice.clusterId);
-        return;
+        return this.handleMergeWithExisting(contiguousRegion, choice.clusterId);
       }
     }
     console.log(
       `Found contiguous region with ${contiguousRegion.length} pixels`
     );
     this.highlightRegion(contiguousRegion);
-    this.showRegionLabelingUI(contiguousRegion, latlng);
+    return {
+      action: "create_new",
+      region: contiguousRegion,
+      latlng,
+    };
+  }
+
+  labelRegion(region, landUsePath) {
+    const syntheticId = this.regionLabeler.labelRegion(region, landUsePath);
+    console.log(
+      `Created synthetic cluster ${syntheticId} with ${region.length} pixels`
+    );
+    if (this.compositeLayer && this.compositeLayer.redraw) {
+      this.compositeLayer.redraw();
+    }
+    this.clearRegionHighlight();
+    this.showBriefMessage(
+      `Created synthetic cluster ${syntheticId}. Switch to "composite_regions" to label it.`
+    );
+
+    return syntheticId;
   }
 
   highlightRegion(region) {
@@ -308,44 +291,29 @@ class CompositeViewer {
     }
   }
 
-  showRegionLabelingUI(region, clickLatlng) {
-    const syntheticId = this.regionLabeler.labelRegion(region, "unlabeled");
-    console.log(
-      `Created synthetic cluster ${syntheticId} with ${region.length} pixels`
-    );
-    if (this.compositeLayer && this.compositeLayer.redraw) {
-      this.compositeLayer.redraw();
-    }
-    this.regenerateSyntheticOverlay();
-    this.clearRegionHighlight();
-    this.showBriefMessage(
-      `Created synthetic cluster ${syntheticId}. Switch to "composite_regions" to label it.`
-    );
-  }
-
   async showOverlapDialog(overlaps, regionSize) {
     return new Promise((resolve) => {
       const dialog = document.createElement("div");
       dialog.className = "overlap-dialog-overlay";
       dialog.innerHTML = `
-      <div class="overlap-dialog">
-        <h3>Region Overlap Detected</h3>
-        <p>This ${regionSize}-pixel region overlaps with existing synthetic clusters:</p>
-        <ul class="overlap-list">
-          ${Array.from(overlaps.entries())
-            .map(
-              ([clusterId, landUsePath]) =>
-                `<li>Cluster ${clusterId}: ${landUsePath}</li>`
-            )
-            .join("")}
-        </ul>
-        <div class="overlap-actions">
-          <button class="dialog-btn primary" data-action="merge">Merge with Existing</button>
-          <button class="dialog-btn secondary" data-action="new">Create New Cluster</button>
-          <button class="dialog-btn cancel" data-action="cancel">Cancel</button>
+        <div class="overlap-dialog">
+          <h3>Region Overlap Detected</h3>
+          <p>This ${regionSize}-pixel region overlaps with existing synthetic clusters:</p>
+          <ul class="overlap-list">
+            ${Array.from(overlaps.entries())
+              .map(
+                ([clusterId, landUsePath]) =>
+                  `<li>Cluster ${clusterId}: ${landUsePath}</li>`
+              )
+              .join("")}
+          </ul>
+          <div class="overlap-actions">
+            <button class="dialog-btn primary" data-action="merge">Merge with Existing</button>
+            <button class="dialog-btn secondary" data-action="new">Create New Cluster</button>
+            <button class="dialog-btn cancel" data-action="cancel">Cancel</button>
+          </div>
         </div>
-      </div>
-    `;
+      `;
       document.body.appendChild(dialog);
       dialog.addEventListener("click", (e) => {
         if (e.target.classList.contains("dialog-btn")) {
@@ -385,8 +353,12 @@ class CompositeViewer {
     if (this.compositeLayer && this.compositeLayer.redraw) {
       this.compositeLayer.redraw();
     }
-    this.regenerateSyntheticOverlay();
     this.clearRegionHighlight();
+    return {
+      action: "merged",
+      clusterId: existingClusterId,
+      pixelCount: region.length,
+    };
   }
 
   showBriefMessage(message) {
@@ -394,16 +366,16 @@ class CompositeViewer {
     messageEl.className = "brief-message";
     messageEl.textContent = message;
     messageEl.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: #333;
-    color: white;
-    padding: 10px 15px;
-    border-radius: 4px;
-    z-index: 9999;
-    font-size: 14px;
-  `;
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #333;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 4px;
+      z-index: 9999;
+      font-size: 14px;
+    `;
     document.body.appendChild(messageEl);
     setTimeout(() => {
       if (document.body.contains(messageEl)) {
@@ -419,12 +391,12 @@ class CompositeViewer {
     }
   }
 
-  convertCompositePixelToColor(values) {
+  convertCompositePixelToColor(values, allLabels) {
     if (!values || values.length === 0 || values[0] === 0) {
       return null;
     }
     const clusterId = values[0];
-    for (const [segKey, labels] of this.allLabels) {
+    for (const [segKey, labels] of allLabels) {
       if (labels.has(clusterId)) {
         const landUseLabel = labels.get(clusterId);
         if (landUseLabel && landUseLabel !== "unlabeled") {
@@ -432,7 +404,7 @@ class CompositeViewer {
         }
       }
     }
-    return "rgb(255, 255, 0)"; // Yellow for unlabeled
+    return "rgb(255, 255, 0)";
   }
 
   setOpacity(opacity) {
@@ -446,9 +418,6 @@ class CompositeViewer {
   setRules(newRules) {
     this.rules = { ...this.rules, ...newRules };
     console.log("Updated combination rules:", this.rules);
-    if (this.overlayData.size > 0 && this.allLabels.size > 0) {
-      this.regenerateComposite();
-    }
   }
 
   getRules() {
@@ -460,35 +429,21 @@ class CompositeViewer {
   }
 
   getStats() {
-    const totalSegmentations = this.segmentations.size;
-    const labeledSegmentations = this.allLabels.size;
-    const totalLabels = Array.from(this.allLabels.values()).reduce(
-      (sum, labels) => sum + labels.size,
-      0
-    );
     return {
-      totalSegmentations,
-      labeledSegmentations,
-      totalLabels,
       isVisible: this.mapManager.map.hasLayer(this.layerGroup),
       hierarchyLevel: this.hierarchyLevel,
       rules: this.rules,
-      hasSyntheticOverlay: this.hasSyntheticOverlay,
     };
   }
 
   destroy() {
     this.clearRegionHighlight();
-    this.removeSyntheticOverlay();
     if (this.compositeLayer) {
       this.layerGroup.removeLayer(this.compositeLayer);
     }
     this.compositeLayer = null;
-    this.allLabels.clear();
-    this.segmentations.clear();
     this.landUseColorCache.clear();
     this.regionLabeler = null;
-    this.segmentationManager = null;
     console.log("CompositeViewer destroyed");
   }
 }

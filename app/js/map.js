@@ -212,11 +212,11 @@ class MapManager {
     this.dataLoader = dataLoader;
   }
 
-  setOverlays(overlays) {
+  async setOverlays(overlays) {
     this.overlays = overlays;
     this.geoRasterLayers.clear();
     this.animationLayerControlName = "Segmentations";
-    this.preprocessOverlays().catch((error) => {
+    await this.preprocessOverlays().catch((error) => {
       console.error("Preprocessing failed:", error);
     });
   }

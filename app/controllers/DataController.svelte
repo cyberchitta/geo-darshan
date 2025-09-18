@@ -9,11 +9,7 @@
   let manifest = $state(null);
   let segmentations = $state(new Map());
   let loader = $state(null);
-  let overlays = [];
-
-  export function getOverlays() {
-    return overlays;
-  }
+  let overlayMap = $state(new Map()); // segmentationKey -> overlay
 
   const stateObject = {
     get isLoading() {
@@ -31,10 +27,28 @@
     get loader() {
       return loader;
     },
+    addSegmentation: (key, segmentation) => {
+      segmentations.set(key, segmentation);
+    },
+    removeSegmentation: (key) => {
+      segmentations.delete(key);
+      removeOverlay(key);
+    },
+    addOverlay: (segmentationKey, overlay) => {
+      overlayMap.set(segmentationKey, overlay);
+    },
+    removeOverlay: (segmentationKey) => {
+      overlayMap.delete(segmentationKey);
+    },
+    getOverlay: (segmentationKey) => overlayMap.get(segmentationKey),
+    getAllOverlays: () => Array.from(overlayMap.values()),
     loadFromFolder,
     clearData,
-    getOverlays,
   };
+
+  function removeOverlay(segmentationKey) {
+    overlayMap.delete(segmentationKey);
+  }
 
   export function getState() {
     return stateObject;
@@ -59,7 +73,9 @@
   async function handleLoadComplete(manifestData, overlayData) {
     try {
       console.log("DataController: Processing loaded data...");
-      overlays = overlayData;
+      overlayData.forEach((overlay) => {
+        overlayMap.set(overlay.segmentationKey, overlay);
+      });
       segmentations = await Cluster.extractSegmentations(
         overlayData,
         manifestData,
@@ -83,7 +99,6 @@
   }
 
   function handleLoadProgress(current, total) {
-    // Could expose progress state if needed in the future
     console.log(`DataController: Loading progress ${current}/${total}`);
   }
 
@@ -101,7 +116,7 @@
   function clearData() {
     console.log("DataController: Clearing all data");
     manifest = null;
-    overlays = [];
+    overlayMap = new Map();
     segmentations = new Map();
     isLoading = false;
     error = null;

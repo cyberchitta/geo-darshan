@@ -26,10 +26,14 @@
   });
   let labelsReady = $state(false);
   let clusterLabels = $state({});
+  let hasCoordinated = $state(false);
   $effect(() => {
-    console.log("Effect running, manifest:", !!dataState.manifest);
-    if (dataState?.manifest) {
-      coordinateDataLoading(dataState.manifest, dataController.getOverlays());
+    if (dataState?.manifest && !hasCoordinated) {
+      hasCoordinated = true;
+      coordinateDataLoading(
+        dataState.manifest,
+        dataState.getAllOverlays?.() || []
+      );
     }
   });
   $effect(() => {
@@ -62,9 +66,6 @@
   }
 
   function updateControllersWithLabels() {
-    if (labeledLayer) {
-      labeledLayer.updateLabels(clusterLabels);
-    }
     if (mapController?.updateAllLayersWithLabels) {
       mapController.updateAllLayersWithLabels(clusterLabels);
     }
@@ -155,15 +156,14 @@
     {dataState}
     {segmentationController}
     {labeledLayer}
+    {clusterLabels}
   />
 {/if}
 {#if dataState?.loader && mapState?.mapManager && segmentationController && dataState?.manifest}
   <CompositeController
     bind:this={labeledCompositeController}
-    overlayData={dataController?.getOverlays()}
     {clusterLabels}
     {dataState}
-    segmentationManager={segmentationController?.getManager()}
     mapManager={mapState.mapManager}
     dataLoader={dataState.loader}
   />

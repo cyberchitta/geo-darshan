@@ -22,11 +22,8 @@
   let currentSegmentation = $derived(
     dataState.segmentations?.get(segmentationState.currentSegmentationKey)
   );
-
-  let clusters = $derived(currentSegmentation?.getAllClusters() || []);
-
+  let clusters = $derived(currentSegmentation?.getAllClusters?.() || []);
   let clusterColors = $derived(currentSegmentation?.getColors() || new Map());
-
   let availableSegmentations = $derived(
     dataState.manifest
       ? [...dataState.manifest.segmentation_keys, "composite_regions"]

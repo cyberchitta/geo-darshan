@@ -3,12 +3,13 @@
   import { MapManager } from "../js/map.js";
   import { LandUseHierarchy } from "../js/land-use.js";
 
-  let { dataState, segmentationController, labeledLayer } = $props();
+  let { dataState, segmentationController, labeledLayer, clusterLabels } =
+    $props();
   let mapManager = $state(null);
   let opacity = $state(0.8);
   let interactionMode = $state("view");
   let selectedCluster = $state(null);
-  let isReady = $derived(!!mapManager);
+  let layersReady = $state(false);
   let manifest = $derived(dataState.manifest);
 
   const stateObject = {
@@ -24,9 +25,6 @@
     get selectedCluster() {
       return selectedCluster;
     },
-    get isReady() {
-      return isReady;
-    },
     setOpacity: (value) => (opacity = value),
     setInteractionMode: (mode) => (interactionMode = mode),
     clearSelectedCluster: () => (selectedCluster = null),
@@ -34,10 +32,6 @@
 
   export function getState() {
     return stateObject;
-  }
-
-  export function getManager() {
-    return mapManager;
   }
 
   onMount(async () => {
@@ -63,7 +57,7 @@
 
   $effect(() => {
     if (mapManager && manifest) {
-      const overlays = dataState.getOverlays?.();
+      const overlays = dataState.getAllOverlays?.();
       if (overlays.length > 0) {
         handleDataLoaded(manifest, overlays);
       }
@@ -80,17 +74,6 @@
     }
   });
   $effect(() => {
-    if (mapManager && segmentationController) {
-      const segManager = segmentationController.getManager();
-      if (segManager) {
-        segManager.on("frameChanged", (frameIndex) => {
-          mapManager.showFrame(frameIndex);
-        });
-      }
-    }
-  });
-
-  $effect(() => {
     if (mapManager && labeledLayer) {
       mapManager.setLabeledLayer(labeledLayer);
     }
@@ -100,8 +83,20 @@
       labeledLayer.setOpacity(opacity);
     }
   });
-
+  $effect(() => {
+    if (mapManager && segmentationController && layersReady) {
+      const segState = segmentationController.getState();
+      if (segState && typeof segState.currentFrame === "number") {
+        console.log(`Frame switching to ${segState.currentFrame}`);
+        mapManager.showFrame(segState.currentFrame);
+      }
+    }
+  });
   function setupEventListeners(manager) {
+    manager.on("firstLayerReady", () => {
+      console.log("First layer ready event received");
+      layersReady = true;
+    });
     manager.on("clusterClicked", (clusterValue, latlng) => {
       console.log("Cluster clicked:", clusterValue);
       const segState = segmentationController?.getState();
@@ -111,11 +106,25 @@
         latlng,
       };
     });
-    manager.on("compositeClick", (latlng) => {
+    manager.on("compositeClick", async (latlng) => {
       if (labeledLayer?.handleCompositeClick) {
-        labeledLayer.handleCompositeClick(latlng);
-      } else {
-        console.log("No labeled layer available for composite labeling");
+        const compositeState = labeledLayer.getCompositeState?.();
+        if (!compositeState) {
+          console.log("No composite state available for labeling");
+          return;
+        }
+        const result = await labeledLayer.handleCompositeClick(
+          latlng,
+          compositeState.georaster,
+          compositeState.segmentationMap,
+          compositeState.segmentations,
+          clusterLabels,
+          dataState.segmentations
+        );
+        if (result?.action === "create_new") {
+          // Show UI for labeling the region
+          // This could trigger an event or callback to show labeling dialog
+        }
       }
     });
     manager.on("globalOpacityChanged", (newOpacity) => {
@@ -158,7 +167,7 @@
   async function handleDataLoaded(manifest, overlays) {
     console.log("MapController: Processing data load");
     mapManager.setDataLoader(dataState.loader);
-    mapManager.setOverlays(overlays);
+    await mapManager.setOverlays(overlays);
     await new Promise((resolve) => {
       mapManager.fitBounds(manifest.metadata.bounds);
       mapManager.map.whenReady(() => resolve());
