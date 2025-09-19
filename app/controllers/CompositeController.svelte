@@ -7,10 +7,11 @@
   let { clusterLabels = {}, dataState, mapManager, dataLoader } = $props();
   let labeledLayer = $state(null);
   let layerGroup = $state(null);
-  let isCompositeReady = $state(false);
   let hasSegmentations = $derived(dataState?.segmentations?.size > 0);
-  let hasLabels = $derived(Object.keys(clusterLabels).length > 0);
-  let shouldRegenerateComposite = $derived(hasSegmentations && hasLabels);
+  let lastProcessedUserVersion = $state(-1);
+  let shouldRegenerateComposite = $derived(
+    hasSegmentations && dataState.userLabelsVersion > lastProcessedUserVersion
+  );
   let compositeState = $state(null);
   const stateObject = {
     get labeledLayer() {
@@ -78,10 +79,19 @@
         syntheticSegmentation
       );
       await mapManager.addOverlay(syntheticOverlay);
-      isCompositeReady = true;
+      lastProcessedUserVersion = dataState.userLabelsVersion;
+      Object.entries(syntheticOverlay.pixelMapping).forEach(
+        ([clusterId, landUsePath]) => {
+          dataState.setClusterLabel(
+            SEGMENTATION_KEYS.COMPOSITE,
+            parseInt(clusterId),
+            landUsePath
+          );
+        }
+      );
     } catch (error) {
       console.error("Failed to generate composite:", error);
-      isCompositeReady = false;
+      lastProcessedUserVersion = dataState.userLabelsVersion;
       compositeState = null;
     }
   });

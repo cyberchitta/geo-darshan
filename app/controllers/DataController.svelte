@@ -1,5 +1,6 @@
 <script>
   import { onMount } from "svelte";
+  import { SEGMENTATION_KEYS } from "../js/utils.js";
   import { DataIO } from "../js/data-io.js";
   import { Cluster } from "../js/cluster.js";
 
@@ -9,6 +10,7 @@
   let error = $state(null);
   let manifest = $state(null);
   let segmentations = $state(new Map());
+  let userLabelsVersion = $state(0);
   let clusterLabels = $state({});
   let overlayMap = $state(new Map()); // segmentationKey -> overlay
 
@@ -27,6 +29,9 @@
     },
     get segmentations() {
       return segmentations;
+    },
+    get userLabelsVersion() {
+      return userLabelsVersion;
     },
     get clusterLabels() {
       return clusterLabels;
@@ -131,6 +136,9 @@
         [clusterId]: landUsePath,
       },
     };
+    if (segmentationKey !== SEGMENTATION_KEYS.COMPOSITE) {
+      userLabelsVersion++;
+    }
     if (dataIO) {
       dataIO.saveLabelsToStorage(clusterLabels);
     }
