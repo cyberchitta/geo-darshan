@@ -72,7 +72,7 @@ class MapManager {
       opacity: 0,
       resolution: this.getOptimalResolution(georaster),
       pixelValuesToColorFn: (values) =>
-        this.convertPixelsToColor(values, overlayData),
+        this.convertPixelsToColor(values, overlayData, this.interactionMode),
       zIndex: 1000,
     });
     layer._segmentationKey = segmentationKey;
@@ -80,7 +80,7 @@ class MapManager {
     return layer;
   }
 
-  convertPixelsToColor(values, overlayData) {
+  convertPixelsToColor(values, overlayData, interactionMode) {
     if (!values || values.some((v) => v === null || v === undefined)) {
       return null;
     }
@@ -102,6 +102,7 @@ class MapManager {
       }
       const baseColor = this.mapClusterValueToColor(pixelValue, colorMapping);
       if (
+        interactionMode === "cluster" &&
         this.allClusterLabels &&
         this.allClusterLabels[segmentationKey] &&
         this.allClusterLabels[segmentationKey][pixelValue] &&
@@ -469,6 +470,11 @@ class MapManager {
 
   setInteractionMode(mode) {
     this.interactionMode = mode;
+    this.geoRasterLayers.forEach((layer) => {
+      if (layer && layer.redraw) {
+        layer.redraw();
+      }
+    });
     console.log(`Interaction mode set to: ${mode}`);
   }
 
