@@ -139,7 +139,7 @@ class CompositeViewer {
           unlabeled_pixels: this.countUnlabeledPixels(landUseRasterData),
         },
         colorMapping: {
-          method: "land_use_based",
+          method: "cluster_specific",
           colors_rgb: this.convertColorMappingToRgbArray(colorMapping),
           nodata_value: -1,
         },
@@ -163,9 +163,13 @@ class CompositeViewer {
     const rgbArray = [];
     Object.entries(colorMapping).forEach(([id, hexColor]) => {
       const index = parseInt(id);
-      const rgb = hexToRgb(hexColor);
-      const rgbValues = rgb.split(",").map((v) => parseInt(v.trim()) / 255);
-      rgbArray[index] = rgbValues;
+      if (hexColor === null) {
+        rgbArray[index] = null;
+      } else {
+        const rgb = hexToRgb(hexColor);
+        const rgbValues = rgb.split(",").map((v) => parseInt(v.trim()) / 255);
+        rgbArray[index] = rgbValues;
+      }
     });
     return rgbArray;
   }

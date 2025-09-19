@@ -26,12 +26,10 @@ export function rgbStringToObject(rgbString) {
 
 export function hexToRgb(hex) {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result
-    ? `${parseInt(result[1], 16)},${parseInt(result[2], 16)},${parseInt(
-        result[3],
-        16
-      )}`
-    : "128,128,128";
+  if (!result) {
+    throw new Error(`Invalid hex color: ${hex}`);
+  }
+  return `${parseInt(result[1], 16)},${parseInt(result[2], 16)},${parseInt(result[3], 16)}`;
 }
 
 export const STORAGE_KEYS = {
@@ -47,5 +45,7 @@ export const SEGMENTATION_KEYS = {
 };
 
 export const CLUSTER_ID_RANGES = {
+  NODATA: -1,
+  UNLABELED: 9999,
   SYNTHETIC_START: 10000,
 };

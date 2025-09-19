@@ -71,6 +71,10 @@
         compositeResult.segmentations,
         allLabelsMap
       );
+      dataLoader.colorMappings.set(
+        SEGMENTATION_KEYS.COMPOSITE,
+        syntheticOverlay.colorMapping
+      );
       dataState.addOverlay(SEGMENTATION_KEYS.COMPOSITE, syntheticOverlay);
       const syntheticSegmentation =
         await createSyntheticSegmentation(syntheticOverlay);

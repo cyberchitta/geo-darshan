@@ -164,10 +164,13 @@ class LandUseMapper {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const clusterId = this.compositeData.values[0][y][x];
+        if (clusterId === CLUSTER_ID_RANGES.NODATA) continue;
         const landUsePath = this.getPixelLandUsePath(clusterId, x, y);
         if (landUsePath && landUsePath !== "unlabeled") {
           const truncatedPath = this.truncateToHierarchyLevel(landUsePath);
           uniqueLandUses.add(truncatedPath);
+        } else {
+          uniqueLandUses.add("unlabeled");
         }
       }
     }
@@ -176,8 +179,12 @@ class LandUseMapper {
     Array.from(uniqueLandUses)
       .sort()
       .forEach((landUsePath) => {
-        pixelMapping[nextId.toString()] = landUsePath;
-        nextId++;
+        if (landUsePath === "unlabeled") {
+          pixelMapping[CLUSTER_ID_RANGES.UNLABELED.toString()] = landUsePath;
+        } else {
+          pixelMapping[nextId.toString()] = landUsePath;
+          nextId++;
+        }
       });
     return pixelMapping;
   }
@@ -195,13 +202,18 @@ class LandUseMapper {
       rasterData[y] = new Array(width);
       for (let x = 0; x < width; x++) {
         const clusterId = this.compositeData.values[0][y][x];
+        if (clusterId === CLUSTER_ID_RANGES.NODATA) {
+          rasterData[y][x] = CLUSTER_ID_RANGES.NODATA;
+          continue;
+        }
         const landUsePath = this.getPixelLandUsePath(clusterId, x, y);
         if (!landUsePath || landUsePath === "unlabeled") {
-          rasterData[y][x] = -1;
+          rasterData[y][x] = CLUSTER_ID_RANGES.UNLABELED;
         } else {
           const truncatedPath = this.truncateToHierarchyLevel(landUsePath);
           const landUseId = landUseToId.get(truncatedPath);
-          rasterData[y][x] = landUseId !== undefined ? landUseId : -1;
+          rasterData[y][x] =
+            landUseId !== undefined ? landUseId : CLUSTER_ID_RANGES.UNLABELED;
         }
       }
     }
@@ -210,14 +222,14 @@ class LandUseMapper {
 
   static createColorMapping(pixelMapping, hierarchy, hierarchyLevel) {
     const colorMapping = {};
+    colorMapping[CLUSTER_ID_RANGES.NODATA] = "#000000";
+    colorMapping[CLUSTER_ID_RANGES.UNLABELED] = null;
     Object.entries(pixelMapping).forEach(([id, landUsePath]) => {
-      try {
-        const color = hierarchy.getColorForPath(landUsePath, hierarchyLevel);
-        colorMapping[id] = color;
-      } catch (error) {
-        console.warn(`No color found for land use path: ${landUsePath}`, error);
-        colorMapping[id] = "#888888"; // Fallback gray
+      if (landUsePath === "unlabeled") {
+        return;
       }
+      const color = hierarchy.getColorForPath(landUsePath, hierarchyLevel);
+      colorMapping[id] = color;
     });
     return colorMapping;
   }

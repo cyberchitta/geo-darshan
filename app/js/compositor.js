@@ -1,4 +1,8 @@
-import { extractKValue, SEGMENTATION_KEYS } from "./utils.js";
+import {
+  extractKValue,
+  SEGMENTATION_KEYS,
+  CLUSTER_ID_RANGES,
+} from "./utils.js";
 
 export class Compositor {
   static async generateCompositeRaster(segmentations, allLabels, rules) {
@@ -12,7 +16,19 @@ export class Compositor {
     const refGeoRaster = firstSegmentation.georaster;
     const height = refGeoRaster.height;
     const width = refGeoRaster.width;
-    let bestClusterIds = tf.zeros([height, width], "int32");
+    const nodataValue = refGeoRaster.noDataValue ?? CLUSTER_ID_RANGES.NODATA;
+    const refRasterData = refGeoRaster.values[0];
+    const refTensor = tf.tensor2d(
+      Array.from(refRasterData, (row) => Array.from(row)),
+      [height, width],
+      "int32"
+    );
+    const nodataMask = tf.equal(refTensor, nodataValue);
+    let bestClusterIds = tf.where(
+      nodataMask,
+      tf.scalar(nodataValue),
+      tf.zeros([height, width], "int32")
+    );
     let bestSegmentationIds = tf.zeros([height, width], "int32");
     let hasLabel = tf.zeros([height, width], "bool");
     for (let i = 0; i < segmentationKeys.length; i++) {
@@ -44,11 +60,23 @@ export class Compositor {
       shouldUpdate.dispose();
       notHasLabel.dispose();
     }
+    const unlabeledMask = tf.logicalAnd(
+      tf.logicalNot(hasLabel),
+      tf.logicalNot(nodataMask)
+    );
+    bestClusterIds = tf.where(
+      unlabeledMask,
+      tf.scalar(CLUSTER_ID_RANGES.UNLABELED),
+      bestClusterIds
+    );
     const compositeData = await bestClusterIds.array();
     const segmentationIds = await bestSegmentationIds.array();
     bestClusterIds.dispose();
     bestSegmentationIds.dispose();
     hasLabel.dispose();
+    refTensor.dispose();
+    nodataMask.dispose();
+    unlabeledMask.dispose();
     return {
       compositeData,
       segmentationIds,

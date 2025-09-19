@@ -1,4 +1,4 @@
-import { convertToGrayscale } from "./utils.js";
+import { CLUSTER_ID_RANGES, convertToGrayscale } from "./utils.js";
 
 class MapManager {
   constructor(containerId, rasterHandler) {
@@ -159,6 +159,9 @@ class MapManager {
       return { r: 0, g: 0, b: 0, a: 0 };
     }
     const color = colors[clusterValue];
+    if (color === null) {
+      return { r: 0, g: 0, b: 0, a: 0 };
+    }
     if (color && color.length >= 3) {
       return {
         r: Math.round(color[0] * 255),
