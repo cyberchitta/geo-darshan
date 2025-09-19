@@ -38,6 +38,9 @@ class CompositeViewer {
     if (level >= 1 && level <= 4 && level !== this.hierarchyLevel) {
       this.hierarchyLevel = level;
       this.landUseColorCache.clear();
+      if (this.compositeLayer?.redraw) {
+        this.compositeLayer.redraw();
+      }
       console.log(`Hierarchy level set to ${level}`);
     }
   }
