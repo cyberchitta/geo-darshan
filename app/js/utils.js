@@ -41,3 +41,11 @@ export const STORAGE_KEYS = {
   LABELED_REGIONS_VISIBLE: "labeledRegionsVisible-v1",
   LABELED_REGIONS_OPACITY: "labeledRegionsOpacity-v1",
 };
+
+export const SEGMENTATION_KEYS = {
+  COMPOSITE: "composite_seg",
+};
+
+export const CLUSTER_ID_RANGES = {
+  SYNTHETIC_START: 10000,
+};

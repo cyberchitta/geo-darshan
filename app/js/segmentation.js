@@ -1,3 +1,5 @@
+import { SEGMENTATION_KEYS } from "./utils.js";
+
 class Segmentation {
   constructor(key, georaster, colorMapping, metadata = {}) {
     this.key = key;
@@ -19,7 +21,7 @@ class Segmentation {
   }
 
   static createSynthetic(refGeoRaster) {
-    return new Segmentation("composite_regions", refGeoRaster, null, {
+    return new Segmentation(SEGMENTATION_KEYS.COMPOSITE, refGeoRaster, null, {
       source: "synthetic",
       created: new Date().toISOString(),
     });

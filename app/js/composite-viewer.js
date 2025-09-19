@@ -1,4 +1,4 @@
-import { hexToRgb } from "./utils.js";
+import { hexToRgb, SEGMENTATION_KEYS } from "./utils.js";
 import { Compositor } from "./compositor.js";
 import { LandUseHierarchy, LandUseMapper } from "./land-use.js";
 import { RegionLabeler } from "./region-labeler.js";
@@ -126,7 +126,7 @@ class CompositeViewer {
         this.hierarchyLevel
       );
       const syntheticOverlay = {
-        segmentationKey: "composite_regions",
+        segmentationKey: SEGMENTATION_KEYS.COMPOSITE,
         filename: "synthetic_clusters.tif",
         georaster: {
           ...compositeGeoRaster,
@@ -269,7 +269,7 @@ class CompositeViewer {
     }
     this.clearRegionHighlight();
     this.showBriefMessage(
-      `Created synthetic cluster ${syntheticId}. Switch to "composite_regions" to label it.`
+      `Created synthetic cluster ${syntheticId}. Switch to SEGMENTATION_KEYS.COMPOSITE to label it.`
     );
 
     return syntheticId;

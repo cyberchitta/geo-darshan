@@ -1,9 +1,9 @@
-import { extractKValue } from "./utils.js";
+import { extractKValue, SEGMENTATION_KEYS } from "./utils.js";
 
 export class Compositor {
   static async generateCompositeRaster(segmentations, allLabels, rules) {
     const segmentationKeys = Array.from(segmentations.keys())
-      .filter((key) => key !== "composite_regions")
+      .filter((key) => key !== SEGMENTATION_KEYS.COMPOSITE)
       .sort((a, b) => this.compareSegmentationsByRule(a, b, rules));
     if (segmentationKeys.length === 0) {
       throw new Error("No segmentations available");

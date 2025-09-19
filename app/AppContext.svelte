@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { STORAGE_KEYS } from "./js/utils.js";
+  import { SEGMENTATION_KEYS } from "./js/utils.js";
   import DataController from "./controllers/DataController.svelte";
   import SegmentationController from "./controllers/SegmentationController.svelte";
   import MapController from "./controllers/MapController.svelte";
@@ -45,7 +45,7 @@
     console.log("=== COORDINATING DATA LOADING ===");
     const allSegmentationKeys = [
       ...manifest.segmentation_keys,
-      "composite_regions",
+      SEGMENTATION_KEYS.COMPOSITE,
     ];
     const allOverlays = [...overlays, null];
     segmentationState.setFrames?.(allSegmentationKeys, allOverlays);

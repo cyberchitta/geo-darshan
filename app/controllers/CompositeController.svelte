@@ -1,5 +1,6 @@
 <script>
   import { onMount } from "svelte";
+  import { SEGMENTATION_KEYS } from "../js/utils.js";
   import { CompositeViewer } from "../js/composite-viewer.js";
   import { Segmentation } from "../js/segmentation.js";
 
@@ -69,10 +70,13 @@
         compositeResult.segmentations,
         allLabelsMap
       );
-      dataState.addOverlay("composite_regions", syntheticOverlay);
+      dataState.addOverlay(SEGMENTATION_KEYS.COMPOSITE, syntheticOverlay);
       const syntheticSegmentation =
         await createSyntheticSegmentation(syntheticOverlay);
-      dataState.addSegmentation("composite_regions", syntheticSegmentation);
+      dataState.addSegmentation(
+        SEGMENTATION_KEYS.COMPOSITE,
+        syntheticSegmentation
+      );
       await mapManager.addOverlay(syntheticOverlay);
       isCompositeReady = true;
     } catch (error) {

@@ -1,4 +1,4 @@
-import { hexToRgb } from "./utils.js";
+import { CLUSTER_ID_RANGES, hexToRgb, SEGMENTATION_KEYS } from "./utils.js";
 
 class RegionLabeler {
   constructor() {
@@ -7,7 +7,7 @@ class RegionLabeler {
     this.compositeSegmentations = null;
     this.allLabels = null;
     this.segmentations = null;
-    this.nextSyntheticId = 10000;
+    this.nextSyntheticId = CLUSTER_ID_RANGES.SYNTHETIC_START;
   }
 
   updateCompositeData(
@@ -26,17 +26,23 @@ class RegionLabeler {
   }
 
   initializeSyntheticTracking() {
-    const syntheticLabels = this.allLabels.get("composite_regions");
-    const syntheticSeg = this.segmentations?.get("composite_regions");
+    const syntheticLabels = this.allLabels.get(SEGMENTATION_KEYS.COMPOSITE);
+    const syntheticSeg = this.segmentations?.get(SEGMENTATION_KEYS.COMPOSITE);
     let maxId = 9999;
     if (syntheticLabels && syntheticLabels.size > 0) {
       const existingIds = Array.from(syntheticLabels.keys());
-      maxId = Math.max(maxId, ...existingIds.filter((id) => id >= 10000));
+      maxId = Math.max(
+        maxId,
+        ...existingIds.filter((id) => id >= CLUSTER_ID_RANGES.SYNTHETIC_START)
+      );
     }
     if (syntheticSeg) {
       const clusters = syntheticSeg.getAllClusters();
       const existingIds = clusters.map((c) => c.id);
-      maxId = Math.max(maxId, ...existingIds.filter((id) => id >= 10000));
+      maxId = Math.max(
+        maxId,
+        ...existingIds.filter((id) => id >= CLUSTER_ID_RANGES.SYNTHETIC_START)
+      );
     }
     this.nextSyntheticId = maxId + 1;
   }
@@ -61,7 +67,7 @@ class RegionLabeler {
 
   isPixelUnlabeled(pixelCoord) {
     const clusterId = this.compositeData.values[0][pixelCoord.y][pixelCoord.x];
-    if (clusterId >= 10000) {
+    if (clusterId >= CLUSTER_ID_RANGES.SYNTHETIC_START) {
       return false;
     }
     if (!this.compositeSegmentationMap || !this.compositeSegmentations) {
@@ -78,7 +84,10 @@ class RegionLabeler {
     return !label || label === "unlabeled";
   }
 
-  findContiguousRegion(startPixel, maxPixels = 10000) {
+  findContiguousRegion(
+    startPixel,
+    maxPixels = CLUSTER_ID_RANGES.SYNTHETIC_START
+  ) {
     const visited = new Set();
     const region = [];
     const queue = [startPixel];
@@ -98,11 +107,11 @@ class RegionLabeler {
 
   checkForOverlaps(region) {
     const overlappingClusters = new Map(); // clusterId -> landUsePath
-    const syntheticLabels = this.allLabels.get("composite_regions");
+    const syntheticLabels = this.allLabels.get(SEGMENTATION_KEYS.COMPOSITE);
     for (const pixel of region) {
       const clusterId = this.compositeData.values[0][pixel.y][pixel.x];
       if (
-        clusterId >= 10000 &&
+        clusterId >= CLUSTER_ID_RANGES.SYNTHETIC_START &&
         syntheticLabels &&
         syntheticLabels.has(clusterId)
       ) {
@@ -113,7 +122,7 @@ class RegionLabeler {
   }
 
   getOrCreateSyntheticId(landUsePath) {
-    const syntheticLabels = this.allLabels.get("composite_regions");
+    const syntheticLabels = this.allLabels.get(SEGMENTATION_KEYS.COMPOSITE);
     if (syntheticLabels) {
       for (const [clusterId, existingPath] of syntheticLabels) {
         if (existingPath === landUsePath) {
@@ -129,15 +138,17 @@ class RegionLabeler {
     region.forEach((pixel) => {
       this.compositeData.values[0][pixel.y][pixel.x] = syntheticId;
     });
-    let syntheticSeg = this.segmentations?.get("composite_regions");
+    let syntheticSeg = this.segmentations?.get(SEGMENTATION_KEYS.COMPOSITE);
     if (syntheticSeg) {
       const color = this.getColorForLandUse(landUsePath);
       syntheticSeg.addCluster(syntheticId, region.length, landUsePath, color);
     }
-    if (!this.allLabels.has("composite_regions")) {
-      this.allLabels.set("composite_regions", new Map());
+    if (!this.allLabels.has(SEGMENTATION_KEYS.COMPOSITE)) {
+      this.allLabels.set(SEGMENTATION_KEYS.COMPOSITE, new Map());
     }
-    this.allLabels.get("composite_regions").set(syntheticId, landUsePath);
+    this.allLabels
+      .get(SEGMENTATION_KEYS.COMPOSITE)
+      .set(syntheticId, landUsePath);
     console.log(
       `Labeled ${region.length} pixels as synthetic cluster ${syntheticId} (${landUsePath})`
     );

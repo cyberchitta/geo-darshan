@@ -1,3 +1,5 @@
+import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "./utils.js";
+
 class LandUseHierarchy {
   constructor(hierarchyData, colorData) {
     this.hierarchy = hierarchyData;
@@ -221,8 +223,8 @@ class LandUseMapper {
   }
 
   getPixelLandUsePath(clusterId, x, y) {
-    if (clusterId >= 10000) {
-      const syntheticLabels = this.allLabels.get("composite_regions");
+    if (clusterId >= CLUSTER_ID_RANGES.SYNTHETIC_START) {
+      const syntheticLabels = this.allLabels.get(SEGMENTATION_KEYS.COMPOSITE);
       return syntheticLabels?.get(clusterId) || "unlabeled";
     }
     if (!this.segmentationMap || !this.segmentations) {

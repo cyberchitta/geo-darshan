@@ -1,4 +1,5 @@
 <script>
+  import { SEGMENTATION_KEYS } from "../js/utils.js";
   import LandUseDropdown from "./LandUseDropdown.svelte";
 
   let {
@@ -25,7 +26,7 @@
   let clusterColors = $derived(currentSegmentation?.getColors() || new Map());
   let availableSegmentations = $derived(
     dataState.manifest
-      ? [...dataState.manifest.segmentation_keys, "composite_regions"]
+      ? [...dataState.manifest.segmentation_keys, SEGMENTATION_KEYS.COMPOSITE]
       : []
   );
   let currentLabels = $derived(
@@ -202,7 +203,9 @@
     >
       {#each availableSegmentations as segKey}
         <option value={segKey}>
-          {segKey === "composite_regions" ? "Synthetic Clusters" : segKey}
+          {segKey === SEGMENTATION_KEYS.COMPOSITE
+            ? "Synthetic Clusters"
+            : segKey}
         </option>
       {/each}
     </select>

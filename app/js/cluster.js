@@ -1,4 +1,4 @@
-import { hexToRgb } from "./utils.js";
+import { CLUSTER_ID_RANGES, hexToRgb, SEGMENTATION_KEYS } from "./utils.js";
 import { Segmentation } from "./segmentation.js";
 export class Cluster {
   static async extractSegmentations(overlays, manifest, dataLoader) {
@@ -26,7 +26,10 @@ export class Cluster {
       segmentation.finalize();
       segmentations.set(segmentationKey, segmentation);
     }
-    segmentations.set("composite_regions", Segmentation.createSynthetic());
+    segmentations.set(
+      SEGMENTATION_KEYS.COMPOSITE,
+      Segmentation.createSynthetic()
+    );
     return segmentations;
   }
 
@@ -40,9 +43,12 @@ export class Cluster {
   }
 
   static updateSyntheticClusters(clusterData, allLabels, compositeGeoRaster) {
-    const syntheticLabels = allLabels.get("composite_regions");
+    const syntheticLabels = allLabels.get(SEGMENTATION_KEYS.COMPOSITE);
     if (!syntheticLabels || syntheticLabels.size === 0) {
-      clusterData["composite_regions"] = { clusters: [], colors: new Map() };
+      clusterData[SEGMENTATION_KEYS.COMPOSITE] = {
+        clusters: [],
+        colors: new Map(),
+      };
       return;
     }
     const pixelCounts = {};
@@ -52,7 +58,7 @@ export class Cluster {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const clusterId = rasterData[y][x];
-        if (clusterId >= 10000) {
+        if (clusterId >= CLUSTER_ID_RANGES.SYNTHETIC_START) {
           pixelCounts[clusterId] = (pixelCounts[clusterId] || 0) + 1;
         }
       }
@@ -64,12 +70,12 @@ export class Cluster {
       clusters.push({
         id: clusterId,
         pixelCount,
-        segmentationKey: "composite_regions",
+        segmentationKey: SEGMENTATION_KEYS.COMPOSITE,
         area_ha: (pixelCount * 0.01).toFixed(2),
       });
       colors.set(clusterId, this.getSyntheticClusterColor(landUsePath));
     }
-    clusterData["composite_regions"] = { clusters, colors };
+    clusterData[SEGMENTATION_KEYS.COMPOSITE] = { clusters, colors };
   }
 
   static getSyntheticClusterColor(landUsePath) {
