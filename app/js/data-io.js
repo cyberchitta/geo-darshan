@@ -1,15 +1,13 @@
-class DataLoader {
+class DataIO {
   constructor(rasterHandler = null) {
     this.listeners = {};
     this.loadedOverlays = new Map();
     this.colorMapping = null;
     this.rasterHandler = rasterHandler;
     if (this.rasterHandler) {
-      console.log(`DataLoader initialized with ${this.rasterHandler.name}`);
+      console.log(`DataIO initialized with ${this.rasterHandler.name}`);
     } else {
-      console.log(
-        "DataLoader initialized (waiting for raster handler injection)"
-      );
+      console.log("DataIO initialized (waiting for raster handler injection)");
     }
   }
 
@@ -240,4 +238,4 @@ class DataLoader {
   }
 }
 
-export { DataLoader };
+export { DataIO };

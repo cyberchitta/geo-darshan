@@ -166,7 +166,7 @@
 
   async function handleDataLoaded(manifest, overlays) {
     console.log("MapController: Processing data load");
-    mapManager.setDataLoader(dataState.loader);
+    mapManager.setDataLoader(dataState.dataIO);
     await mapManager.setOverlays(overlays);
     await new Promise((resolve) => {
       mapManager.fitBounds(manifest.metadata.bounds);

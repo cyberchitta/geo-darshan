@@ -150,7 +150,7 @@
 <DataController bind:this={dataController} />
 <SegmentationController bind:this={segmentationController} />
 
-{#if dataState?.loader}
+{#if dataState?.dataIO}
   <MapController
     bind:this={mapController}
     {dataState}
@@ -159,16 +159,16 @@
     {clusterLabels}
   />
 {/if}
-{#if dataState?.loader && mapState?.mapManager && segmentationController && dataState?.manifest}
+{#if dataState?.dataIO && mapState?.mapManager && segmentationController && dataState?.manifest}
   <CompositeController
     bind:this={labeledCompositeController}
     {clusterLabels}
     {dataState}
     mapManager={mapState.mapManager}
-    dataLoader={dataState.loader}
+    dataLoader={dataState.dataIO}
   />
 {/if}
-{#if dataState?.loader && mapState?.mapManager && segmentationController}
+{#if dataState?.dataIO && mapState?.mapManager && segmentationController}
   <LegendPanel {appState} {clusterLabels} onLabelChange={handleLabelChange} />
   <ControlsPanel {segmentationState} {mapState} />
 {/if}

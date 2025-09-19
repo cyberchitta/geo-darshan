@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { DataLoader } from "../js/data-loader.js";
+  import { DataIO } from "../js/data-io.js";
   import { Cluster } from "../js/cluster.js";
 
   let {} = $props();
@@ -8,7 +8,7 @@
   let error = $state(null);
   let manifest = $state(null);
   let segmentations = $state(new Map());
-  let loader = $state(null);
+  let dataIO = $state(null);
   let overlayMap = $state(new Map()); // segmentationKey -> overlay
 
   const stateObject = {
@@ -24,8 +24,8 @@
     get segmentations() {
       return segmentations;
     },
-    get loader() {
-      return loader;
+    get dataIO() {
+      return dataIO;
     },
     addSegmentation: (key, segmentation) => {
       segmentations.set(key, segmentation);
@@ -60,14 +60,14 @@
       error = "Raster handler not found. Make sure it's injected from HTML.";
       return;
     }
-    loader = new DataLoader(rasterHandler);
+    dataIO = new DataIO(rasterHandler);
     setupEventListeners();
   });
 
   function setupEventListeners() {
-    loader.on("loadComplete", handleLoadComplete);
-    loader.on("loadError", handleLoadError);
-    loader.on("loadProgress", handleLoadProgress);
+    dataIO.on("loadComplete", handleLoadComplete);
+    dataIO.on("loadError", handleLoadError);
+    dataIO.on("loadProgress", handleLoadProgress);
   }
 
   async function handleLoadComplete(manifestData, overlayData) {
@@ -79,7 +79,7 @@
       segmentations = await Cluster.extractSegmentations(
         overlayData,
         manifestData,
-        loader
+        dataIO
       );
       isLoading = false;
       error = null;
@@ -103,14 +103,14 @@
   }
 
   function loadFromFolder(files) {
-    if (!loader) {
-      error = "Data loader not initialized";
+    if (!dataIO) {
+      error = "Data dataIO not initialized";
       return;
     }
     console.log("DataController: Starting folder load...");
     isLoading = true;
     error = null;
-    loader.loadFromFolder(files);
+    dataIO.loadFromFolder(files);
   }
 
   function clearData() {
