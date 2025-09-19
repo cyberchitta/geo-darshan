@@ -29,7 +29,6 @@
   onMount(() => {
     if (mapManager && mapManager.map && mapManager.layerControl) {
       layerGroup = L.layerGroup();
-      layerGroup.addTo(mapManager.map);
       mapManager.addOverlayLayer("Land Use", layerGroup, false);
     }
     return () => {
