@@ -57,7 +57,7 @@
       <div class="tab-panel active">
         <LandUseLegend
           {clusterLabels}
-          dataLoader={appState.data.dataIO}
+          dataIO={appState.data.dataIO}
           labeledLayer={appState.labeledLayer}
         />
       </div>

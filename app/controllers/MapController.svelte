@@ -92,6 +92,12 @@
       }
     }
   });
+  $effect(() => {
+    if (mapManager && clusterLabels) {
+      mapManager.updateAllLayersWithNewLabels(clusterLabels);
+    }
+  });
+
   function setupEventListeners(manager) {
     manager.on("firstLayerReady", () => {
       console.log("First layer ready event received");

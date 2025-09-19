@@ -18,15 +18,14 @@
   let segmentationState = $derived(segmentationController?.getState());
   let mapState = $derived(mapController?.getState());
   let labeledLayer = $derived(labeledCompositeState?.labeledLayer);
+  let dataLabels = $derived(dataState?.clusterLabels || {});
+  let hasCoordinated = $state(false);
   const appState = $derived({
     data: dataState,
     map: mapState,
     segmentation: segmentationState,
     labeledLayer,
   });
-  let labelsReady = $state(false);
-  let clusterLabels = $state({});
-  let hasCoordinated = $state(false);
   $effect(() => {
     if (dataState?.manifest && !hasCoordinated) {
       hasCoordinated = true;
@@ -36,16 +35,9 @@
       );
     }
   });
-  $effect(() => {
-    if (labelsReady) {
-      persistLabels();
-      updateControllersWithLabels();
-    }
-  });
 
   onMount(async () => {
     console.log("AppContext mounted, loading saved labels...");
-    loadSavedLabels();
     window.addEventListener("clearData", clearData);
   });
 
@@ -65,45 +57,6 @@
     console.log("✅ Data loading coordination complete");
   }
 
-  function updateControllersWithLabels() {
-    if (mapController?.updateAllLayersWithLabels) {
-      mapController.updateAllLayersWithLabels(clusterLabels);
-    }
-  }
-
-  function persistLabels() {
-    try {
-      localStorage.setItem(
-        STORAGE_KEYS.CLUSTER_LABELS,
-        JSON.stringify({
-          labels: clusterLabels,
-          timestamp: new Date().toISOString(),
-        })
-      );
-    } catch (error) {
-      console.warn("Failed to save labels to localStorage:", error);
-    }
-  }
-
-  function loadSavedLabels() {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.CLUSTER_LABELS);
-      if (saved) {
-        const data = JSON.parse(saved);
-        if (data.labels && Object.keys(data.labels).length > 0) {
-          clusterLabels = data.labels;
-          labelsReady = true;
-          return;
-        }
-      }
-      console.log("🔄 No saved labels found");
-      labelsReady = true;
-    } catch (error) {
-      console.warn("Failed to load saved labels:", error);
-      labelsReady = true;
-    }
-  }
-
   function handleLabelChange(
     segmentationKey,
     clusterId,
@@ -117,15 +70,9 @@
       bulkLabels,
     });
     if (bulkLabels !== null) {
-      clusterLabels = bulkLabels;
+      dataState?.setBulkLabels?.(bulkLabels);
     } else if (segmentationKey && clusterId !== null) {
-      clusterLabels = {
-        ...clusterLabels,
-        [segmentationKey]: {
-          ...clusterLabels[segmentationKey],
-          [clusterId]: landUsePath,
-        },
-      };
+      dataState?.setClusterLabel?.(segmentationKey, clusterId, landUsePath);
     }
   }
 
@@ -156,19 +103,23 @@
     {dataState}
     {segmentationController}
     {labeledLayer}
-    {clusterLabels}
+    clusterLabels={dataLabels}
   />
 {/if}
 {#if dataState?.dataIO && mapState?.mapManager && segmentationController && dataState?.manifest}
   <CompositeController
     bind:this={labeledCompositeController}
-    {clusterLabels}
+    clusterLabels={dataLabels}
     {dataState}
     mapManager={mapState.mapManager}
     dataLoader={dataState.dataIO}
   />
 {/if}
 {#if dataState?.dataIO && mapState?.mapManager && segmentationController}
-  <LegendPanel {appState} {clusterLabels} onLabelChange={handleLabelChange} />
+  <LegendPanel
+    {appState}
+    clusterLabels={dataLabels}
+    onLabelChange={handleLabelChange}
+  />
   <ControlsPanel {segmentationState} {mapState} />
 {/if}

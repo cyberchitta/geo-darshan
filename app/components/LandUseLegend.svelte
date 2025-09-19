@@ -1,7 +1,7 @@
 <script>
   import { LandUseHierarchy } from "../js/land-use.js";
 
-  let { clusterLabels, dataLoader, labeledLayer } = $props();
+  let { clusterLabels, dataIO, labeledLayer } = $props();
   let hierarchyLevel = $state(1);
   let isExporting = $state(false);
   const hierarchyLabels = {
@@ -45,10 +45,12 @@
     }
     try {
       isExporting = true;
-      const { ExportUtility } = await import("../js/export-utility.js");
-      const exporter = new ExportUtility(labeledLayer, dataLoader);
-      await exporter.exportLandCoverFiles();
-      alert("Land cover files exported successfully!");
+      if (dataIO?.exportLandCoverFiles) {
+        await dataIO.exportLandCoverFiles(labeledLayer);
+        alert("Land cover files exported successfully!");
+      } else {
+        throw new Error("Export functionality not available");
+      }
     } catch (error) {
       console.error("Export failed:", error);
       alert(`Export failed: ${error.message}`);

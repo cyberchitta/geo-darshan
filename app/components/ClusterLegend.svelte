@@ -9,7 +9,6 @@
     onLabelChange,
     onSegmentationChange,
   } = $props();
-  let fileInput = $state();
   $effect(() => {
     if (
       selectedCluster &&
@@ -158,49 +157,30 @@
   }
 
   function saveLabels() {
-    const dataStr = JSON.stringify(clusterLabels, null, 2);
-    const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(dataBlob);
-    link.download = `cluster-labels-${new Date().toISOString().split("T")[0]}.json`;
-    link.click();
-    console.log("✅ Labels saved to file:", clusterLabels);
+    dataState?.exportLabels?.();
   }
 
-  function loadLabelsFromFile() {
-    fileInput.click();
-  }
-
-  async function handleFileLoad(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const loadedLabels = JSON.parse(text);
-      console.log("📁 Loading labels from file:", loadedLabels);
-      const isValidFormat = Object.entries(loadedLabels).every(
-        ([segKey, labels]) => {
-          return typeof labels === "object" && !Array.isArray(labels);
-        }
-      );
-      if (!isValidFormat) {
-        throw new Error("Invalid label file format");
+  async function loadLabelsFromFile() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      try {
+        await dataState?.importLabels?.(file);
+        console.log("📁 Labels loaded from file");
+      } catch (error) {
+        console.error("Failed to load labels file:", error);
+        alert(`Failed to load labels: ${error.message}`);
       }
-      if (onLabelChange) {
-        onLabelChange(null, null, null, loadedLabels);
-      }
-      event.target.value = "";
-    } catch (error) {
-      console.error("Failed to load labels file:", error);
-      alert(`Failed to load labels: ${error.message}`);
-    }
+    };
+    input.click();
   }
 
   function clearAllLabels() {
     if (!confirm("Clear all cluster labels for ALL segmentations?")) return;
-    if (onLabelChange) {
-      onLabelChange(null, null, null, {});
-    }
+    dataState?.clearLabels?.();
     console.log("✅ All labels cleared");
   }
 </script>
@@ -236,13 +216,6 @@
       >
         Load Labels
       </button>
-      <input
-        bind:this={fileInput}
-        type="file"
-        accept=".json"
-        style="display: none"
-        onchange={handleFileLoad}
-      />
       <button
         class="label-btn"
         onclick={saveLabels}

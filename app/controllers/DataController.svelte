@@ -4,14 +4,18 @@
   import { Cluster } from "../js/cluster.js";
 
   let {} = $props();
+  let dataIO = $state(null);
   let isLoading = $state(false);
   let error = $state(null);
   let manifest = $state(null);
   let segmentations = $state(new Map());
-  let dataIO = $state(null);
+  let clusterLabels = $state({});
   let overlayMap = $state(new Map()); // segmentationKey -> overlay
 
   const stateObject = {
+    get dataIO() {
+      return dataIO;
+    },
     get isLoading() {
       return isLoading;
     },
@@ -24,8 +28,8 @@
     get segmentations() {
       return segmentations;
     },
-    get dataIO() {
-      return dataIO;
+    get clusterLabels() {
+      return clusterLabels;
     },
     addSegmentation: (key, segmentation) => {
       segmentations.set(key, segmentation);
@@ -42,6 +46,11 @@
     },
     getOverlay: (segmentationKey) => overlayMap.get(segmentationKey),
     getAllOverlays: () => Array.from(overlayMap.values()),
+    setClusterLabel,
+    setBulkLabels,
+    clearLabels,
+    exportLabels,
+    importLabels,
     loadFromFolder,
     clearData,
   };
@@ -61,6 +70,7 @@
       return;
     }
     dataIO = new DataIO(rasterHandler);
+    clusterLabels = dataIO.loadLabelsFromStorage();
     setupEventListeners();
   });
 
@@ -111,6 +121,48 @@
     isLoading = true;
     error = null;
     dataIO.loadFromFolder(files);
+  }
+
+  function setClusterLabel(segmentationKey, clusterId, landUsePath) {
+    clusterLabels = {
+      ...clusterLabels,
+      [segmentationKey]: {
+        ...clusterLabels[segmentationKey],
+        [clusterId]: landUsePath,
+      },
+    };
+    if (dataIO) {
+      dataIO.saveLabelsToStorage(clusterLabels);
+    }
+  }
+
+  function setBulkLabels(newLabels) {
+    clusterLabels = newLabels;
+    if (dataIO) {
+      dataIO.saveLabelsToStorage(clusterLabels);
+    }
+  }
+
+  function clearLabels() {
+    clusterLabels = {};
+    if (dataIO) {
+      dataIO.saveLabelsToStorage(clusterLabels);
+    }
+  }
+
+  function exportLabels() {
+    if (dataIO) {
+      dataIO.exportLabelsToFile(clusterLabels);
+    }
+  }
+
+  async function importLabels(file) {
+    if (dataIO) {
+      const loadedLabels = await dataIO.importLabelsFromFile(file);
+      clusterLabels = loadedLabels;
+      dataIO.saveLabelsToStorage(clusterLabels);
+      return loadedLabels;
+    }
   }
 
   function clearData() {
