@@ -86,12 +86,6 @@ class MapManager {
     }
     if (values.length === 1) {
       const pixelValue = values[0];
-      if (
-        overlayData.colorMapping &&
-        overlayData.colorMapping.method === "land_use_based"
-      ) {
-        return this.convertSyntheticPixelsToColor(values, overlayData);
-      }
       const segmentationKey = overlayData.segmentationKey;
       const colorMapping =
         this.dataLoader?.getColorMappingForSegmentation(segmentationKey);
@@ -121,30 +115,6 @@ class MapManager {
       return `rgb(${Math.round(values[0])},${Math.round(
         values[1]
       )},${Math.round(values[2])})`;
-    }
-    return null;
-  }
-
-  convertSyntheticPixelsToColor(values, overlayData) {
-    if (!values || values.some((v) => v === null || v === undefined)) {
-      return null;
-    }
-    if (values.length === 1) {
-      const landUseClusterId = values[0];
-      if (landUseClusterId === -1) {
-        return null; // Transparent
-      }
-      const colorMapping = overlayData.colorMapping;
-      if (!colorMapping || !colorMapping.colors_rgb) {
-        console.warn("No color mapping found for synthetic overlay");
-        return "rgb(128,128,128)";
-      }
-      const color = colorMapping.colors_rgb[landUseClusterId];
-      if (color && color.length >= 3) {
-        return `rgba(${Math.round(color[0] * 255)},${Math.round(color[1] * 255)},${Math.round(color[2] * 255)},1)`;
-      }
-      console.warn(`No color defined for land use cluster ${landUseClusterId}`);
-      return "rgb(128,128,128)";
     }
     return null;
   }
