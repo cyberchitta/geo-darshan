@@ -56,10 +56,6 @@
     ];
     const allOverlays = [...overlays, null];
     segmentationState.setFrames?.(allSegmentationKeys, allOverlays);
-    setTimeout(() => {
-      segmentationState.showInitialFrame?.();
-      console.log("✅ Initial frame displayed");
-    }, 100);
     hideLoading();
     console.log("✅ Data loading coordination complete");
   }

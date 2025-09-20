@@ -541,11 +541,6 @@ class MapManager {
 
   updateAllLayersWithNewLabels(allLabels) {
     this.allClusterLabels = allLabels;
-    this.geoRasterLayers.forEach((layer, frameIndex) => {
-      if (layer && layer.redraw) {
-        layer.redraw();
-      }
-    });
     console.log("🎨 All animation layers updated with new labels");
   }
 }
