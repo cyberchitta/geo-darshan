@@ -26,6 +26,13 @@
     segmentation: segmentationState,
     labeledLayer,
   });
+  const callbacks = {
+    onLabelChange: handleLabelChange,
+    onRegionCancel: handleRegionCancel,
+    onRegionCommit: handleRegionCommit,
+    onSegmentationChange: (frameIndex) =>
+      appState.segmentation.goToFrame?.(frameIndex),
+  };
   $effect(() => {
     if (dataState?.manifest && !hasCoordinated) {
       hasCoordinated = true;
@@ -92,6 +99,21 @@
       overlay.classList.add("hidden");
     }
   }
+
+  function handleRegionCancel() {
+    mapState.clearSelectedRegion?.();
+    mapState.clearRegionHighlight?.();
+  }
+
+  function handleRegionCommit(landUsePath) {
+    if (mapState.selectedRegion && labeledCompositeState) {
+      labeledCompositeState.labelRegion(
+        mapState.selectedRegion.region,
+        landUsePath
+      );
+      mapState.clearSelectedRegion?.();
+    }
+  }
 </script>
 
 <DataController bind:this={dataController} />
@@ -116,10 +138,6 @@
   />
 {/if}
 {#if dataState?.dataIO && mapState?.mapManager && segmentationController}
-  <LegendPanel
-    {appState}
-    clusterLabels={dataLabels}
-    onLabelChange={handleLabelChange}
-  />
+  <LegendPanel {appState} clusterLabels={dataLabels} {callbacks} />
   <ControlsPanel {segmentationState} {mapState} />
 {/if}

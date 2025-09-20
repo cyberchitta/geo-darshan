@@ -3,7 +3,7 @@
   import LandUseLegend from "./LandUseLegend.svelte";
   import DataSection from "./DataSection.svelte";
 
-  let { appState, clusterLabels, onLabelChange } = $props();
+  let { appState, clusterLabels, callbacks } = $props();
   let activeTab = $state("data");
   $effect(() => {
     if (appState.data.manifest && activeTab === "data") {
@@ -43,15 +43,7 @@
   <div class="panel-content">
     {#if activeTab === "segmentations"}
       <div class="tab-panel active">
-        <ClusterLegend
-          {clusterLabels}
-          segmentationState={appState.segmentation}
-          dataState={appState.data}
-          selectedCluster={appState.map.selectedCluster}
-          {onLabelChange}
-          onSegmentationChange={(frameIndex) =>
-            appState.segmentation.goToFrame?.(frameIndex)}
-        />
+        <ClusterLegend {appState} {clusterLabels} {callbacks} />
       </div>
     {:else if activeTab === "landuse"}
       <div class="tab-panel active">

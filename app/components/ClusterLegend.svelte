@@ -2,14 +2,17 @@
   import { SEGMENTATION_KEYS } from "../js/utils.js";
   import LandUseDropdown from "./LandUseDropdown.svelte";
 
-  let {
-    clusterLabels,
-    segmentationState,
-    dataState,
-    selectedCluster,
+  let { appState, clusterLabels, callbacks } = $props();
+  const {
     onLabelChange,
+    onRegionCancel,
+    onRegionCommit,
     onSegmentationChange,
-  } = $props();
+  } = callbacks;
+  let segmentationState = $derived(appState.segmentation);
+  let dataState = $derived(appState.data);
+  let selectedCluster = $derived(appState.map?.selectedCluster);
+  let selectedRegion = $derived(appState.map?.selectedRegion);
   $effect(() => {
     if (
       selectedCluster &&
@@ -51,6 +54,14 @@
   );
   let focusedClusterId = $state(null);
   let announcementText = $state("");
+
+  function handleRegionCommit(clusterId, selectedOption) {
+    onRegionCommit?.(selectedOption.path);
+  }
+
+  function handleRegionCancel() {
+    onRegionCancel?.();
+  }
 
   function handleSegmentationChange(event) {
     const newSegmentationKey = event.target.value;
@@ -240,6 +251,26 @@
       <span aria-label="Progress: {progressText}">{progressText}</span>
     </div>
   </div>
+  {#if selectedRegion}
+    <div class="selected-region-panel">
+      <div class="region-header">
+        <h4>Selected Region</h4>
+        <span class="region-stats">{selectedRegion.pixelCount} pixels</span>
+      </div>
+      <div class="region-dropdown-container">
+        <LandUseDropdown
+          clusterId="temp-region"
+          currentSelection="unlabeled"
+          onSelectionChange={handleRegionCommit}
+        />
+      </div>
+      <div class="region-actions">
+        <button class="region-btn cancel" onclick={handleRegionCancel}
+          >Cancel</button
+        >
+      </div>
+    </div>
+  {/if}
   <div
     class="legend-clusters-container"
     role="list"

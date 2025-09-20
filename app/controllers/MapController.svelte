@@ -9,6 +9,7 @@
   let opacity = $state(0.8);
   let interactionMode = $state("view");
   let selectedCluster = $state(null);
+  let selectedRegion = $state(null);
   let layersReady = $state(false);
   let manifest = $derived(dataState.manifest);
 
@@ -25,9 +26,18 @@
     get selectedCluster() {
       return selectedCluster;
     },
+    get selectedRegion() {
+      return selectedRegion;
+    },
     setOpacity: (value) => (opacity = value),
     setInteractionMode: (mode) => (interactionMode = mode),
     clearSelectedCluster: () => (selectedCluster = null),
+    clearSelectedRegion: () => (selectedRegion = null),
+    clearRegionHighlight: () => {
+      if (labeledLayer) {
+        labeledLayer.clearRegionHighlight();
+      }
+    },
   };
 
   export function getState() {
@@ -119,17 +129,28 @@
           console.log("No composite state available for labeling");
           return;
         }
+        const allLabelsMap = new Map();
+        Object.entries(clusterLabels).forEach(([segKey, labels]) => {
+          const labelMap = new Map();
+          Object.entries(labels).forEach(([clusterId, landUsePath]) => {
+            labelMap.set(parseInt(clusterId), landUsePath);
+          });
+          allLabelsMap.set(segKey, labelMap);
+        });
         const result = await labeledLayer.handleCompositeClick(
           latlng,
           compositeState.georaster,
           compositeState.segmentationMap,
           compositeState.segmentations,
-          clusterLabels,
+          allLabelsMap,
           dataState.segmentations
         );
         if (result?.action === "create_new") {
-          // Show UI for labeling the region
-          // This could trigger an event or callback to show labeling dialog
+          selectedRegion = {
+            region: result.region,
+            latlng: result.latlng,
+            pixelCount: result.region.length,
+          };
         }
       }
     });
