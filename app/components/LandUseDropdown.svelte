@@ -1,26 +1,48 @@
 <script>
   import { LandUseHierarchy } from "../js/land-use.js";
 
-  // Props (already using correct Svelte 5 syntax)
   let {
     clusterId,
     currentSelection = "unlabeled",
+    suggestions = [],
     onSelectionChange = null,
   } = $props();
-
-  // Local state
-  let options = $state([]);
   let selectElement = $state();
   let selectionState = $state("unlabeled");
-
-  // Load hierarchy options
+  let options = $state([]);
   $effect(() => {
-    if (LandUseHierarchy.isLoaded()) {
-      options = LandUseHierarchy.getInstance().getSelectableOptions();
+    if (!LandUseHierarchy.isLoaded()) {
+      options = [];
+      return;
     }
+    const allOptions = LandUseHierarchy.getInstance().getSelectableOptions();
+    if (!suggestions || suggestions.length === 0) {
+      options = allOptions;
+      return;
+    }
+    const suggestionOptions = suggestions
+      .map(({ landUsePath, count }) => {
+        const baseOption = allOptions.find((opt) => opt.path === landUsePath);
+        return baseOption
+          ? {
+              ...baseOption,
+              isSuggestion: true,
+              suggestionCount: count,
+              displayPath: `${baseOption.displayPath} (${count} nearby)`,
+            }
+          : null;
+      })
+      .filter(Boolean);
+    const suggestionPaths = new Set(suggestions.map((s) => s.landUsePath));
+    const remainingOptions = allOptions.filter(
+      (opt) => !suggestionPaths.has(opt.path)
+    );
+    options = [
+      ...suggestionOptions,
+      { path: "---", displayPath: "─────────────", disabled: true },
+      ...remainingOptions,
+    ];
   });
-
-  // Update selection state when currentSelection changes
   $effect(() => {
     if (currentSelection === "unlabeled") {
       selectionState = "unlabeled";
@@ -36,7 +58,6 @@
 
   function handleChange(event) {
     const newValue = event.target.value;
-
     if (onSelectionChange) {
       const selectedOption = options.find((opt) => opt.path === newValue);
       onSelectionChange(clusterId, selectedOption);
@@ -60,7 +81,9 @@
   {#each options as option}
     <option
       value={option.path}
+      disabled={option.disabled}
       title={option.description}
+      class:suggestion={option.isSuggestion}
       style="padding-left: {option.level * 20}px; font-weight: {option.isLeaf
         ? 'normal'
         : 'bold'};"

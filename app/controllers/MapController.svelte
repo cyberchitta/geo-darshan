@@ -150,6 +150,7 @@
             region: result.region,
             latlng: result.latlng,
             pixelCount: result.region.length,
+            suggestions: result.suggestions,
           };
         }
       }

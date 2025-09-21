@@ -208,7 +208,7 @@ class CompositeViewer {
     for (let y = 0; y < rasterData.length; y++) {
       for (let x = 0; x < rasterData[y].length; x++) {
         const clusterId = rasterData[y][x];
-        if (clusterId >= CLUSTER_ID_RANGES.FINE_GRAIN_START) {
+        if (CLUSTER_ID_RANGES.isFineGrain(clusterId)) {
           clusters.add(clusterId);
         }
       }
@@ -307,28 +307,14 @@ class CompositeViewer {
       console.log("No contiguous region found");
       return null;
     }
-    const overlaps = this.regionLabeler.checkForOverlaps(contiguousRegion);
-    if (overlaps.size > 0) {
-      const choice = await this.showOverlapDialog(
-        overlaps,
-        contiguousRegion.length
-      );
-      if (!choice) {
-        this.clearRegionHighlight();
-        return null;
-      }
-      if (choice.action === "merge") {
-        return this.handleMergeWithExisting(contiguousRegion, choice.clusterId);
-      }
-    }
-    console.log(
-      `Found contiguous region with ${contiguousRegion.length} pixels`
-    );
+    const suggestions =
+      this.regionLabeler.analyzeNeighborhood(contiguousRegion);
     this.highlightRegion(contiguousRegion);
     return {
       action: "create_new",
       region: contiguousRegion,
       latlng,
+      suggestions,
     };
   }
 
@@ -361,76 +347,6 @@ class CompositeViewer {
         fillColor: "#ff0000",
       }).addTo(this.mapManager.map);
     }
-  }
-
-  async showOverlapDialog(overlaps, regionSize) {
-    return new Promise((resolve) => {
-      const dialog = document.createElement("div");
-      dialog.className = "overlap-dialog-overlay";
-      dialog.innerHTML = `
-        <div class="overlap-dialog">
-          <h3>Region Overlap Detected</h3>
-          <p>This ${regionSize}-pixel region overlaps with existing synthetic clusters:</p>
-          <ul class="overlap-list">
-            ${Array.from(overlaps.entries())
-              .map(
-                ([clusterId, landUsePath]) =>
-                  `<li>Cluster ${clusterId}: ${landUsePath}</li>`
-              )
-              .join("")}
-          </ul>
-          <div class="overlap-actions">
-            <button class="dialog-btn primary" data-action="merge">Merge with Existing</button>
-            <button class="dialog-btn secondary" data-action="new">Create New Cluster</button>
-            <button class="dialog-btn cancel" data-action="cancel">Cancel</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(dialog);
-      dialog.addEventListener("click", (e) => {
-        if (e.target.classList.contains("dialog-btn")) {
-          const action = e.target.dataset.action;
-          document.body.removeChild(dialog);
-          if (action === "cancel") {
-            resolve(null);
-          } else if (action === "merge") {
-            const firstClusterId = Array.from(overlaps.keys())[0];
-            resolve({ action: "merge", clusterId: firstClusterId });
-          } else if (action === "new") {
-            resolve({ action: "new" });
-          }
-        }
-      });
-      const handleEscape = (e) => {
-        if (e.key === "Escape") {
-          document.removeEventListener("keydown", handleEscape);
-          if (document.body.contains(dialog)) {
-            document.body.removeChild(dialog);
-          }
-          resolve(null);
-        }
-      };
-      document.addEventListener("keydown", handleEscape);
-    });
-  }
-
-  handleMergeWithExisting(region, existingClusterId) {
-    region.forEach((pixel) => {
-      this.compositeLayer.georasters[0].values[0][pixel.y][pixel.x] =
-        existingClusterId;
-    });
-    console.log(
-      `Merged ${region.length} pixels into existing synthetic cluster ${existingClusterId}`
-    );
-    if (this.compositeLayer && this.compositeLayer.redraw) {
-      this.compositeLayer.redraw();
-    }
-    this.clearRegionHighlight();
-    return {
-      action: "merged",
-      clusterId: existingClusterId,
-      pixelCount: region.length,
-    };
   }
 
   showBriefMessage(message) {
@@ -476,7 +392,7 @@ class CompositeViewer {
       return null;
     }
     const clusterId = values[0];
-    if (clusterId >= CLUSTER_ID_RANGES.FINE_GRAIN_START) {
+    if (CLUSTER_ID_RANGES.isFineGrain(clusterId)) {
       return this.getFineGrainClusterColor(clusterId, highestKKey);
     }
     for (const [segKey, labels] of allLabels) {

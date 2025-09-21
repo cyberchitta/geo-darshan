@@ -235,7 +235,7 @@ class LandUseMapper {
   }
 
   getPixelLandUsePath(clusterId, x, y) {
-    if (clusterId >= CLUSTER_ID_RANGES.SYNTHETIC_START) {
+    if (CLUSTER_ID_RANGES.isSynthetic(clusterId)) {
       const syntheticLabels = this.allLabels.get(SEGMENTATION_KEYS.COMPOSITE);
       return syntheticLabels?.get(clusterId) || "unlabeled";
     }

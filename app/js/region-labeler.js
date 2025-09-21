@@ -33,7 +33,7 @@ class RegionLabeler {
       const existingIds = Array.from(syntheticLabels.keys());
       maxId = Math.max(
         maxId,
-        ...existingIds.filter((id) => id >= CLUSTER_ID_RANGES.SYNTHETIC_START)
+        ...existingIds.filter((id) => CLUSTER_ID_RANGES.isSynthetic(id))
       );
     }
     if (syntheticSeg) {
@@ -41,7 +41,7 @@ class RegionLabeler {
       const existingIds = clusters.map((c) => c.id);
       maxId = Math.max(
         maxId,
-        ...existingIds.filter((id) => id >= CLUSTER_ID_RANGES.SYNTHETIC_START)
+        ...existingIds.filter((id) => CLUSTER_ID_RANGES.isSynthetic(id))
       );
     }
     this.nextSyntheticId = maxId + 1;
@@ -67,7 +67,7 @@ class RegionLabeler {
 
   isPixelUnlabeled(pixelCoord) {
     const clusterId = this.compositeData.values[0][pixelCoord.y][pixelCoord.x];
-    if (clusterId >= CLUSTER_ID_RANGES.SYNTHETIC_START) {
+    if (CLUSTER_ID_RANGES.isSynthetic(clusterId)) {
       return false;
     }
     if (!this.compositeSegmentationMap || !this.compositeSegmentations) {
@@ -111,7 +111,7 @@ class RegionLabeler {
     for (const pixel of region) {
       const clusterId = this.compositeData.values[0][pixel.y][pixel.x];
       if (
-        clusterId >= CLUSTER_ID_RANGES.SYNTHETIC_START &&
+        CLUSTER_ID_RANGES.isSynthetic(clusterId) &&
         syntheticLabels &&
         syntheticLabels.has(clusterId)
       ) {
@@ -196,6 +196,47 @@ class RegionLabeler {
       this.compositeData.ymax -
       (pixel.y + 0.5) * this.compositeData.pixelHeight;
     return { lat, lng };
+  }
+
+  analyzeNeighborhood(region) {
+    const adjacentLabels = new Map();
+    for (const pixel of region) {
+      const neighbors = this.getNeighbors(pixel);
+      for (const neighbor of neighbors) {
+        const clusterId = this.compositeData.values[0][neighbor.y][neighbor.x];
+        const landUsePath = this.getPixelLandUsePath(
+          clusterId,
+          neighbor.x,
+          neighbor.y
+        );
+        if (landUsePath && landUsePath !== "unlabeled") {
+          adjacentLabels.set(
+            landUsePath,
+            (adjacentLabels.get(landUsePath) || 0) + 1
+          );
+        }
+      }
+    }
+    return Array.from(adjacentLabels.entries())
+      .map(([landUsePath, count]) => ({ landUsePath, count }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  getPixelLandUsePath(clusterId, x, y) {
+    if (CLUSTER_ID_RANGES.isSynthetic(clusterId)) {
+      const syntheticLabels = this.allLabels.get(SEGMENTATION_KEYS.COMPOSITE);
+      return syntheticLabels?.get(clusterId) || "unlabeled";
+    }
+    if (!this.compositeSegmentationMap || !this.compositeSegmentations) {
+      return "unlabeled";
+    }
+    const segmentationIndex = this.compositeSegmentationMap[y][x];
+    const segmentationKey = this.compositeSegmentations[segmentationIndex];
+    const labels = this.allLabels?.get(segmentationKey);
+    if (!labels || !labels.has(clusterId)) {
+      return "unlabeled";
+    }
+    return labels.get(clusterId) || "unlabeled";
   }
 }
 

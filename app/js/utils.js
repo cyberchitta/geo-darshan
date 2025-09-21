@@ -49,4 +49,26 @@ export const CLUSTER_ID_RANGES = {
   UNLABELED: 9999,
   SYNTHETIC_START: 10000,
   FINE_GRAIN_START: 50000,
+
+  isSynthetic(clusterId) {
+    return (
+      clusterId >= this.SYNTHETIC_START && clusterId < this.FINE_GRAIN_START
+    );
+  },
+
+  isFineGrain(clusterId) {
+    return clusterId >= this.FINE_GRAIN_START;
+  },
+
+  isRegular(clusterId) {
+    return clusterId >= 0 && clusterId < this.SYNTHETIC_START;
+  },
+
+  isNoData(clusterId) {
+    return clusterId === this.NODATA;
+  },
+
+  isUnlabeled(clusterId) {
+    return clusterId === this.UNLABELED;
+  },
 };

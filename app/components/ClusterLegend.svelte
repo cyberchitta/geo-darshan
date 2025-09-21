@@ -261,6 +261,7 @@
         <LandUseDropdown
           clusterId="temp-region"
           currentSelection="unlabeled"
+          suggestions={selectedRegion.suggestions || []}
           onSelectionChange={handleRegionCommit}
         />
       </div>
@@ -321,6 +322,7 @@
             <LandUseDropdown
               clusterId={cluster.id}
               currentSelection={currentLabels[cluster.id] || "unlabeled"}
+              suggestions={[]}
               onSelectionChange={handleLabelChange}
             />
           </div>

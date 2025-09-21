@@ -1,4 +1,4 @@
-import { CLUSTER_ID_RANGES, convertToGrayscale } from "./utils.js";
+import { convertToGrayscale } from "./utils.js";
 
 class MapManager {
   constructor(containerId, rasterHandler) {

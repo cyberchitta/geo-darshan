@@ -58,7 +58,7 @@ export class Cluster {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const clusterId = rasterData[y][x];
-        if (clusterId >= CLUSTER_ID_RANGES.SYNTHETIC_START) {
+        if (CLUSTER_ID_RANGES.isSynthetic(clusterId)) {
           pixelCounts[clusterId] = (pixelCounts[clusterId] || 0) + 1;
         }
       }
