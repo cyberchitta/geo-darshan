@@ -54,6 +54,9 @@
   );
   let focusedClusterId = $state(null);
   let announcementText = $state("");
+  let isSyntheticSegmentation = $derived(
+    currentSegmentationKey === SEGMENTATION_KEYS.COMPOSITE
+  );
 
   function handleRegionCommit(clusterId, selectedOption) {
     onRegionCommit?.(selectedOption.path);
@@ -287,6 +290,14 @@
       </div>
     {:else}
       {#each clusters as cluster (cluster.id)}
+        {@const isSelected =
+          selectedCluster?.clusterId === cluster.id &&
+          selectedCluster?.segmentationKey === currentSegmentationKey}
+        {@const shouldDisableDropdown = isSyntheticSegmentation && !isSelected}
+        {@const clusterSuggestions =
+          isSelected && appState.map?.clusterSuggestions
+            ? appState.map.clusterSuggestions
+            : []}
         <button
           class="legend-cluster-item"
           class:labeled={currentLabels[cluster.id] &&
@@ -322,7 +333,8 @@
             <LandUseDropdown
               clusterId={cluster.id}
               currentSelection={currentLabels[cluster.id] || "unlabeled"}
-              suggestions={[]}
+              suggestions={clusterSuggestions}
+              disabled={shouldDisableDropdown}
               onSelectionChange={handleLabelChange}
             />
           </div>

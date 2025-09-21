@@ -349,6 +349,13 @@ class CompositeViewer {
     }
   }
 
+  analyzeClusterNeighborhood(clusterId) {
+    if (!this.regionLabeler) {
+      return [];
+    }
+    return this.regionLabeler.analyzeClusterNeighborhood(clusterId);
+  }
+
   showBriefMessage(message) {
     const messageEl = document.createElement("div");
     messageEl.className = "brief-message";

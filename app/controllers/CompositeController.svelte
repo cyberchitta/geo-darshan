@@ -64,6 +64,15 @@
         allLabelsMap
       );
       compositeState = compositeResult;
+      if (labeledLayer.regionLabeler) {
+        labeledLayer.regionLabeler.updateCompositeData(
+          compositeResult.georaster,
+          compositeResult.segmentationMap,
+          compositeResult.segmentations,
+          allLabelsMap,
+          dataState.segmentations
+        );
+      }
       const syntheticOverlay = labeledLayer.generateSyntheticOverlay(
         compositeResult.georaster,
         compositeResult.segmentationMap,

@@ -5,8 +5,10 @@
     clusterId,
     currentSelection = "unlabeled",
     suggestions = [],
+    disabled = false,
     onSelectionChange = null,
   } = $props();
+
   let selectElement = $state();
   let selectionState = $state("unlabeled");
   let options = $state([]);
@@ -74,6 +76,8 @@
 <select
   bind:this={selectElement}
   class="land-use-dropdown {selectionState}"
+  class:disabled
+  {disabled}
   value={currentSelection}
   onchange={handleChange}
   aria-label="Land use classification for cluster {clusterId}"
@@ -122,5 +126,14 @@
   .land-use-dropdown:focus {
     outline: 2px solid #007cba;
     outline-offset: -2px;
+  }
+
+  .land-use-dropdown:disabled,
+  .land-use-dropdown.disabled {
+    background-color: #f5f5f5;
+    color: #999;
+    border-color: #e0e0e0;
+    cursor: not-allowed;
+    opacity: 0.7;
   }
 </style>

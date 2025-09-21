@@ -1,5 +1,6 @@
 <script>
   import { onMount } from "svelte";
+  import { SEGMENTATION_KEYS } from "../js/utils.js";
   import { MapManager } from "../js/map.js";
   import { LandUseHierarchy } from "../js/land-use.js";
 
@@ -9,6 +10,7 @@
   let opacity = $state(0.8);
   let interactionMode = $state("view");
   let selectedCluster = $state(null);
+  let clusterSuggestions = $state([]);
   let selectedRegion = $state(null);
   let layersReady = $state(false);
   let manifest = $derived(dataState.manifest);
@@ -25,6 +27,9 @@
     },
     get selectedCluster() {
       return selectedCluster;
+    },
+    get clusterSuggestions() {
+      return clusterSuggestions;
     },
     get selectedRegion() {
       return selectedRegion;
@@ -105,6 +110,19 @@
   $effect(() => {
     if (mapManager && clusterLabels) {
       mapManager.updateAllLayersWithNewLabels(clusterLabels);
+    }
+  });
+  $effect(() => {
+    if (
+      selectedCluster &&
+      selectedCluster.segmentationKey === SEGMENTATION_KEYS.COMPOSITE &&
+      labeledLayer?.analyzeClusterNeighborhood
+    ) {
+      clusterSuggestions = labeledLayer.analyzeClusterNeighborhood(
+        selectedCluster.clusterId
+      );
+    } else {
+      clusterSuggestions = [];
     }
   });
 
