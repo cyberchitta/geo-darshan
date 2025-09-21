@@ -11,9 +11,9 @@
     },
     {
       id: "cluster",
-      label: "Select Clusters",
+      label: "Label Clusters",
       icon: "🎯",
-      desc: "Click to select clusters in animation",
+      desc: "Click to label clusters",
     },
     {
       id: "composite",
