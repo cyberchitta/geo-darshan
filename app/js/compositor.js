@@ -12,14 +12,26 @@ export class Compositor {
     if (segmentationKeys.length === 0) {
       throw new Error("No segmentations available");
     }
+    const highestKKey = segmentationKeys.reduce((highest, current) => {
+      const currentK = extractKValue(current);
+      const highestK = extractKValue(highest);
+      return currentK > highestK ? current : highest;
+    });
     const firstSegmentation = segmentations.get(segmentationKeys[0]);
+    const highestKSegmentation = segmentations.get(highestKKey);
     const refGeoRaster = firstSegmentation.georaster;
     const height = refGeoRaster.height;
     const width = refGeoRaster.width;
     const nodataValue = refGeoRaster.noDataValue ?? CLUSTER_ID_RANGES.NODATA;
     const refRasterData = refGeoRaster.values[0];
+    const highestKRasterData = highestKSegmentation.georaster.values[0];
     const refTensor = tf.tensor2d(
       Array.from(refRasterData, (row) => Array.from(row)),
+      [height, width],
+      "int32"
+    );
+    const highestKTensor = tf.tensor2d(
+      Array.from(highestKRasterData, (row) => Array.from(row)),
       [height, width],
       "int32"
     );
@@ -64,24 +76,27 @@ export class Compositor {
       tf.logicalNot(hasLabel),
       tf.logicalNot(nodataMask)
     );
-    bestClusterIds = tf.where(
-      unlabeledMask,
-      tf.scalar(CLUSTER_ID_RANGES.UNLABELED),
-      bestClusterIds
+    const fineGrainIds = tf.add(
+      highestKTensor,
+      tf.scalar(CLUSTER_ID_RANGES.FINE_GRAIN_START)
     );
+    bestClusterIds = tf.where(unlabeledMask, fineGrainIds, bestClusterIds);
     const compositeData = await bestClusterIds.array();
     const segmentationIds = await bestSegmentationIds.array();
     bestClusterIds.dispose();
     bestSegmentationIds.dispose();
     hasLabel.dispose();
     refTensor.dispose();
+    highestKTensor.dispose();
     nodataMask.dispose();
     unlabeledMask.dispose();
+    fineGrainIds.dispose();
     return {
       compositeData,
       segmentationIds,
       segmentations: segmentationKeys,
       refGeoRaster,
+      highestKKey,
     };
   }
 

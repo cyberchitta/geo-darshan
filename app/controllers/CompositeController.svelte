@@ -68,7 +68,8 @@
         compositeResult.georaster,
         compositeResult.segmentationMap,
         compositeResult.segmentations,
-        allLabelsMap
+        allLabelsMap,
+        compositeResult.highestKKey
       );
       dataLoader.colorMappings.set(
         SEGMENTATION_KEYS.COMPOSITE,

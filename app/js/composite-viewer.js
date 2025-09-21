@@ -1,4 +1,10 @@
-import { hexToRgb, SEGMENTATION_KEYS } from "./utils.js";
+import {
+  CLUSTER_ID_RANGES,
+  convertToGrayscale,
+  hexToRgb,
+  rgbStringToObject,
+  SEGMENTATION_KEYS,
+} from "./utils.js";
 import { Compositor } from "./compositor.js";
 import { LandUseHierarchy, LandUseMapper } from "./land-use.js";
 import { RegionLabeler } from "./region-labeler.js";
@@ -69,7 +75,11 @@ class CompositeViewer {
         compositeGeoRaster,
         {
           pixelValuesToColorFn: (values) =>
-            this.convertCompositePixelToColor(values, allLabels),
+            this.convertCompositePixelToColor(
+              values,
+              allLabels,
+              result.highestKKey
+            ),
           zIndex: 2000,
         }
       );
@@ -84,6 +94,7 @@ class CompositeViewer {
         segmentationMap: result.segmentationIds,
         segmentations: result.segmentations,
         georaster: compositeGeoRaster,
+        highestKKey: result.highestKKey,
       };
     } catch (error) {
       console.error("❌ Failed to generate composite:", error);
@@ -104,7 +115,8 @@ class CompositeViewer {
     compositeGeoRaster,
     segmentationMap,
     segmentations,
-    allLabels
+    allLabels,
+    highestKKey
   ) {
     if (!LandUseHierarchy.isLoaded()) {
       throw new Error("LandUseHierarchy not loaded");
@@ -123,17 +135,27 @@ class CompositeViewer {
       );
       const pixelMapping = mapper.generatePixelMapping();
       const landUseRasterData = mapper.createLandUseRaster();
+      const fineGrainClusters =
+        this.extractFineGrainClusters(compositeGeoRaster);
+      const mergedRasterData = this.mergeLandUseAndFineGrain(
+        landUseRasterData,
+        compositeGeoRaster.values[0]
+      );
+      fineGrainClusters.forEach((clusterId) => {
+        pixelMapping[clusterId.toString()] = "unlabeled";
+      });
       const colorMapping = LandUseMapper.createColorMapping(
         pixelMapping,
         hierarchy,
         this.hierarchyLevel
       );
+      this.addFineGrainColors(colorMapping, fineGrainClusters, highestKKey);
       const syntheticOverlay = {
         segmentationKey: SEGMENTATION_KEYS.COMPOSITE,
         filename: "synthetic_clusters.tif",
         georaster: {
           ...compositeGeoRaster,
-          values: [landUseRasterData],
+          values: [mergedRasterData],
           numberOfRasters: 1,
         },
         bounds: compositeGeoRaster.bounds,
@@ -153,7 +175,7 @@ class CompositeViewer {
         `✅ Synthetic overlay generated in ${(endTime - startTime).toFixed(2)}ms`
       );
       console.log(
-        `Generated ${Object.keys(pixelMapping).length} land-use clusters`
+        `Generated ${Object.keys(pixelMapping).length} total clusters (${fineGrainClusters.length} fine-grain)`
       );
       return syntheticOverlay;
     } catch (error) {
@@ -162,14 +184,58 @@ class CompositeViewer {
     }
   }
 
+  mergeLandUseAndFineGrain(landUseRaster, compositeRaster) {
+    const height = landUseRaster.length;
+    const width = landUseRaster[0].length;
+    const merged = new Array(height);
+    for (let y = 0; y < height; y++) {
+      merged[y] = new Array(width);
+      for (let x = 0; x < width; x++) {
+        const landUseValue = landUseRaster[y][x];
+        const compositeValue = compositeRaster[y][x];
+        merged[y][x] =
+          landUseValue !== CLUSTER_ID_RANGES.UNLABELED
+            ? landUseValue
+            : compositeValue;
+      }
+    }
+    return merged;
+  }
+
+  extractFineGrainClusters(compositeGeoRaster) {
+    const clusters = new Set();
+    const rasterData = compositeGeoRaster.values[0];
+    for (let y = 0; y < rasterData.length; y++) {
+      for (let x = 0; x < rasterData[y].length; x++) {
+        const clusterId = rasterData[y][x];
+        if (clusterId >= CLUSTER_ID_RANGES.FINE_GRAIN_START) {
+          clusters.add(clusterId);
+        }
+      }
+    }
+    return Array.from(clusters);
+  }
+
+  addFineGrainColors(colorMapping, fineGrainClusters, highestKKey) {
+    const highestKColorMapping =
+      this.dataLoader.getColorMappingForSegmentation(highestKKey);
+    fineGrainClusters.forEach((clusterId) => {
+      const originalClusterId = clusterId - CLUSTER_ID_RANGES.FINE_GRAIN_START;
+      const color = highestKColorMapping.colors_rgb[originalClusterId];
+      colorMapping[clusterId] = color;
+    });
+  }
+
   convertColorMappingToRgbArray(colorMapping) {
     const rgbArray = [];
-    Object.entries(colorMapping).forEach(([id, hexColor]) => {
+    Object.entries(colorMapping).forEach(([id, color]) => {
       const index = parseInt(id);
-      if (hexColor === null) {
+      if (color === null) {
         rgbArray[index] = null;
+      } else if (Array.isArray(color)) {
+        rgbArray[index] = color;
       } else {
-        const rgb = hexToRgb(hexColor);
+        const rgb = hexToRgb(color);
         const rgbValues = rgb.split(",").map((v) => parseInt(v.trim()) / 255);
         rgbArray[index] = rgbValues;
       }
@@ -278,7 +344,6 @@ class CompositeViewer {
     this.showBriefMessage(
       `Created synthetic cluster ${syntheticId}. Switch to SEGMENTATION_KEYS.COMPOSITE to label it.`
     );
-
     return syntheticId;
   }
 
@@ -398,20 +463,37 @@ class CompositeViewer {
     }
   }
 
-  convertCompositePixelToColor(values, allLabels) {
+  getFineGrainClusterColor(clusterId, highestKKey) {
+    const originalClusterId = clusterId - CLUSTER_ID_RANGES.FINE_GRAIN_START;
+    const colorMapping =
+      this.dataLoader.getColorMappingForSegmentation(highestKKey);
+    const color = colorMapping.colors_rgb[originalClusterId];
+    return `rgb(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)})`;
+  }
+
+  convertCompositePixelToColor(values, allLabels, highestKKey) {
     if (!values || values.length === 0 || values[0] === 0) {
       return null;
     }
     const clusterId = values[0];
+    if (clusterId >= CLUSTER_ID_RANGES.FINE_GRAIN_START) {
+      return this.getFineGrainClusterColor(clusterId, highestKKey);
+    }
     for (const [segKey, labels] of allLabels) {
       if (labels.has(clusterId)) {
         const landUseLabel = labels.get(clusterId);
         if (landUseLabel && landUseLabel !== "unlabeled") {
-          return this.resolveLandUseColor(landUseLabel);
+          const landUseColor = this.resolveLandUseColor(landUseLabel);
+          if (this.mapManager.interactionMode === "composite") {
+            const colorObj = rgbStringToObject(landUseColor);
+            const greyColor = convertToGrayscale(colorObj);
+            return `rgba(${greyColor.r},${greyColor.g},${greyColor.b},${greyColor.a / 255})`;
+          }
+          return landUseColor;
         }
       }
     }
-    return "rgb(255, 255, 0)";
+    return undefined;
   }
 
   setOpacity(opacity) {
