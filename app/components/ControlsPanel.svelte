@@ -64,7 +64,7 @@
   }
 
   .controls-panel.collapsed {
-    transform: translateX(-50%) translateY(60px);
+    transform: translateX(-50%) translateY(calc(100% - 50px));
   }
 
   .controls-header {
