@@ -5,11 +5,6 @@
 
   let { appState, clusterLabels, callbacks } = $props();
   let activeTab = $state("data");
-  $effect(() => {
-    if (appState.data.manifest && activeTab === "data") {
-      activeTab = "segmentations";
-    }
-  });
   function switchTab(tabId) {
     activeTab = tabId;
     console.log("Switched to tab:", tabId);
