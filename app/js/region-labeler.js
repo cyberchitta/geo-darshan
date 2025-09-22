@@ -91,12 +91,14 @@ class RegionLabeler {
     const visited = new Set();
     const region = [];
     const queue = [startPixel];
+    const startClusterId =
+      this.compositeData.values[0][startPixel.y][startPixel.x];
     while (queue.length > 0 && region.length < maxPixels) {
       const pixel = queue.shift();
       const key = `${pixel.x},${pixel.y}`;
       if (visited.has(key)) continue;
       visited.add(key);
-      if (this.isPixelUnlabeled(pixel)) {
+      if (this.compositeData.values[0][pixel.y][pixel.x] === startClusterId) {
         region.push(pixel);
         const neighbors = this.getNeighbors(pixel);
         neighbors.forEach((neighbor) => queue.push(neighbor));
