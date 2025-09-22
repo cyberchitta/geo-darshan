@@ -44,9 +44,6 @@ class CompositeViewer {
     if (level >= 1 && level <= 4 && level !== this.hierarchyLevel) {
       this.hierarchyLevel = level;
       this.landUseColorCache.clear();
-      if (this.compositeLayer?.redraw) {
-        this.compositeLayer.redraw();
-      }
       console.log(`Hierarchy level set to ${level}`);
     }
   }
@@ -323,9 +320,6 @@ class CompositeViewer {
     console.log(
       `Created synthetic cluster ${syntheticId} with ${region.length} pixels`
     );
-    if (this.compositeLayer && this.compositeLayer.redraw) {
-      this.compositeLayer.redraw();
-    }
     this.clearRegionHighlight();
     this.showBriefMessage(
       `Created synthetic cluster ${syntheticId}. Switch to SEGMENTATION_KEYS.COMPOSITE to label it.`

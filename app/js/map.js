@@ -440,11 +440,6 @@ class MapManager {
 
   setInteractionMode(mode) {
     this.interactionMode = mode;
-    this.geoRasterLayers.forEach((layer) => {
-      if (layer && layer.redraw) {
-        layer.redraw();
-      }
-    });
     console.log(`Interaction mode set to: ${mode}`);
   }
 
