@@ -1,4 +1,4 @@
-import { convertToGrayscale } from "./utils.js";
+import { convertToGrayscale, SEGMENTATION_KEYS } from "./utils.js";
 
 class MapManager {
   constructor(containerId, rasterHandler) {
@@ -96,7 +96,9 @@ class MapManager {
       }
       const baseColor = this.mapClusterValueToColor(pixelValue, colorMapping);
       if (
-        interactionMode === "cluster" &&
+        (interactionMode === "cluster" ||
+          (interactionMode === "composite" &&
+            segmentationKey === SEGMENTATION_KEYS.COMPOSITE)) &&
         this.allClusterLabels &&
         this.allClusterLabels[segmentationKey] &&
         this.allClusterLabels[segmentationKey][pixelValue] &&

@@ -400,13 +400,7 @@ class CompositeViewer {
       if (labels.has(clusterId)) {
         const landUseLabel = labels.get(clusterId);
         if (landUseLabel && landUseLabel !== "unlabeled") {
-          const landUseColor = this.resolveLandUseColor(landUseLabel);
-          if (this.mapManager.interactionMode === "composite") {
-            const colorObj = rgbStringToObject(landUseColor);
-            const greyColor = convertToGrayscale(colorObj);
-            return `rgba(${greyColor.r},${greyColor.g},${greyColor.b},${greyColor.a / 255})`;
-          }
-          return landUseColor;
+          return this.resolveLandUseColor(landUseLabel);
         }
       }
     }
