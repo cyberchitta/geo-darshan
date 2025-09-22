@@ -7,6 +7,7 @@
   import CompositeController from "./controllers/CompositeController.svelte";
   import LegendPanel from "./components/LegendPanel.svelte";
   import ControlsPanel from "./components/ControlsPanel.svelte";
+  import MapInfoPanel from "./components/MapInfoPanel.svelte";
 
   let {} = $props();
   let dataController = $state();
@@ -136,4 +137,8 @@
 {#if dataState?.dataIO && mapState?.mapManager && segmentationController}
   <LegendPanel {appState} clusterLabels={dataLabels} {callbacks} />
   <ControlsPanel {segmentationState} {mapState} />
+  <MapInfoPanel
+    currentLabel={mapState.currentHoverLabel}
+    isVisible={mapState.interactionMode === "composite"}
+  />
 {/if}

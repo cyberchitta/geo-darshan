@@ -14,6 +14,7 @@
   let selectedRegion = $state(null);
   let layersReady = $state(false);
   let manifest = $derived(dataState.manifest);
+  let currentHoverLabel = $state("");
 
   const stateObject = {
     get mapManager() {
@@ -33,6 +34,9 @@
     },
     get selectedRegion() {
       return selectedRegion;
+    },
+    get currentHoverLabel() {
+      return currentHoverLabel;
     },
     setOpacity: (value) => (opacity = value),
     setInteractionMode: (mode) => (interactionMode = mode),
@@ -59,9 +63,9 @@
         );
       }
       let _mapManager = new MapManager("map", rasterHandler);
+      await _mapManager.initialize();
       setupEventListeners(_mapManager);
       setupKeyboardShortcuts();
-      await _mapManager.initialize();
       mapManager = _mapManager;
       console.log("✅ MapController initialized");
     } catch (error) {
@@ -178,6 +182,19 @@
         opacity = newOpacity;
       }
     });
+    manager.map.on("mousemove", async (e) => {
+      if (interactionMode !== "composite") {
+        currentHoverLabel = "";
+        return;
+      }
+      try {
+        const label = await getCurrentLabelAtPosition(e.latlng);
+        currentHoverLabel = label;
+      } catch (error) {
+        console.error("Error getting label at position:", error);
+        currentHoverLabel = "";
+      }
+    });
   }
 
   function setupKeyboardShortcuts() {
@@ -208,6 +225,40 @@
           break;
       }
     });
+  }
+
+  async function getCurrentLabelAtPosition(latlng) {
+    if (!mapManager?.currentOverlay?.georasters?.[0]) {
+      return "";
+    }
+    const clusterValue = await mapManager.samplePixelAtCoordinate(latlng);
+    if (
+      clusterValue === null ||
+      clusterValue === undefined ||
+      clusterValue < 0
+    ) {
+      return "";
+    }
+    const segState = segmentationController?.getState();
+    const currentSegKey = segState?.currentSegmentationKey;
+    if (!currentSegKey || !clusterLabels[currentSegKey]) {
+      return "";
+    }
+    const label = clusterLabels[currentSegKey][clusterValue];
+    if (!label || label === "unlabeled") {
+      return "";
+    }
+    return formatLabelForDisplay(label);
+  }
+
+  function formatLabelForDisplay(landUsePath) {
+    if (!landUsePath || landUsePath === "unlabeled") {
+      return "";
+    }
+    return landUsePath
+      .split(".")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" > ");
   }
 
   async function handleDataLoaded(manifest, overlays) {
