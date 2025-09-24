@@ -130,11 +130,9 @@
 
   function createLandUseLayer() {
     if (!compositeState?.georaster) return;
-
     if (landUseLayer) {
       layerGroup.removeLayer(landUseLayer);
     }
-
     landUseLayer = mapManager.rasterHandler.createMapLayer(
       compositeState.georaster,
       {
@@ -142,7 +140,6 @@
         zIndex: 2000,
       }
     );
-
     layerGroup.addLayer(landUseLayer);
     landUseLayer.setOpacity(mapManager.currentOpacity);
   }
@@ -164,14 +161,12 @@
     if (!compositeSegmentation) {
       return null;
     }
-
     const cluster = compositeSegmentation.getCluster(clusterId);
     if (!cluster) {
       return null;
     }
-
     if (cluster.landUsePath === "unlabeled") {
-      return null; // Transparent for unlabeled areas
+      return null;
     } else {
       const truncatedPath = truncateToHierarchyLevel(cluster.landUsePath);
       return resolveLandUseColor(truncatedPath);
@@ -197,12 +192,10 @@
       console.warn("LandUseHierarchy not loaded");
       return null;
     }
-
     const cacheKey = `${landUsePath}:${hierarchyLevel}`;
     if (landUseColorCache.has(cacheKey)) {
       return landUseColorCache.get(cacheKey);
     }
-
     const hierarchy = LandUseHierarchy.getInstance();
     const color = hierarchy.getColorForPath(landUsePath, hierarchyLevel);
     const rgbColor = color ? `rgb(${hexToRgb(color)})` : null;
@@ -244,7 +237,6 @@
         blob: geotiffBlob,
       },
     ];
-
     files.forEach((file, index) => {
       setTimeout(() => {
         let blob;
