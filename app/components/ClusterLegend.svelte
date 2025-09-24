@@ -234,20 +234,11 @@
 </div>
 <div class="cluster-legend" role="region" aria-labelledby="legend-title">
   <div class="legend-header">
-    <h3 id="legend-title">Cluster Segmentations</h3>
-  </div>
-  <div class="segmentation-selector">
-    <label for="segmentation-select">Current Segmentation:</label>
-    <select
-      id="segmentation-select"
-      class="segmentation-dropdown"
-      value={selectedSegmentationKey || ""}
-      onchange={handleSegmentationChange}
-    >
-      {#each availableSegmentations as segKey}
-        <option value={segKey}>{segKey}</option>
-      {/each}
-    </select>
+    {#if interactionMode === "cluster"}
+      <h3 id="legend-title">Cluster Labeling</h3>
+    {:else if interactionMode === "composite"}
+      <h3 id="legend-title">Region Labeling</h3>
+    {/if}
   </div>
   <div class="label-management-controls">
     <div class="label-controls-row">
@@ -274,6 +265,21 @@
       </button>
     </div>
   </div>
+  {#if interactionMode === "cluster"}
+    <div class="segmentation-selector">
+      <label for="segmentation-select">Current Segmentation:</label>
+      <select
+        id="segmentation-select"
+        class="segmentation-dropdown"
+        value={selectedSegmentationKey || ""}
+        onchange={handleSegmentationChange}
+      >
+        {#each availableSegmentations as segKey}
+          <option value={segKey}>{segKey}</option>
+        {/each}
+      </select>
+    </div>
+  {/if}
   {#if interactionMode === "cluster"}
     <div class="legend-stats-section">
       <div class="legend-stats" aria-live="polite">
@@ -350,9 +356,6 @@
   {:else if interactionMode === "composite"}
     {#if hasSyntheticClusters}
       <div class="synthetic-section">
-        <div class="synthetic-header">
-          <h4>Region Labeling</h4>
-        </div>
         {#if selectedRegion}
           <div class="selected-region-panel">
             <div class="region-header">
