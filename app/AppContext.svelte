@@ -5,6 +5,8 @@
   import SegmentationController from "./controllers/SegmentationController.svelte";
   import MapController from "./controllers/MapController.svelte";
   import CompositeController from "./controllers/CompositeController.svelte";
+  import LandUseController from "./controllers/LandUseController.svelte";
+  import LabelRegionsController from "./controllers/LabelRegionsController.svelte";
   import LegendPanel from "./components/LegendPanel.svelte";
   import ControlsPanel from "./components/ControlsPanel.svelte";
   import MapInfoPanel from "./components/MapInfoPanel.svelte";
@@ -13,20 +15,29 @@
   let dataController = $state();
   let segmentationController = $state();
   let mapController = $state();
-  let labeledCompositeController = $state();
-  let labeledCompositeState = $derived(labeledCompositeController?.getState());
+  let compositeController = $state();
+  let landUseController = $state();
+  let labelRegionsController = $state();
+
   let dataState = $derived(dataController?.getState());
   let segmentationState = $derived(segmentationController?.getState());
   let mapState = $derived(mapController?.getState());
-  let labeledLayer = $derived(labeledCompositeState?.labeledLayer);
+  let compositeState = $derived(compositeController?.getState());
+  let landUseState = $derived(landUseController?.getState());
+  let labelRegionsState = $derived(labelRegionsController?.getState());
+
   let dataLabels = $derived(dataState?.clusterLabels || {});
   let hasCoordinated = $state(false);
+
   const appState = $derived({
     data: dataState,
     map: mapState,
     segmentation: segmentationState,
-    labeledLayer,
+    composite: compositeState,
+    landUse: landUseState,
+    labelRegions: labelRegionsState,
   });
+
   const callbacks = {
     onLabelChange: handleLabelChange,
     onRegionCancel: handleRegionCancel,
@@ -34,6 +45,7 @@
     onSegmentationChange: (frameIndex) =>
       appState.segmentation.goToFrame?.(frameIndex),
   };
+
   $effect(() => {
     if (dataState?.manifest && !hasCoordinated) {
       hasCoordinated = true;
@@ -103,8 +115,8 @@
   }
 
   function handleRegionCommit(landUsePath) {
-    if (mapState.selectedRegion && labeledCompositeState) {
-      labeledCompositeState.labelRegion(
+    if (mapState.selectedRegion && labelRegionsState) {
+      labelRegionsState.labelRegion(
         mapState.selectedRegion.region,
         landUsePath
       );
@@ -121,22 +133,50 @@
     bind:this={mapController}
     {dataState}
     {segmentationController}
-    {labeledLayer}
+    {labelRegionsController}
     clusterLabels={dataLabels}
   />
 {/if}
+
 {#if dataState?.dataIO && mapState?.mapManager && segmentationController && dataState?.manifest}
   <CompositeController
-    bind:this={labeledCompositeController}
+    bind:this={compositeController}
     clusterLabels={dataLabels}
     {dataState}
     mapManager={mapState.mapManager}
     dataLoader={dataState.dataIO}
   />
 {/if}
+
+{#if compositeState?.compositeState && mapState?.mapManager}
+  <LandUseController
+    bind:this={landUseController}
+    compositeState={compositeState.compositeState}
+    {dataState}
+    mapManager={mapState.mapManager}
+    dataIO={dataState.dataIO}
+  />
+{/if}
+
+{#if compositeState?.compositeState && mapState?.mapManager}
+  <LabelRegionsController
+    bind:this={labelRegionsController}
+    compositeState={compositeState.compositeState}
+    clusterLabels={dataLabels}
+    {dataState}
+    mapManager={mapState.mapManager}
+    dataLoader={dataState.dataIO}
+  />
+{/if}
+
 {#if dataState?.dataIO && mapState?.mapManager && segmentationController}
   <LegendPanel {appState} clusterLabels={dataLabels} {callbacks} />
-  <ControlsPanel {segmentationState} {mapState} />
+  <ControlsPanel
+    {segmentationState}
+    {mapState}
+    landUseState={appState.landUse}
+    labelRegionsState={appState.labelRegions}
+  />
   <MapInfoPanel
     currentLabel={mapState.currentHoverLabel}
     isVisible={mapState.interactionMode === "composite"}

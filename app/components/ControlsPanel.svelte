@@ -4,7 +4,9 @@
   import NavigationControls from "./NavigationControls.svelte";
   import OverlayControls from "./OverlayControls.svelte";
 
-  let { segmentationState, mapState } = $props();
+  let { segmentationState, mapState, landUseState, labelRegionsState } =
+    $props();
+
   let totalFrames = $derived(segmentationState.totalFrames || 0);
   let showControls = $derived(totalFrames > 0);
   let isCollapsed = $state(false);
@@ -30,7 +32,7 @@
     <div class="controls-content" class:collapsed={isCollapsed}>
       <div class="controls-row">
         <div class="control-group overlay-group">
-          <OverlayControls {mapState} />
+          <OverlayControls {mapState} {landUseState} {labelRegionsState} />
         </div>
         <div class="control-group interaction-group">
           <InteractionModeControls {mapState} />

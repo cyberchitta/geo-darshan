@@ -4,8 +4,12 @@
   import { MapManager } from "../js/map.js";
   import { LandUseHierarchy } from "../js/land-use.js";
 
-  let { dataState, segmentationController, labeledLayer, clusterLabels } =
-    $props();
+  let {
+    dataState,
+    segmentationController,
+    labelRegionsController,
+    clusterLabels,
+  } = $props();
   let mapManager = $state(null);
   let opacity = $state(0.8);
   let interactionMode = $state("view");
@@ -43,8 +47,9 @@
     clearSelectedCluster: () => (selectedCluster = null),
     clearSelectedRegion: () => (selectedRegion = null),
     clearRegionHighlight: () => {
-      if (labeledLayer) {
-        labeledLayer.clearRegionHighlight();
+      const labelRegionsState = labelRegionsController?.getState();
+      if (labelRegionsState) {
+        labelRegionsState.clearRegionHighlight();
       }
     },
   };
@@ -82,26 +87,19 @@
       }
     }
   });
+
   $effect(() => {
     if (mapManager) {
       mapManager.setOverlayOpacity(opacity);
     }
   });
+
   $effect(() => {
     if (mapManager) {
       mapManager.setInteractionMode(interactionMode);
     }
   });
-  $effect(() => {
-    if (mapManager && labeledLayer) {
-      mapManager.setLabeledLayer(labeledLayer);
-    }
-  });
-  $effect(() => {
-    if (labeledLayer?.setOpacity) {
-      labeledLayer.setOpacity(opacity);
-    }
-  });
+
   $effect(() => {
     if (mapManager && segmentationController && layersReady) {
       const segState = segmentationController.getState();
@@ -111,20 +109,25 @@
       }
     }
   });
+
   $effect(() => {
     if (mapManager && clusterLabels) {
       mapManager.updateAllLayersWithNewLabels(clusterLabels);
     }
   });
+
   $effect(() => {
     if (
       selectedCluster &&
       selectedCluster.segmentationKey === SEGMENTATION_KEYS.COMPOSITE &&
-      labeledLayer?.analyzeClusterNeighborhood
+      labelRegionsController
     ) {
-      clusterSuggestions = labeledLayer.analyzeClusterNeighborhood(
-        selectedCluster.clusterId
-      );
+      const labelRegionsState = labelRegionsController.getState();
+      if (labelRegionsState?.analyzeClusterNeighborhood) {
+        clusterSuggestions = labelRegionsState.analyzeClusterNeighborhood(
+          selectedCluster.clusterId
+        );
+      }
     } else {
       clusterSuggestions = [];
     }
@@ -135,6 +138,7 @@
       console.log("First layer ready event received");
       layersReady = true;
     });
+
     manager.on("clusterClicked", (clusterValue, latlng) => {
       console.log("Cluster clicked:", clusterValue);
       const segState = segmentationController?.getState();
@@ -144,44 +148,46 @@
         latlng,
       };
     });
+
     manager.on("compositeClick", async (latlng) => {
-      if (labeledLayer?.handleCompositeClick) {
-        const compositeState = labeledLayer.getCompositeState?.();
-        if (!compositeState) {
-          console.log("No composite state available for labeling");
-          return;
-        }
-        const allLabelsMap = new Map();
-        Object.entries(clusterLabels).forEach(([segKey, labels]) => {
-          const labelMap = new Map();
-          Object.entries(labels).forEach(([clusterId, landUsePath]) => {
-            labelMap.set(parseInt(clusterId), landUsePath);
-          });
-          allLabelsMap.set(segKey, labelMap);
+      const labelRegionsState = labelRegionsController?.getState();
+      if (!labelRegionsState?.handleCompositeClick) {
+        console.log("No label regions controller available for interaction");
+        return;
+      }
+
+      // Convert clusterLabels to Map format
+      const allLabelsMap = new Map();
+      Object.entries(clusterLabels).forEach(([segKey, labels]) => {
+        const labelMap = new Map();
+        Object.entries(labels).forEach(([clusterId, landUsePath]) => {
+          labelMap.set(parseInt(clusterId), landUsePath);
         });
-        const result = await labeledLayer.handleCompositeClick(
-          latlng,
-          compositeState.georaster,
-          compositeState.segmentationMap,
-          compositeState.segmentations,
-          allLabelsMap,
-          dataState.segmentations
-        );
-        if (result?.action === "create_new") {
-          selectedRegion = {
-            region: result.region,
-            latlng: result.latlng,
-            pixelCount: result.region.length,
-            suggestions: result.suggestions,
-          };
-        }
+        allLabelsMap.set(segKey, labelMap);
+      });
+
+      const result = await labelRegionsState.handleCompositeClick(
+        latlng,
+        allLabelsMap,
+        dataState.segmentations
+      );
+
+      if (result?.action === "create_new") {
+        selectedRegion = {
+          region: result.region,
+          latlng: result.latlng,
+          pixelCount: result.region.length,
+          suggestions: result.suggestions,
+        };
       }
     });
+
     manager.on("globalOpacityChanged", (newOpacity) => {
       if (Math.abs(opacity - newOpacity) > 0.001) {
         opacity = newOpacity;
       }
     });
+
     manager.map.on("mousemove", async (e) => {
       if (interactionMode !== "composite") {
         currentHoverLabel = "";
@@ -231,6 +237,7 @@
     if (!mapManager?.currentOverlay?.georasters?.[0]) {
       return "";
     }
+
     const clusterValue = await mapManager.samplePixelAtCoordinate(latlng);
     if (
       clusterValue === null ||
@@ -239,26 +246,21 @@
     ) {
       return "";
     }
-    const segState = segmentationController?.getState();
-    const currentSegKey = segState?.currentSegmentationKey;
-    if (!currentSegKey || !clusterLabels[currentSegKey]) {
-      return "";
-    }
-    const label = clusterLabels[currentSegKey][clusterValue];
-    if (!label || label === "unlabeled") {
-      return "";
-    }
-    return formatLabelForDisplay(label);
-  }
 
-  function formatLabelForDisplay(landUsePath) {
-    if (!landUsePath || landUsePath === "unlabeled") {
+    const labelRegionsState = labelRegionsController?.getState();
+    const interactiveSegmentation = labelRegionsState?.interactiveSegmentation;
+    if (!interactiveSegmentation) {
       return "";
     }
-    return landUsePath
-      .split(".")
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(" > ");
+
+    const cluster = interactiveSegmentation.getCluster(clusterValue);
+    if (!cluster) {
+      return "";
+    }
+
+    return cluster.landUsePath && cluster.landUsePath !== "unlabeled"
+      ? cluster.landUsePath
+      : "";
   }
 
   async function handleDataLoaded(manifest, overlays) {

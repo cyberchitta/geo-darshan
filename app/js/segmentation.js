@@ -20,9 +20,9 @@ class Segmentation {
     return segmentation;
   }
 
-  static createSynthetic(refGeoRaster) {
+  static createComposite(refGeoRaster) {
     return new Segmentation(SEGMENTATION_KEYS.COMPOSITE, refGeoRaster, null, {
-      source: "synthetic",
+      source: "composite",
       created: new Date().toISOString(),
     });
   }

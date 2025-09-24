@@ -1,9 +1,15 @@
 <script>
-  let { mapState } = $props();
+  let { mapState, landUseState, labelRegionsState } = $props();
   let opacity = $state(0.8);
   $effect(() => {
     if (mapState?.setOpacity) {
       mapState.setOpacity(opacity);
+    }
+    if (landUseState?.setOpacity) {
+      landUseState.setOpacity(opacity);
+    }
+    if (labelRegionsState?.setOpacity) {
+      labelRegionsState.setOpacity(opacity);
     }
   });
   let opacityPercent = $derived(Math.round(opacity * 100));

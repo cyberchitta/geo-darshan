@@ -87,6 +87,9 @@ class MapManager {
     if (values.length === 1) {
       const pixelValue = values[0];
       const segmentationKey = overlayData.segmentationKey;
+      if (segmentationKey === SEGMENTATION_KEYS.COMPOSITE) {
+        return this.convertCompositePixelsToColor(pixelValue, interactionMode);
+      }
       const colorMapping =
         this.dataLoader?.getColorMappingForSegmentation(segmentationKey);
       if (!colorMapping) {
@@ -96,29 +99,53 @@ class MapManager {
       }
       const baseColor = this.mapClusterValueToColor(pixelValue, colorMapping);
       if (
-        (interactionMode === "cluster" ||
-          (interactionMode === "composite" &&
-            segmentationKey === SEGMENTATION_KEYS.COMPOSITE)) &&
+        (interactionMode === "cluster" || interactionMode === "composite") &&
         this.allClusterLabels &&
         this.allClusterLabels[segmentationKey] &&
         this.allClusterLabels[segmentationKey][pixelValue] &&
         this.allClusterLabels[segmentationKey][pixelValue] !== "unlabeled"
       ) {
         const grayColor = convertToGrayscale(baseColor);
-        return `rgba(${grayColor.r},${grayColor.g},${grayColor.b},${
-          grayColor.a / 255
-        })`;
+        return `rgba(${grayColor.r},${grayColor.g},${grayColor.b},${grayColor.a / 255})`;
       }
-      return `rgba(${baseColor.r},${baseColor.g},${baseColor.b},${
-        baseColor.a / 255
-      })`;
+      return `rgba(${baseColor.r},${baseColor.g},${baseColor.b},${baseColor.a / 255})`;
     }
     if (values.length >= 3) {
-      return `rgb(${Math.round(values[0])},${Math.round(
-        values[1]
-      )},${Math.round(values[2])})`;
+      return `rgb(${Math.round(values[0])},${Math.round(values[1])},${Math.round(values[2])})`;
     }
     return null;
+  }
+
+  convertCompositePixelsToColor(clusterId, interactionMode) {
+    const compositeSegmentation = this.dataLoader?.segmentations?.get(
+      SEGMENTATION_KEYS.COMPOSITE
+    );
+    if (!compositeSegmentation) {
+      return null;
+    }
+    const cluster = compositeSegmentation.getCluster(clusterId);
+    if (!cluster) {
+      return null;
+    }
+    if (
+      interactionMode === "composite" &&
+      cluster.landUsePath !== "unlabeled"
+    ) {
+      const baseColor = this.parseColorString(cluster.color);
+      const grayColor = convertToGrayscale(baseColor);
+      return `rgba(${grayColor.r},${grayColor.g},${grayColor.b},${grayColor.a / 255})`;
+    }
+    return cluster.color;
+  }
+
+  parseColorString(colorString) {
+    const match = colorString.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    return {
+      r: parseInt(match[1]),
+      g: parseInt(match[2]),
+      b: parseInt(match[3]),
+      a: 255,
+    };
   }
 
   mapClusterValueToColor(clusterValue, colorMapping) {

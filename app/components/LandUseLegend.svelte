@@ -1,7 +1,7 @@
 <script>
   import { LandUseHierarchy } from "../js/land-use.js";
 
-  let { clusterLabels, dataIO, labeledLayer } = $props();
+  let { clusterLabels, landUseController } = $props();
   let hierarchyLevel = $state(1);
   let isExporting = $state(false);
   const hierarchyLabels = {
@@ -20,17 +20,17 @@
       : []
   );
   $effect(() => {
-    if (labeledLayer) {
-      labeledLayer.setHierarchyLevel(hierarchyLevel);
+    if (landUseController) {
+      landUseController.setHierarchyLevel(hierarchyLevel);
     }
   });
 
   async function handleExport() {
-    if (!labeledLayer) {
-      alert("No labeled layer available for export");
+    if (!landUseController) {
+      alert("No land use controller available for export");
       return;
     }
-    const stats = labeledLayer.getStats();
+    const stats = landUseController.getStats();
     if (stats.totalLabels === 0) {
       alert(
         "No labeled clusters available for export. Please label some clusters first."
@@ -39,18 +39,14 @@
     }
     if (!stats.isVisible) {
       alert(
-        "Labeled regions layer is not visible. Please enable it first to generate composite."
+        "Land use layer is not visible. Please enable it first to generate export."
       );
       return;
     }
     try {
       isExporting = true;
-      if (dataIO?.exportLandCoverFiles) {
-        await dataIO.exportLandCoverFiles(labeledLayer);
-        alert("Land cover files exported successfully!");
-      } else {
-        throw new Error("Export functionality not available");
-      }
+      await landUseController.exportLandCoverFiles();
+      alert("Land cover files exported successfully!");
     } catch (error) {
       console.error("Export failed:", error);
       alert(`Export failed: ${error.message}`);

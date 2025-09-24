@@ -30,13 +30,11 @@ class CompositeViewer {
   }
 
   getCompositeState() {
-    if (!this.compositeLayer || !this.compositeSegmentationMap) {
+    if (!this.compositeLayer) {
       return null;
     }
     return {
       georaster: this.compositeLayer.georasters[0],
-      segmentationMap: this.compositeSegmentationMap,
-      segmentations: this.compositeSegmentations,
     };
   }
 
@@ -48,17 +46,21 @@ class CompositeViewer {
     }
   }
 
-  async generateComposite(segmentations, allLabels) {
+  async generateComposite(
+    segmentations,
+    allLabels,
+    fineGrainSegmentationKey,
+    pixelToColorFn = null
+  ) {
     try {
       console.log("Generating composite raster with TensorFlow.js...");
       const startTime = performance.now();
       const result = await Compositor.generateCompositeRaster(
         segmentations,
         allLabels,
-        this.rules
+        this.rules,
+        fineGrainSegmentationKey
       );
-      this.compositeSegmentationMap = result.segmentationIds;
-      this.compositeSegmentations = result.segmentations;
       const compositeGeoRaster = {
         ...result.refGeoRaster,
         values: [result.compositeData],
@@ -71,12 +73,7 @@ class CompositeViewer {
       this.compositeLayer = this.mapManager.rasterHandler.createMapLayer(
         compositeGeoRaster,
         {
-          pixelValuesToColorFn: (values) =>
-            this.convertCompositePixelToColor(
-              values,
-              allLabels,
-              result.highestKKey
-            ),
+          pixelValuesToColorFn: pixelToColorFn,
           zIndex: 2000,
         }
       );
@@ -88,8 +85,7 @@ class CompositeViewer {
       );
       return {
         compositeLayer: this.compositeLayer,
-        segmentationMap: result.segmentationIds,
-        segmentations: result.segmentations,
+        clusterIdMapping: result.clusterIdMapping,
         georaster: compositeGeoRaster,
         highestKKey: result.highestKKey,
       };
@@ -104,79 +100,6 @@ class CompositeViewer {
           console.error("❌ Failed to cleanup broken layer:", cleanupError);
         }
       }
-      throw error;
-    }
-  }
-
-  generateSyntheticOverlay(
-    compositeGeoRaster,
-    segmentationMap,
-    segmentations,
-    allLabels,
-    highestKKey
-  ) {
-    if (!LandUseHierarchy.isLoaded()) {
-      throw new Error("LandUseHierarchy not loaded");
-    }
-    try {
-      console.log("Generating synthetic overlay...");
-      const startTime = performance.now();
-      const hierarchy = LandUseHierarchy.getInstance();
-      const mapper = new LandUseMapper(
-        hierarchy,
-        compositeGeoRaster,
-        segmentationMap,
-        segmentations,
-        allLabels,
-        this.hierarchyLevel
-      );
-      const pixelMapping = mapper.generatePixelMapping();
-      const landUseRasterData = mapper.createLandUseRaster();
-      const fineGrainClusters =
-        this.extractFineGrainClusters(compositeGeoRaster);
-      const mergedRasterData = this.mergeLandUseAndFineGrain(
-        landUseRasterData,
-        compositeGeoRaster.values[0]
-      );
-      fineGrainClusters.forEach((clusterId) => {
-        pixelMapping[clusterId.toString()] = "unlabeled";
-      });
-      const colorMapping = LandUseMapper.createColorMapping(
-        pixelMapping,
-        hierarchy,
-        this.hierarchyLevel
-      );
-      this.addFineGrainColors(colorMapping, fineGrainClusters, highestKKey);
-      const syntheticOverlay = {
-        segmentationKey: SEGMENTATION_KEYS.COMPOSITE,
-        filename: "synthetic_clusters.tif",
-        georaster: {
-          ...compositeGeoRaster,
-          values: [mergedRasterData],
-          numberOfRasters: 1,
-        },
-        bounds: compositeGeoRaster.bounds,
-        stats: {
-          clusters: Object.keys(pixelMapping).length,
-          unlabeled_pixels: this.countUnlabeledPixels(landUseRasterData),
-        },
-        colorMapping: {
-          method: "cluster_specific",
-          colors_rgb: this.convertColorMappingToRgbArray(colorMapping),
-          nodata_value: -1,
-        },
-        pixelMapping,
-      };
-      const endTime = performance.now();
-      console.log(
-        `✅ Synthetic overlay generated in ${(endTime - startTime).toFixed(2)}ms`
-      );
-      console.log(
-        `Generated ${Object.keys(pixelMapping).length} total clusters (${fineGrainClusters.length} fine-grain)`
-      );
-      return syntheticOverlay;
-    } catch (error) {
-      console.error("❌ Failed to generate synthetic overlay:", error);
       throw error;
     }
   }
@@ -272,8 +195,6 @@ class CompositeViewer {
   async handleCompositeClick(
     latlng,
     compositeGeoRaster,
-    segmentationMap,
-    segmentations,
     allLabels,
     segmentationsData
   ) {
@@ -283,8 +204,7 @@ class CompositeViewer {
     }
     this.regionLabeler.updateCompositeData(
       compositeGeoRaster,
-      segmentationMap,
-      segmentations,
+      segmentationsData.get(SEGMENTATION_KEYS.COMPOSITE),
       allLabels,
       segmentationsData
     );
@@ -380,31 +300,32 @@ class CompositeViewer {
     }
   }
 
-  getFineGrainClusterColor(clusterId, highestKKey) {
-    const originalClusterId = clusterId - CLUSTER_ID_RANGES.FINE_GRAIN_START;
-    const colorMapping =
-      this.dataLoader.getColorMappingForSegmentation(highestKKey);
-    const color = colorMapping.colors_rgb[originalClusterId];
-    return `rgb(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)})`;
-  }
-
-  convertCompositePixelToColor(values, allLabels, highestKKey) {
+  convertCompositePixelToColor(values, allLabels, fineGrainKey) {
     if (!values || values.length === 0 || values[0] === 0) {
       return null;
     }
     const clusterId = values[0];
-    if (CLUSTER_ID_RANGES.isFineGrain(clusterId)) {
-      return this.getFineGrainClusterColor(clusterId, highestKKey);
+    const compositeSegmentation = this.dataLoader.segmentations?.get(
+      SEGMENTATION_KEYS.COMPOSITE
+    );
+    const cluster = compositeSegmentation.getCluster(clusterId);
+    if (cluster.landUsePath === "unlabeled") {
+      return cluster.color;
+    } else {
+      const truncatedPath = this.truncateToHierarchyLevel(cluster.landUsePath);
+      return this.resolveLandUseColor(truncatedPath);
     }
-    for (const [segKey, labels] of allLabels) {
-      if (labels.has(clusterId)) {
-        const landUseLabel = labels.get(clusterId);
-        if (landUseLabel && landUseLabel !== "unlabeled") {
-          return this.resolveLandUseColor(landUseLabel);
-        }
-      }
+  }
+
+  truncateToHierarchyLevel(landUsePath) {
+    if (!landUsePath || landUsePath === "unlabeled") {
+      return landUsePath;
     }
-    return undefined;
+    const pathParts = landUsePath.split(".");
+    if (pathParts.length <= this.hierarchyLevel) {
+      return landUsePath;
+    }
+    return pathParts.slice(0, this.hierarchyLevel).join(".");
   }
 
   setOpacity(opacity) {

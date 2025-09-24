@@ -5,6 +5,7 @@
 
   let { appState, clusterLabels, callbacks } = $props();
   let activeTab = $state("data");
+
   function switchTab(tabId) {
     activeTab = tabId;
     console.log("Switched to tab:", tabId);
@@ -45,7 +46,7 @@
         <LandUseLegend
           {clusterLabels}
           dataIO={appState.data.dataIO}
-          labeledLayer={appState.labeledLayer}
+          landUseController={appState.landUse}
         />
       </div>
     {:else if activeTab === "data"}

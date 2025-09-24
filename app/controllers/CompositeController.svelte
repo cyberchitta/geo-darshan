@@ -1,22 +1,15 @@
 <script>
-  import { onMount } from "svelte";
-  import { SEGMENTATION_KEYS } from "../js/utils.js";
-  import { CompositeViewer } from "../js/composite-viewer.js";
-  import { Segmentation } from "../js/segmentation.js";
+  import { LandUseHierarchy } from "../js/land-use.js";
 
   let { clusterLabels = {}, dataState, mapManager, dataLoader } = $props();
-  let labeledLayer = $state(null);
-  let layerGroup = $state(null);
   let hasSegmentations = $derived(dataState?.segmentations?.size > 0);
   let lastProcessedUserVersion = $state(-1);
   let shouldRegenerateComposite = $derived(
     hasSegmentations && dataState.userLabelsVersion > lastProcessedUserVersion
   );
   let compositeState = $state(null);
+
   const stateObject = {
-    get labeledLayer() {
-      return labeledLayer;
-    },
     get compositeState() {
       return compositeState;
     },
@@ -26,31 +19,15 @@
     return stateObject;
   }
 
-  onMount(() => {
-    if (mapManager && mapManager.map && mapManager.layerControl) {
-      layerGroup = L.layerGroup();
-      mapManager.addOverlayLayer("Land Use", layerGroup, false);
-    }
-    return () => {
-      if (labeledLayer) {
-        labeledLayer.destroy();
-      }
-      if (layerGroup && mapManager) {
-        mapManager.removeOverlayLayer("Land Use");
-        mapManager.map.removeLayer(layerGroup);
-      }
-    };
-  });
-
-  $effect(() => {
-    if (layerGroup && dataLoader && !labeledLayer) {
-      labeledLayer = new CompositeViewer(mapManager, dataLoader, layerGroup);
-      mapManager.setLabeledLayer(labeledLayer);
-    }
-  });
   $effect(async () => {
-    if (!labeledLayer || !shouldRegenerateComposite) return;
+    if (!shouldRegenerateComposite) return;
+
     try {
+      if (!LandUseHierarchy.isLoaded()) {
+        console.log("Waiting for LandUseHierarchy to load...");
+        return;
+      }
+
       const allLabelsMap = new Map();
       Object.entries(clusterLabels).forEach(([segKey, labels]) => {
         const labelMap = new Map();
@@ -59,49 +36,18 @@
         });
         allLabelsMap.set(segKey, labelMap);
       });
-      const compositeResult = await labeledLayer.generateComposite(
+
+      const fineGrainSegmentationKey = "k88_s42";
+      const compositeResult = await generateComposite(
         dataState.segmentations,
-        allLabelsMap
-      );
-      compositeState = compositeResult;
-      if (labeledLayer.regionLabeler) {
-        labeledLayer.regionLabeler.updateCompositeData(
-          compositeResult.georaster,
-          compositeResult.segmentationMap,
-          compositeResult.segmentations,
-          allLabelsMap,
-          dataState.segmentations
-        );
-      }
-      const syntheticOverlay = labeledLayer.generateSyntheticOverlay(
-        compositeResult.georaster,
-        compositeResult.segmentationMap,
-        compositeResult.segmentations,
         allLabelsMap,
-        compositeResult.highestKKey
+        fineGrainSegmentationKey
       );
-      dataLoader.colorMappings.set(
-        SEGMENTATION_KEYS.COMPOSITE,
-        syntheticOverlay.colorMapping
-      );
-      dataState.addOverlay(SEGMENTATION_KEYS.COMPOSITE, syntheticOverlay);
-      const syntheticSegmentation =
-        await createSyntheticSegmentation(syntheticOverlay);
-      dataState.addSegmentation(
-        SEGMENTATION_KEYS.COMPOSITE,
-        syntheticSegmentation
-      );
-      await mapManager.addOverlay(syntheticOverlay);
+
+      compositeState = compositeResult;
       lastProcessedUserVersion = dataState.userLabelsVersion;
-      Object.entries(syntheticOverlay.pixelMapping).forEach(
-        ([clusterId, landUsePath]) => {
-          dataState.setClusterLabel(
-            SEGMENTATION_KEYS.COMPOSITE,
-            parseInt(clusterId),
-            landUsePath
-          );
-        }
-      );
+
+      console.log("✅ Composite data generated, ready for other controllers");
     } catch (error) {
       console.error("Failed to generate composite:", error);
       lastProcessedUserVersion = dataState.userLabelsVersion;
@@ -109,34 +55,38 @@
     }
   });
 
-  async function createSyntheticSegmentation(overlay) {
-    const segmentation = Segmentation.createSynthetic(overlay.georaster);
-    Object.entries(overlay.pixelMapping).forEach(([clusterId, landUsePath]) => {
-      const id = parseInt(clusterId);
-      const color = getColorFromMapping(id, overlay.colorMapping);
-      const pixelCount = calculatePixelCount(id, overlay.georaster);
-      segmentation.addCluster(id, pixelCount, landUsePath, color);
-    });
-    segmentation.finalize();
-    return segmentation;
-  }
+  async function generateComposite(
+    segmentations,
+    allLabels,
+    fineGrainSegmentationKey
+  ) {
+    const { Compositor } = await import("../js/compositor.js");
 
-  function getColorFromMapping(clusterId, colorMapping) {
-    const color = colorMapping.colors_rgb[clusterId];
-    if (color && color.length >= 3) {
-      return `rgba(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)}, 1)`;
-    }
-    return "rgb(128,128,128)";
-  }
+    console.log("Generating composite raster with TensorFlow.js...");
+    const startTime = performance.now();
 
-  function calculatePixelCount(clusterId, georaster) {
-    let count = 0;
-    const rasterData = georaster.values[0];
-    for (let y = 0; y < rasterData.length; y++) {
-      for (let x = 0; x < rasterData[y].length; x++) {
-        if (rasterData[y][x] === clusterId) count++;
-      }
-    }
-    return count;
+    const result = await Compositor.generateCompositeRaster(
+      segmentations,
+      allLabels,
+      { priority: "highest_k", requireLabeled: true, fallbackToLower: true },
+      fineGrainSegmentationKey
+    );
+
+    const compositeGeoRaster = {
+      ...result.refGeoRaster,
+      values: [result.compositeData],
+      numberOfRasters: 1,
+    };
+
+    const endTime = performance.now();
+    console.log(
+      `✅ Composite generated in ${(endTime - startTime).toFixed(2)}ms`
+    );
+
+    return {
+      georaster: compositeGeoRaster,
+      clusterIdMapping: result.clusterIdMapping,
+      highestKKey: result.highestKKey,
+    };
   }
 </script>

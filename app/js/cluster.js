@@ -28,7 +28,7 @@ export class Cluster {
     }
     segmentations.set(
       SEGMENTATION_KEYS.COMPOSITE,
-      Segmentation.createSynthetic()
+      Segmentation.createComposite()
     );
     return segmentations;
   }
