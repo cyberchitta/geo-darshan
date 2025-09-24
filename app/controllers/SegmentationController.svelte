@@ -1,7 +1,8 @@
 <script>
   import { onMount } from "svelte";
+  import { convertToGrayscale } from "../js/utils.js";
 
-  let { mapManager } = $props();
+  let { mapManager, clusterLabels } = $props();
 
   let currentFrame = $state(0);
   let totalFrames = $state(0);
@@ -208,7 +209,7 @@
       opacity: 0,
       resolution: getOptimalResolution(georaster),
       pixelValuesToColorFn: (values) =>
-        mapManager.convertPixelsToColor(
+        convertPixelsToColor(
           values,
           overlayData,
           mapManager.interactionMode,
@@ -219,6 +220,67 @@
     layer._segmentationKey = segmentationKey;
     layer._bounds = georaster.bounds;
     return layer;
+  }
+
+  function convertPixelsToColor(
+    values,
+    overlayData,
+    interactionMode,
+    segmentationKey
+  ) {
+    if (!values || values.some((v) => v === null || v === undefined)) {
+      return null;
+    }
+    if (values.length === 1) {
+      const pixelValue = values[0];
+      const colorMapping =
+        overlayData.colorMapping ||
+        mapManager.dataLoader?.getColorMappingForSegmentation(segmentationKey);
+      if (!colorMapping) {
+        throw new Error(
+          `Color mapping not found for segmentation: ${segmentationKey}`
+        );
+      }
+      const baseColor = mapClusterValueToColor(pixelValue, colorMapping);
+      if (
+        (interactionMode === "cluster" || interactionMode === "composite") &&
+        clusterLabels?.[segmentationKey]?.[pixelValue] &&
+        clusterLabels[segmentationKey][pixelValue] !== "unlabeled"
+      ) {
+        const grayColor = convertToGrayscale(baseColor);
+        return `rgba(${grayColor.r},${grayColor.g},${grayColor.b},${grayColor.a / 255})`;
+      }
+      return `rgba(${baseColor.r},${baseColor.g},${baseColor.b},${baseColor.a / 255})`;
+    }
+    if (values.length >= 3) {
+      return `rgb(${Math.round(values[0])},${Math.round(values[1])},${Math.round(values[2])})`;
+    }
+    return null;
+  }
+
+  function mapClusterValueToColor(clusterValue, colorMapping) {
+    if (!colorMapping || !colorMapping.colors_rgb) {
+      throw new Error(
+        "Color mapping is required but missing - check data pipeline"
+      );
+    }
+    const colors = colorMapping.colors_rgb;
+    if (clusterValue === colorMapping.nodata_value) {
+      return { r: 0, g: 0, b: 0, a: 0 };
+    }
+    const color = colors[clusterValue];
+    if (color === null) {
+      return { r: 0, g: 0, b: 0, a: 0 };
+    }
+    if (color && color.length >= 3) {
+      return {
+        r: Math.round(color[0] * 255),
+        g: Math.round(color[1] * 255),
+        b: Math.round(color[2] * 255),
+        a: 255,
+      };
+    }
+    throw new Error(`No color defined for cluster ${clusterValue} in mapping`);
   }
 
   function getOptimalResolution(georaster) {

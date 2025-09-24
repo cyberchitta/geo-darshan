@@ -1,5 +1,3 @@
-import { convertToGrayscale, SEGMENTATION_KEYS } from "./utils.js";
-
 class MapManager {
   constructor(containerId, rasterHandler) {
     this.containerId = containerId;
@@ -67,104 +65,6 @@ class MapManager {
     console.log(`MapManager dataLoader set: ${!!dataLoader}`);
   }
 
-  convertPixelsToColor(
-    values,
-    overlayData,
-    interactionMode,
-    currentSegmentationKey
-  ) {
-    if (!values || values.some((v) => v === null || v === undefined)) {
-      return null;
-    }
-    if (values.length === 1) {
-      const pixelValue = values[0];
-      const segmentationKey = currentSegmentationKey;
-      if (segmentationKey === SEGMENTATION_KEYS.COMPOSITE) {
-        return this.convertCompositePixelsToColor(pixelValue, interactionMode);
-      }
-      const colorMapping =
-        this.dataLoader?.getColorMappingForSegmentation(segmentationKey);
-      if (!colorMapping) {
-        throw new Error(
-          `Color mapping not found for segmentation: ${segmentationKey}`
-        );
-      }
-      const baseColor = this.mapClusterValueToColor(pixelValue, colorMapping);
-      if (
-        (interactionMode === "cluster" || interactionMode === "composite") &&
-        this.allClusterLabels &&
-        this.allClusterLabels[segmentationKey] &&
-        this.allClusterLabels[segmentationKey][pixelValue] &&
-        this.allClusterLabels[segmentationKey][pixelValue] !== "unlabeled"
-      ) {
-        const grayColor = convertToGrayscale(baseColor);
-        return `rgba(${grayColor.r},${grayColor.g},${grayColor.b},${grayColor.a / 255})`;
-      }
-      return `rgba(${baseColor.r},${baseColor.g},${baseColor.b},${baseColor.a / 255})`;
-    }
-    if (values.length >= 3) {
-      return `rgb(${Math.round(values[0])},${Math.round(values[1])},${Math.round(values[2])})`;
-    }
-    return null;
-  }
-
-  convertCompositePixelsToColor(clusterId, interactionMode) {
-    const compositeSegmentation = this.dataLoader?.segmentations?.get(
-      SEGMENTATION_KEYS.COMPOSITE
-    );
-    if (!compositeSegmentation) {
-      return null;
-    }
-    const cluster = compositeSegmentation.getCluster(clusterId);
-    if (!cluster) {
-      return null;
-    }
-    if (
-      interactionMode === "composite" &&
-      cluster.landUsePath !== "unlabeled"
-    ) {
-      const baseColor = this.parseColorString(cluster.color);
-      const grayColor = convertToGrayscale(baseColor);
-      return `rgba(${grayColor.r},${grayColor.g},${grayColor.b},${grayColor.a / 255})`;
-    }
-    return cluster.color;
-  }
-
-  parseColorString(colorString) {
-    const match = colorString.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-    return {
-      r: parseInt(match[1]),
-      g: parseInt(match[2]),
-      b: parseInt(match[3]),
-      a: 255,
-    };
-  }
-
-  mapClusterValueToColor(clusterValue, colorMapping) {
-    if (!colorMapping || !colorMapping.colors_rgb) {
-      throw new Error(
-        "Color mapping is required but missing - check data pipeline"
-      );
-    }
-    const colors = colorMapping.colors_rgb;
-    if (clusterValue === colorMapping.nodata_value) {
-      return { r: 0, g: 0, b: 0, a: 0 };
-    }
-    const color = colors[clusterValue];
-    if (color === null) {
-      return { r: 0, g: 0, b: 0, a: 0 };
-    }
-    if (color && color.length >= 3) {
-      return {
-        r: Math.round(color[0] * 255),
-        g: Math.round(color[1] * 255),
-        b: Math.round(color[2] * 255),
-        a: 255,
-      };
-    }
-    throw new Error(`No color defined for cluster ${clusterValue} in mapping`);
-  }
-
   setBaseLayer(layerName) {
     if (this.baseLayers[layerName]) {
       Object.values(this.baseLayers).forEach((layer) => {
@@ -180,10 +80,6 @@ class MapManager {
         }
       });
       console.log(`Switched to base layer: ${layerName} with z-index 1`);
-      if (this.currentOverlay) {
-        this.map.removeLayer(this.currentOverlay);
-        this.currentOverlay.addTo(this.map);
-      }
     }
   }
 
