@@ -69,6 +69,20 @@
   );
   let focusedClusterId = $state(null);
   let announcementText = $state("");
+  let clusterAvailable = $derived(
+    segmentationState?.hasActiveLayer && !labelRegionsState?.hasActiveLayer
+  );
+  let compositeAvailable = $derived(
+    labelRegionsState?.hasActiveLayer && !segmentationState?.hasActiveLayer
+  );
+  let showClusterLegend = $derived(
+    interactionMode === "cluster" ||
+      (interactionMode === "view" && clusterAvailable)
+  );
+  let showCompositeLegend = $derived(
+    interactionMode === "composite" ||
+      (interactionMode === "view" && compositeAvailable)
+  );
   $effect(() => {
     if (
       selectedCluster &&
@@ -265,7 +279,7 @@
       </button>
     </div>
   </div>
-  {#if interactionMode === "cluster"}
+  {#if showClusterLegend}
     <div class="segmentation-selector">
       <label for="segmentation-select">Current Segmentation:</label>
       <select
@@ -279,8 +293,6 @@
         {/each}
       </select>
     </div>
-  {/if}
-  {#if interactionMode === "cluster"}
     <div class="legend-stats-section">
       <div class="legend-stats" aria-live="polite">
         <span aria-label="Progress: {progressText}">{progressText}</span>
@@ -353,7 +365,7 @@
         {/each}
       {/if}
     </div>
-  {:else if interactionMode === "composite"}
+  {:else if showCompositeLegend}
     {#if hasSyntheticClusters}
       <div class="synthetic-section">
         {#if selectedRegion}
