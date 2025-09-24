@@ -32,7 +32,11 @@
     <div class="controls-content" class:collapsed={isCollapsed}>
       <div class="controls-row">
         <div class="control-group overlay-group">
-          <OverlayControls {mapState} {landUseState} {labelRegionsState} />
+          <OverlayControls
+            {landUseState}
+            {labelRegionsState}
+            {segmentationState}
+          />
         </div>
         <div class="control-group interaction-group">
           <InteractionModeControls {mapState} />

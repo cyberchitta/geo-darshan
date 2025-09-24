@@ -17,6 +17,7 @@
   let geoRasterLayers = $state(new Map());
   let overlays = $state([]);
   let layersReady = $state(false);
+  let targetOpacity = $state(0.8);
 
   let listeners = $state({});
 
@@ -90,6 +91,15 @@
       if (totalFrames > 0) {
         currentFrame = 0;
         showFrame(0);
+      }
+    },
+    setOpacity: (opacity) => {
+      targetOpacity = Math.max(0, Math.min(1, opacity));
+      if (layersReady && geoRasterLayers.size > 0) {
+        geoRasterLayers.forEach((layer, index) => {
+          const layerOpacity = index === currentFrame ? targetOpacity : 0;
+          layer.setOpacity(layerOpacity);
+        });
       }
     },
     reset: () => {
@@ -230,12 +240,9 @@
       return;
     }
     try {
-      const currentOpacity = mapManager.currentOpacity || 0.8;
       geoRasterLayers.forEach((layer, index) => {
-        const opacity = index === frameIndex ? currentOpacity : 0;
-        if (layer.setOpacity) {
-          layer.setOpacity(opacity);
-        }
+        const opacity = index === frameIndex ? targetOpacity : 0;
+        layer.setOpacity(opacity);
       });
       updateCurrentFrame();
       console.log(
