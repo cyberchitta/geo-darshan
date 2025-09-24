@@ -100,11 +100,6 @@
   });
 
   $effect(() => {
-    console.log("🔍 LabelRegionsController effect triggered", {
-      hasComposite: !!compositeState?.georaster,
-      hasLayerGroup: !!layerGroup,
-      hasExistingLayer: !!interactiveLayer,
-    });
     if (compositeState?.georaster && layerGroup && !interactiveLayer) {
       createInteractiveSegmentation();
       createInteractiveLayer();

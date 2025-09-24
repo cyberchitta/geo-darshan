@@ -116,15 +116,8 @@
   });
 
   $effect(() => {
-    console.log("🔍 LandUseController effect triggered", {
-      hasComposite: !!compositeState?.georaster,
-      hasLayerGroup: !!layerGroup,
-      hasExistingLayer: !!landUseLayer,
-    });
     if (compositeState?.georaster && layerGroup && !landUseLayer) {
-      console.log("🔍 About to create land use layer");
       createLandUseLayer();
-      console.log("🔍 Land use layer created");
     }
   });
 

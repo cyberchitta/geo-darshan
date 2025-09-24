@@ -33,14 +33,6 @@
     },
   ]);
   $effect(() => {
-    console.log("🔍 Layer visibility debug:", {
-      segmentationVisible,
-      labelRegionsVisible,
-      clusterAvailable: segmentationVisible && !labelRegionsVisible,
-      compositeAvailable: labelRegionsVisible && !segmentationVisible,
-    });
-  });
-  $effect(() => {
     if (mapState?.setInteractionMode) {
       mapState.setInteractionMode(interactionMode);
     }
