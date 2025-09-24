@@ -450,6 +450,9 @@
     height: 100%;
   }
   .synthetic-section {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
     border-top: 2px solid #007cba;
     background: #f0f8ff;
   }
@@ -518,10 +521,11 @@
     border-bottom: 1px solid #bbb;
   }
   .synthetic-clusters-container {
-    padding: 12px;
-    background: #f0f8ff;
-    max-height: 300px;
+    flex: 1;
     overflow-y: auto;
+    padding: 12px;
+    min-height: 0;
+    background: #f0f8ff;
   }
   .legend-cluster-item.synthetic {
     background: #ffffff;
