@@ -1,7 +1,6 @@
 <script>
   import { SEGMENTATION_KEYS } from "../js/utils.js";
   import LandUseDropdown from "./LandUseDropdown.svelte";
-
   let { appState, clusterLabels, callbacks } = $props();
   const {
     onLabelChange,
@@ -11,17 +10,10 @@
   } = callbacks;
   let segmentationState = $derived(appState.segmentation);
   let dataState = $derived(appState.data);
+  let labelRegionsState = $derived(appState.labelRegions);
   let selectedCluster = $derived(appState.map?.selectedCluster);
   let selectedRegion = $derived(appState.map?.selectedRegion);
-  $effect(() => {
-    if (
-      selectedCluster &&
-      selectedCluster.segmentationKey === currentSegmentationKey
-    ) {
-      scrollToCluster(selectedCluster.clusterId);
-      highlightCluster(selectedCluster.clusterId);
-    }
-  });
+  let interactionMode = $derived(appState.map?.interactionMode || "view");
   let currentSegmentation = $derived(
     dataState.segmentations?.get(segmentationState.currentSegmentationKey)
   );
@@ -36,34 +28,62 @@
       ? clusterLabels[segmentationState.currentSegmentationKey]
       : {}
   );
+  let currentSegmentationKey = $derived(
+    segmentationState.currentSegmentationKey
+  );
+  let selectedSegmentationKey = $derived(currentSegmentationKey);
+  let hasSyntheticClusters = $derived(
+    labelRegionsState?.interactiveSegmentation != null
+  );
+  let syntheticSegmentation = $derived(
+    labelRegionsState?.interactiveSegmentation
+  );
+  let syntheticClusters = $derived(
+    syntheticSegmentation?.getAllClusters?.() || []
+  );
+  let syntheticClusterColors = $derived(
+    syntheticSegmentation?.getColors() || new Map()
+  );
+  let syntheticLabels = $derived(
+    clusterLabels[SEGMENTATION_KEYS.COMPOSITE] || {}
+  );
   let labeledCount = $derived(
     Object.keys(currentLabels).filter((id) => {
       const label = currentLabels[id];
       return label && label !== "unlabeled";
     }).length
   );
-  let currentSegmentationKey = $derived(
-    segmentationState.currentSegmentationKey
-  );
-  let selectedSegmentationKey = $derived(currentSegmentationKey);
   let totalCount = $derived(clusters.length);
   let progressText = $derived(
     `${labeledCount} of ${totalCount} clusters labeled`
   );
+  let syntheticLabeledCount = $derived(
+    Object.keys(syntheticLabels).filter((id) => {
+      const label = syntheticLabels[id];
+      return label && label !== "unlabeled";
+    }).length
+  );
+  let syntheticTotalCount = $derived(syntheticClusters.length);
+  let syntheticProgressText = $derived(
+    `${syntheticLabeledCount} of ${syntheticTotalCount} synthetic clusters labeled`
+  );
   let focusedClusterId = $state(null);
   let announcementText = $state("");
-  let isSyntheticSegmentation = $derived(
-    currentSegmentationKey === SEGMENTATION_KEYS.COMPOSITE
-  );
-
+  $effect(() => {
+    if (
+      selectedCluster &&
+      selectedCluster.segmentationKey === currentSegmentationKey
+    ) {
+      scrollToCluster(selectedCluster.clusterId);
+      highlightCluster(selectedCluster.clusterId);
+    }
+  });
   function handleRegionCommit(clusterId, selectedOption) {
     onRegionCommit?.(selectedOption.path);
   }
-
   function handleRegionCancel() {
     onRegionCancel?.();
   }
-
   function handleSegmentationChange(event) {
     const newSegmentationKey = event.target.value;
     const frameIndex = availableSegmentations.indexOf(newSegmentationKey);
@@ -71,11 +91,12 @@
       onSegmentationChange?.(frameIndex);
     }
   }
-
   function handleClusterClick(clusterId) {
     selectCluster(clusterId);
   }
-
+  function handleSyntheticClusterClick(clusterId) {
+    selectSyntheticCluster(clusterId);
+  }
   function handleClusterKeydown(event, clusterId) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -88,13 +109,16 @@
       navigateToNextCluster(clusterId, -1);
     }
   }
-
   function selectCluster(clusterId) {
     focusedClusterId = clusterId;
     console.log("Cluster selected:", clusterId);
     announceChange(`Selected cluster ${clusterId}`);
   }
-
+  function selectSyntheticCluster(clusterId) {
+    focusedClusterId = clusterId;
+    console.log("Synthetic cluster selected:", clusterId);
+    announceChange(`Selected synthetic cluster ${clusterId}`);
+  }
   function navigateToNextCluster(currentId, direction) {
     const currentIndex = clusters.findIndex((c) => c.id === currentId);
     const nextIndex = currentIndex + direction;
@@ -111,7 +135,6 @@
       }, 0);
     }
   }
-
   function scrollToCluster(clusterId) {
     const element = document.querySelector(`[data-cluster-id="${clusterId}"]`);
     if (element) {
@@ -122,7 +145,6 @@
       element.focus();
     }
   }
-
   function highlightCluster(clusterId) {
     document
       .querySelectorAll(".legend-cluster-item.highlighted")
@@ -135,7 +157,6 @@
       }, 3000);
     }
   }
-
   function handleLabelChange(clusterId, selectedOption) {
     console.log("Label changed:", clusterId, selectedOption.path);
     if (onLabelChange) {
@@ -147,16 +168,29 @@
         : selectedOption.displayPath.split(" > ").pop();
     announceChange(`Cluster ${clusterId} labeled as ${labelText}`);
   }
-
+  function handleSyntheticLabelChange(clusterId, selectedOption) {
+    console.log("Synthetic label changed:", clusterId, selectedOption.path);
+    if (onLabelChange) {
+      onLabelChange(
+        SEGMENTATION_KEYS.COMPOSITE,
+        clusterId,
+        selectedOption.path
+      );
+    }
+    const labelText =
+      selectedOption.path === "unlabeled"
+        ? "unlabeled"
+        : selectedOption.displayPath.split(" > ").pop();
+    announceChange(`Synthetic cluster ${clusterId} labeled as ${labelText}`);
+  }
   function announceChange(message) {
     announcementText = message;
     setTimeout(() => {
       announcementText = "";
     }, 1000);
   }
-
-  function getColorDescription(clusterId) {
-    const color = clusterColors.get(clusterId);
+  function getColorDescription(clusterId, colorMap) {
+    const color = colorMap.get(clusterId);
     if (!color) return "No color";
     const colorNames = {
       "rgb(255, 0, 0)": "red",
@@ -168,11 +202,9 @@
     };
     return colorNames[color] || `color ${color}`;
   }
-
   function saveLabels() {
     dataState?.exportLabels?.();
   }
-
   async function loadLabelsFromFile() {
     const input = document.createElement("input");
     input.type = "file";
@@ -190,7 +222,6 @@
     };
     input.click();
   }
-
   function clearAllLabels() {
     if (!confirm("Clear all cluster labels for ALL segmentations?")) return;
     dataState?.clearLabels?.();
@@ -214,11 +245,7 @@
       onchange={handleSegmentationChange}
     >
       {#each availableSegmentations as segKey}
-        <option value={segKey}>
-          {segKey === SEGMENTATION_KEYS.COMPOSITE
-            ? "Synthetic Clusters"
-            : segKey}
-        </option>
+        <option value={segKey}>{segKey}</option>
       {/each}
     </select>
   </div>
@@ -247,99 +274,170 @@
       </button>
     </div>
   </div>
-  <div class="legend-stats-section">
-    <div class="legend-stats" aria-live="polite">
-      <span aria-label="Progress: {progressText}">{progressText}</span>
-    </div>
-  </div>
-  {#if selectedRegion}
-    <div class="selected-region-panel">
-      <div class="region-header">
-        <h4>Selected Region</h4>
-        <span class="region-stats">{selectedRegion.pixelCount} pixels</span>
-      </div>
-      <div class="region-dropdown-container">
-        <LandUseDropdown
-          clusterId="temp-region"
-          currentSelection="unlabeled"
-          suggestions={selectedRegion.suggestions || []}
-          onSelectionChange={handleRegionCommit}
-        />
-      </div>
-      <div class="region-actions">
-        <button class="region-btn cancel" onclick={handleRegionCancel}
-          >Cancel</button
-        >
+  {#if interactionMode === "cluster"}
+    <div class="legend-stats-section">
+      <div class="legend-stats" aria-live="polite">
+        <span aria-label="Progress: {progressText}">{progressText}</span>
       </div>
     </div>
-  {/if}
-  <div
-    class="legend-clusters-container"
-    role="list"
-    aria-labelledby="clusters-list-title"
-  >
-    <span id="clusters-list-title" class="sr-only">
-      List of {totalCount} clusters. Use arrow keys to navigate, Enter or Space to
-      select.
-    </span>
-    {#if clusters.length === 0}
-      <div class="legend-placeholder" role="status">
-        Load cluster data to see legend
+    <div
+      class="legend-clusters-container"
+      role="list"
+      aria-labelledby="clusters-list-title"
+    >
+      <span id="clusters-list-title" class="sr-only">
+        List of {totalCount} clusters. Use arrow keys to navigate, Enter or Space
+        to select.
+      </span>
+      {#if clusters.length === 0}
+        <div class="legend-placeholder" role="status">
+          No clusters in current segmentation
+        </div>
+      {:else}
+        {#each clusters as cluster (cluster.id)}
+          {@const isSelected =
+            selectedCluster?.clusterId === cluster.id &&
+            selectedCluster?.segmentationKey === currentSegmentationKey}
+          {@const clusterSuggestions =
+            isSelected && appState.map?.clusterSuggestions
+              ? appState.map.clusterSuggestions
+              : []}
+          <button
+            class="legend-cluster-item"
+            class:labeled={currentLabels[cluster.id] &&
+              currentLabels[cluster.id] !== "unlabeled"}
+            class:focused={focusedClusterId === cluster.id}
+            data-cluster-id={cluster.id}
+            aria-labelledby="cluster-{cluster.id}-label"
+            aria-describedby="cluster-{cluster.id}-desc"
+            onclick={() => handleClusterClick(cluster.id)}
+            onkeydown={(e) => handleClusterKeydown(e, cluster.id)}
+          >
+            <div class="cluster-info">
+              <div
+                class="cluster-color-swatch"
+                style="background-color: {clusterColors.get(cluster.id) ||
+                  '#ccc'}"
+                aria-hidden="true"
+              ></div>
+              <span id="cluster-{cluster.id}-label" class="cluster-id">
+                Cluster {cluster.id}
+              </span>
+              <span class="cluster-stats"
+                >({cluster.pixelCount || 0} pixels)</span
+              >
+            </div>
+            <span id="cluster-{cluster.id}-desc" class="sr-only">
+              {getColorDescription(cluster.id, clusterColors)}, {cluster.pixelCount ||
+                0} pixels,
+              {currentLabels[cluster.id] === "unlabeled" ||
+              !currentLabels[cluster.id]
+                ? "not labeled"
+                : `labeled as ${currentLabels[cluster.id]}`}
+            </span>
+            <div class="cluster-dropdown-container">
+              <LandUseDropdown
+                clusterId={cluster.id}
+                currentSelection={currentLabels[cluster.id] || "unlabeled"}
+                suggestions={clusterSuggestions}
+                onSelectionChange={handleLabelChange}
+              />
+            </div>
+          </button>
+        {/each}
+      {/if}
+    </div>
+  {:else if interactionMode === "composite"}
+    {#if hasSyntheticClusters}
+      <div class="synthetic-section">
+        <div class="synthetic-header">
+          <h4>Region Labeling</h4>
+        </div>
+        {#if selectedRegion}
+          <div class="selected-region-panel">
+            <div class="region-header">
+              <h5>Selected Region</h5>
+              <span class="region-stats"
+                >{selectedRegion.pixelCount} pixels</span
+              >
+            </div>
+            <div class="region-dropdown-container">
+              <LandUseDropdown
+                clusterId="temp-region"
+                currentSelection="unlabeled"
+                suggestions={selectedRegion.suggestions || []}
+                onSelectionChange={handleRegionCommit}
+              />
+            </div>
+            <div class="region-actions">
+              <button class="region-btn cancel" onclick={handleRegionCancel}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        {/if}
+        <div class="synthetic-stats-section">
+          <div class="legend-stats" aria-live="polite">
+            <span aria-label="Synthetic progress: {syntheticProgressText}">
+              {syntheticProgressText}
+            </span>
+          </div>
+        </div>
+        <div class="synthetic-clusters-container" role="list">
+          {#if syntheticClusters.length === 0}
+            <div class="legend-placeholder" role="status">
+              {selectedRegion
+                ? "Select land use for region to create synthetic clusters"
+                : "Click unlabeled regions to create synthetic clusters"}
+            </div>
+          {:else}
+            {#each syntheticClusters as cluster (cluster.id)}
+              <button
+                class="legend-cluster-item synthetic"
+                class:labeled={syntheticLabels[cluster.id] &&
+                  syntheticLabels[cluster.id] !== "unlabeled"}
+                class:focused={focusedClusterId === cluster.id}
+                data-cluster-id="synthetic-{cluster.id}"
+                onclick={() => handleSyntheticClusterClick(cluster.id)}
+              >
+                <div class="cluster-info">
+                  <div
+                    class="cluster-color-swatch"
+                    style="background-color: {syntheticClusterColors.get(
+                      cluster.id
+                    ) || '#ccc'}"
+                    aria-hidden="true"
+                  ></div>
+                  <span class="cluster-id">
+                    Synthetic {cluster.id}
+                  </span>
+                  <span class="cluster-stats"
+                    >({cluster.pixelCount || 0} pixels)</span
+                  >
+                </div>
+                <div class="cluster-dropdown-container">
+                  <LandUseDropdown
+                    clusterId={cluster.id}
+                    currentSelection={syntheticLabels[cluster.id] ||
+                      "unlabeled"}
+                    onSelectionChange={handleSyntheticLabelChange}
+                  />
+                </div>
+              </button>
+            {/each}
+          {/if}
+        </div>
       </div>
     {:else}
-      {#each clusters as cluster (cluster.id)}
-        {@const isSelected =
-          selectedCluster?.clusterId === cluster.id &&
-          selectedCluster?.segmentationKey === currentSegmentationKey}
-        {@const shouldDisableDropdown = isSyntheticSegmentation && !isSelected}
-        {@const clusterSuggestions =
-          isSelected && appState.map?.clusterSuggestions
-            ? appState.map.clusterSuggestions
-            : []}
-        <button
-          class="legend-cluster-item"
-          class:labeled={currentLabels[cluster.id] &&
-            currentLabels[cluster.id] !== "unlabeled"}
-          class:focused={focusedClusterId === cluster.id}
-          data-cluster-id={cluster.id}
-          aria-labelledby="cluster-{cluster.id}-label"
-          aria-describedby="cluster-{cluster.id}-desc"
-          onclick={() => handleClusterClick(cluster.id)}
-          onkeydown={(e) => handleClusterKeydown(e, cluster.id)}
-        >
-          <div class="cluster-info">
-            <div
-              class="cluster-color-swatch"
-              style="background-color: {clusterColors.get(cluster.id) ||
-                '#ccc'}"
-              aria-hidden="true"
-            ></div>
-            <span id="cluster-{cluster.id}-label" class="cluster-id">
-              Cluster {cluster.id}
-            </span>
-            <span class="cluster-stats">({cluster.pixelCount || 0} pixels)</span
-            >
-          </div>
-          <span id="cluster-{cluster.id}-desc" class="sr-only">
-            {getColorDescription(cluster.id)}, {cluster.pixelCount || 0} pixels,
-            {currentLabels[cluster.id] === "unlabeled" ||
-            !currentLabels[cluster.id]
-              ? "not labeled"
-              : `labeled as ${currentLabels[cluster.id]}`}
-          </span>
-          <div class="cluster-dropdown-container">
-            <LandUseDropdown
-              clusterId={cluster.id}
-              currentSelection={currentLabels[cluster.id] || "unlabeled"}
-              suggestions={clusterSuggestions}
-              disabled={shouldDisableDropdown}
-              onSelectionChange={handleLabelChange}
-            />
-          </div>
-        </button>
-      {/each}
+      <div class="legend-placeholder" role="status">
+        Label regions to create synthetic clusters
+      </div>
     {/if}
-  </div>
+  {:else if interactionMode === "view"}
+    <div class="view-mode-message" role="status">
+      Enable labeling mode to interact with clusters.
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -348,21 +446,104 @@
     flex-direction: column;
     height: 100%;
   }
-
+  .synthetic-section {
+    border-top: 2px solid #007cba;
+    background: #f0f8ff;
+  }
+  .synthetic-header {
+    padding: 12px 16px;
+    background: #e3f2fd;
+    border-bottom: 1px solid #bbb;
+  }
+  .synthetic-header h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1976d2;
+  }
+  .selected-region-panel {
+    padding: 12px 16px;
+    background: #fff3e0;
+    border: 1px solid #ffb74d;
+    border-radius: 4px;
+    margin: 12px 16px;
+  }
+  .region-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .region-header h5 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #e65100;
+  }
+  .region-stats {
+    font-size: 12px;
+    color: #bf360c;
+    font-weight: 500;
+  }
+  .region-dropdown-container {
+    margin-bottom: 8px;
+  }
+  .region-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .region-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  .region-btn.cancel {
+    background: #f44336;
+    color: white;
+    border: 1px solid #f44336;
+  }
+  .region-btn.cancel:hover {
+    background: #d32f2f;
+    border-color: #d32f2f;
+  }
+  .synthetic-stats-section {
+    padding: 8px 16px;
+    background: #e8f4fd;
+    border-bottom: 1px solid #bbb;
+  }
+  .synthetic-clusters-container {
+    padding: 12px;
+    background: #f0f8ff;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  .legend-cluster-item.synthetic {
+    background: #ffffff;
+    border-color: #2196f3;
+  }
+  .legend-cluster-item.synthetic:hover {
+    background: #e3f2fd;
+    border-color: #1976d2;
+  }
+  .legend-cluster-item.synthetic.labeled {
+    background: #f8f9fa;
+    opacity: 0.8;
+  }
   .legend-header {
     flex-shrink: 0;
     padding: 16px;
     border-bottom: 1px solid #eee;
     background: #f8f9fa;
   }
-
   .legend-header h3 {
     margin: 0;
     font-size: 18px;
     font-weight: 600;
     color: #222;
   }
-
   .segmentation-selector {
     padding: 12px 16px;
     border-bottom: 1px solid #eee;
@@ -371,7 +552,6 @@
     flex-direction: column;
     gap: 6px;
   }
-
   .segmentation-selector label {
     font-size: 12px;
     font-weight: 600;
@@ -379,7 +559,6 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
-
   .segmentation-dropdown {
     padding: 8px 12px;
     border: 1px solid #ddd;
@@ -390,31 +569,26 @@
     cursor: pointer;
     transition: all 0.2s ease;
   }
-
   .segmentation-dropdown:hover {
     border-color: #007cba;
     box-shadow: 0 0 0 2px rgba(0, 124, 186, 0.1);
   }
-
   .segmentation-dropdown:focus {
     outline: none;
     border-color: #007cba;
     box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.2);
   }
-
   .label-management-controls {
     padding: 12px 16px;
     border-bottom: 1px solid #eee;
     background: #fafafa;
   }
-
   .label-controls-row {
     display: flex;
     gap: 8px;
     margin-bottom: 8px;
     flex-wrap: wrap;
   }
-
   .label-btn {
     padding: 8px 12px;
     font-size: 14px;
@@ -428,47 +602,39 @@
     font-weight: 500;
     transition: all 0.2s ease;
   }
-
   .label-btn:hover {
     background: #0056b3;
     border-color: #0056b3;
   }
-
   .label-btn:focus {
     outline: 2px solid #007bff;
     outline-offset: 2px;
   }
-
   .label-btn.secondary {
     background: #6c757d;
     border-color: #6c757d;
   }
-
   .label-btn.secondary:hover {
     background: #5a6268;
     border-color: #545b62;
   }
-
   .legend-stats-section {
     padding: 8px 16px;
     background: #f8f9fa;
     border-bottom: 1px solid #eee;
   }
-
   .legend-stats {
     color: #666;
     font-size: 13px;
     font-weight: 500;
     text-align: center;
   }
-
   .legend-clusters-container {
     flex: 1;
     overflow-y: auto;
     padding: 12px;
     min-height: 0;
   }
-
   .legend-placeholder {
     text-align: center;
     color: #555;
@@ -477,7 +643,17 @@
     font-size: 14px;
     line-height: 1.5;
   }
-
+  .view-mode-message {
+    text-align: center;
+    color: #555;
+    font-style: italic;
+    margin-top: 50px;
+    font-size: 14px;
+    line-height: 1.5;
+    background: #f8f9fa;
+    border-radius: 4px;
+    padding: 16px;
+  }
   .legend-cluster-item {
     margin-bottom: 14px;
     padding: 12px;
@@ -487,57 +663,51 @@
     border-radius: 6px;
     background: #fafafa;
     position: relative;
+    display: block;
+    width: 100%;
+    text-align: left;
   }
-
   .legend-cluster-item.highlighted {
     background-color: #ffeb3b !important;
     border: 2px solid #ff9800 !important;
     box-shadow: 0 0 10px rgba(255, 152, 0, 0.5);
     transition: all 0.3s ease;
   }
-
   .legend-cluster-item:hover {
     background: #f0f8ff;
     border-color: rgba(0, 123, 255, 0.3);
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
-
   .legend-cluster-item:focus {
     outline: 2px solid #007bff;
     outline-offset: 2px;
   }
-
   .legend-cluster-item.focused {
     background: rgba(0, 123, 255, 0.1);
     border-color: #007bff;
     box-shadow: 0 2px 8px rgba(0, 123, 255, 0.25);
     transform: translateY(-1px);
   }
-
   .legend-cluster-item.labeled {
     background: #f8f9fa;
     border-color: #dee2e6;
     opacity: 0.7;
   }
-
   .legend-cluster-item.labeled .cluster-color-swatch {
     opacity: 0.6;
     filter: grayscale(20%);
   }
-
   .legend-cluster-item.labeled .cluster-id,
   .legend-cluster-item.labeled .cluster-stats {
     color: #6c757d;
   }
-
   .cluster-info {
     display: flex;
     align-items: center;
     margin-bottom: 10px;
     gap: 10px;
   }
-
   .cluster-color-swatch {
     width: 18px;
     height: 18px;
@@ -545,24 +715,20 @@
     border: 1px solid #bbb;
     flex-shrink: 0;
   }
-
   .cluster-id {
     font-weight: 600;
     font-size: 14px;
     color: #222;
   }
-
   .cluster-stats {
     color: #333;
     font-size: 14px;
     margin-left: auto;
     font-weight: 500;
   }
-
   .cluster-dropdown-container {
     margin-bottom: 6px;
   }
-
   .sr-only {
     position: absolute;
     width: 1px;
@@ -574,42 +740,34 @@
     white-space: nowrap;
     border: 0;
   }
-
   /* Responsive design */
   @media (max-width: 900px) {
     .segmentation-selector {
       padding: 8px 12px;
     }
-
     .legend-header {
       padding: 12px;
     }
-
     .label-controls-row {
       flex-direction: column;
     }
-
     .label-btn {
       flex: none;
       width: 100%;
     }
   }
-
   /* High contrast mode support */
   @media (prefers-contrast: high) {
     .legend-cluster-item {
       border: 2px solid #000;
     }
-
     .segmentation-dropdown {
       border: 2px solid #000;
     }
-
     .label-btn {
       border: 2px solid;
     }
   }
-
   /* Reduced motion support */
   @media (prefers-reduced-motion: reduce) {
     .legend-cluster-item,
@@ -617,7 +775,6 @@
     .label-btn {
       transition: none;
     }
-
     .legend-cluster-item:hover {
       transform: none;
     }
