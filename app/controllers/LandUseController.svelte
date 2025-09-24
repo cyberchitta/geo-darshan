@@ -8,10 +8,14 @@
   let layerGroup = $state(null);
   let hierarchyLevel = $state(1);
   let landUseColorCache = $state(new Map());
+  let isLayerVisible = $state(false);
 
   const stateObject = {
     get hierarchyLevel() {
       return hierarchyLevel;
+    },
+    get hasActiveLayer() {
+      return landUseLayer && isLayerVisible;
     },
     setHierarchyLevel: (level) => {
       if (level >= 1 && level <= 4 && level !== hierarchyLevel) {
@@ -28,7 +32,6 @@
     getStats: () => {
       if (!compositeState?.georaster)
         return { totalLabels: 0, isVisible: false };
-
       const isVisible = layerGroup && mapManager.map.hasLayer(layerGroup);
       const compositeSegmentation = dataState.segmentations?.get(
         SEGMENTATION_KEYS.COMPOSITE
@@ -37,7 +40,6 @@
       const labeledClusters = clusters.filter(
         (c) => c.landUsePath !== "unlabeled"
       );
-
       return {
         totalLabels: labeledClusters.length,
         isVisible,
@@ -47,44 +49,35 @@
     exportLandCoverFiles: async () => {
       try {
         console.log("Starting land cover export from LandUseController...");
-
         if (!window.LandUseHierarchy?.isLoaded()) {
           throw new Error("Land use hierarchy not loaded");
         }
-
         if (!compositeState?.georaster) {
           throw new Error("No composite data available for export");
         }
-
         const hierarchy = window.LandUseHierarchy.getInstance();
         const compositeSegmentation = dataState.segmentations?.get(
           SEGMENTATION_KEYS.COMPOSITE
         );
-
         if (!compositeSegmentation) {
           throw new Error("No composite segmentation available");
         }
-
-        // Create mapper with current hierarchy level
         const mapper = new LandUseMapper(
           hierarchy,
           compositeState.georaster,
-          null, // segmentationMap not needed for new architecture
+          null,
           compositeSegmentation,
           dataState.clusterLabels,
           hierarchyLevel
         );
-
         const pixelMapping = mapper.generatePixelMapping();
         const colorMapping = LandUseMapper.createColorMapping(
           pixelMapping,
           hierarchy,
           hierarchyLevel
         );
-
         const geotiffBlob = await generateCompositeGeotiff(mapper);
         await downloadLandCoverFiles(pixelMapping, colorMapping, geotiffBlob);
-
         console.log("✅ Land cover export complete");
       } catch (error) {
         console.error("Export failed:", error);
@@ -101,6 +94,15 @@
     if (mapManager && mapManager.map && mapManager.layerControl) {
       layerGroup = L.layerGroup();
       mapManager.addOverlayLayer("Land Use", layerGroup, false);
+      layerGroup.on("add", () => {
+        isLayerVisible = true;
+        console.log("Land Use layer visible");
+      });
+      layerGroup.on("remove", () => {
+        isLayerVisible = false;
+        console.log("Land Use layer hidden");
+      });
+      isLayerVisible = mapManager.map.hasLayer(layerGroup);
     }
     return () => {
       if (landUseLayer && layerGroup) {

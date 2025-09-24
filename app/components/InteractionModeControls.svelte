@@ -2,30 +2,53 @@
   let { mapState } = $props();
   let interactionMode = $state("view");
 
-  const modes = [
+  let segmentationVisible = $derived(
+    mapState?.segmentationLayerVisible ?? false
+  );
+  let labelRegionsVisible = $derived(
+    mapState?.labelRegionsLayerVisible ?? false
+  );
+
+  const modes = $derived([
     {
       id: "view",
       label: "View Only",
       icon: "👁️",
       desc: "Navigate map without interactions",
+      available: true,
     },
     {
       id: "cluster",
       label: "Label Clusters",
       icon: "🎯",
       desc: "Click to label clusters",
+      available: segmentationVisible && !labelRegionsVisible,
     },
     {
       id: "composite",
       label: "Label Regions",
       icon: "🏷️",
       desc: "Click to label contiguous regions",
+      available: labelRegionsVisible && !segmentationVisible,
     },
-  ];
-
+  ]);
+  $effect(() => {
+    console.log("🔍 Layer visibility debug:", {
+      segmentationVisible,
+      labelRegionsVisible,
+      clusterAvailable: segmentationVisible && !labelRegionsVisible,
+      compositeAvailable: labelRegionsVisible && !segmentationVisible,
+    });
+  });
   $effect(() => {
     if (mapState?.setInteractionMode) {
       mapState.setInteractionMode(interactionMode);
+    }
+  });
+  $effect(() => {
+    const currentMode = modes.find((mode) => mode.id === interactionMode);
+    if (!currentMode?.available) {
+      handleModeChange("view");
     }
   });
 
@@ -59,17 +82,23 @@
       <button
         class="mode-btn"
         class:active={interactionMode === mode.id}
-        onclick={() => handleModeChange(mode.id)}
-        onkeydown={(e) => handleKeydown(e, mode.id)}
+        class:disabled={!mode.available}
+        disabled={!mode.available}
+        onclick={() => mode.available && handleModeChange(mode.id)}
+        onkeydown={(e) => mode.available && handleKeydown(e, mode.id)}
         role="radio"
         aria-checked={interactionMode === mode.id}
         aria-describedby="mode-{mode.id}-desc"
-        title={mode.desc}
+        title={mode.available
+          ? mode.desc
+          : `${mode.desc} (requires specific layer combination)`}
       >
         <span class="mode-icon" aria-hidden="true">{mode.icon}</span>
         <span class="mode-label">{mode.label}</span>
       </button>
-      <span id="mode-{mode.id}-desc" class="sr-only">{mode.desc}</span>
+      <span id="mode-{mode.id}-desc" class="sr-only">
+        {mode.available ? mode.desc : `${mode.desc} - currently unavailable`}
+      </span>
     {/each}
   </div>
 </div>
@@ -112,7 +141,7 @@
     font-size: 10px;
   }
 
-  .mode-btn:hover {
+  .mode-btn:hover:not(.disabled) {
     background: #f5f5f5;
     border-color: #999;
   }
@@ -123,7 +152,15 @@
     color: white;
   }
 
-  .mode-btn:focus {
+  .mode-btn.disabled {
+    background: #f8f9fa;
+    border-color: #e9ecef;
+    color: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .mode-btn:focus:not(.disabled) {
     outline: 2px solid #007bff;
     outline-offset: 2px;
   }

@@ -4,11 +4,8 @@ class MapManager {
   constructor(containerId, rasterHandler) {
     this.containerId = containerId;
     this.map = null;
-    this.overlays = [];
-    this.currentOverlay = null;
     this.currentOpacity = 0.8;
     this.baseLayers = {};
-    this.geoRasterLayers = new Map();
     this.dataLoader = null;
     this.rasterHandler = rasterHandler;
     this.listeners = {};
@@ -65,28 +62,23 @@ class MapManager {
     }
   }
 
-  async createGeoRasterLayer(overlayData) {
-    const { georaster } = overlayData;
-    const segmentationKey = overlayData.segmentationKey;
-    const layer = this.rasterHandler.createMapLayer(georaster, {
-      opacity: 0,
-      resolution: this.getOptimalResolution(georaster),
-      pixelValuesToColorFn: (values) =>
-        this.convertPixelsToColor(values, overlayData, this.interactionMode),
-      zIndex: 1000,
-    });
-    layer._segmentationKey = segmentationKey;
-    layer._bounds = georaster.bounds;
-    return layer;
+  setDataLoader(dataLoader) {
+    this.dataLoader = dataLoader;
+    console.log(`MapManager dataLoader set: ${!!dataLoader}`);
   }
 
-  convertPixelsToColor(values, overlayData, interactionMode) {
+  convertPixelsToColor(
+    values,
+    overlayData,
+    interactionMode,
+    currentSegmentationKey
+  ) {
     if (!values || values.some((v) => v === null || v === undefined)) {
       return null;
     }
     if (values.length === 1) {
       const pixelValue = values[0];
-      const segmentationKey = overlayData.segmentationKey;
+      const segmentationKey = currentSegmentationKey;
       if (segmentationKey === SEGMENTATION_KEYS.COMPOSITE) {
         return this.convertCompositePixelsToColor(pixelValue, interactionMode);
       }
@@ -197,169 +189,12 @@ class MapManager {
 
   setOverlayOpacity(opacity) {
     this.currentOpacity = Math.max(0, Math.min(1, opacity));
-    if (this.currentOverlay && this.currentOverlay.setOpacity) {
-      this.currentOverlay.setOpacity(this.currentOpacity);
-    }
-    this.geoRasterLayers.forEach((layer) => {
-      if (layer && layer.setOpacity) {
-        layer.setOpacity(
-          layer === this.currentOverlay ? this.currentOpacity : 0
-        );
-      }
-    });
     this.emit("globalOpacityChanged", this.currentOpacity);
     console.log(`Global layer opacity set to ${this.currentOpacity}`);
   }
 
-  setDataLoader(dataLoader) {
-    this.dataLoader = dataLoader;
-  }
-
-  async setOverlays(overlays) {
-    this.overlays = overlays;
-    this.geoRasterLayers.clear();
-    this.animationLayerControlName = "Segmentations";
-    await this.preprocessOverlays().catch((error) => {
-      console.error("Preprocessing failed:", error);
-    });
-  }
-
   setLabeledLayer(labeledLayer) {
     this.labeledLayer = labeledLayer;
-  }
-
-  async addOverlay(overlayData) {
-    try {
-      console.log(`Adding overlay: ${overlayData.segmentationKey}`);
-      const geoRasterLayer = await this.createGeoRasterLayer(overlayData);
-      geoRasterLayer.addTo(this.map);
-      if (this.animationLayerGroup) {
-        this.animationLayerGroup.addLayer(geoRasterLayer);
-      }
-      geoRasterLayer.setOpacity(0);
-      this.overlays.push(overlayData);
-      const frameIndex = this.overlays.length - 1;
-      this.geoRasterLayers.set(frameIndex, geoRasterLayer);
-      console.log(
-        `✅ Added overlay: ${overlayData.segmentationKey} at index ${frameIndex}`
-      );
-      return frameIndex;
-    } catch (error) {
-      console.error(
-        `Failed to add overlay ${overlayData.segmentationKey}:`,
-        error
-      );
-      throw error;
-    }
-  }
-
-  removeOverlay(segmentationKey) {
-    const overlayIndex = this.overlays.findIndex(
-      (overlay) => overlay.segmentationKey === segmentationKey
-    );
-    if (overlayIndex >= 0) {
-      const layer = this.geoRasterLayers.get(overlayIndex);
-      if (layer) {
-        if (this.map.hasLayer(layer)) {
-          this.map.removeLayer(layer);
-        }
-        if (
-          this.animationLayerGroup &&
-          this.animationLayerGroup.hasLayer(layer)
-        ) {
-          this.animationLayerGroup.removeLayer(layer);
-        }
-      }
-      this.overlays.splice(overlayIndex, 1);
-      this.geoRasterLayers.delete(overlayIndex);
-      const remainingLayers = new Map();
-      for (let i = overlayIndex; i < this.overlays.length; i++) {
-        const layer = this.geoRasterLayers.get(i + 1);
-        if (layer) {
-          remainingLayers.set(i, layer);
-        }
-      }
-      for (const [index, layer] of remainingLayers) {
-        this.geoRasterLayers.delete(index + 1);
-        this.geoRasterLayers.set(index, layer);
-      }
-      console.log(
-        `✅ Removed overlay: ${segmentationKey} from index ${overlayIndex}`
-      );
-    }
-  }
-
-  async preprocessOverlays() {
-    if (!this.overlays || this.overlays.length === 0) {
-      console.warn("No overlays to preprocess");
-      return;
-    }
-    console.log("Preprocessing georaster layers...");
-    this.geoRasterLayers.clear();
-    this.animationLayerGroup = L.layerGroup();
-    for (let i = 0; i < this.overlays.length; i++) {
-      const overlayData = this.overlays[i];
-      try {
-        console.log(
-          `Loading ${overlayData.filename} (${overlayData.segmentationKey})...`
-        );
-        const geoRasterLayer = await this.createGeoRasterLayer(overlayData);
-        geoRasterLayer.addTo(this.map);
-        this.animationLayerGroup.addLayer(geoRasterLayer);
-        geoRasterLayer.setOpacity(0);
-        this.geoRasterLayers.set(i, geoRasterLayer);
-        console.log(
-          `✅ Preprocessed and added layer ${i + 1}/${this.overlays.length}`
-        );
-        if (i === 0) {
-          this.emit("firstLayerReady");
-        }
-      } catch (error) {
-        console.error(`Failed to preprocess layer ${i}:`, error);
-        throw error;
-      }
-    }
-    this.addOverlayLayer(
-      this.animationLayerControlName,
-      this.animationLayerGroup,
-      true
-    );
-    console.log("✅ Cluster animation layer added to layer control");
-    console.log("✅ All layer preprocessing complete");
-  }
-
-  getOptimalResolution(georaster) {
-    const totalPixels = georaster.width * georaster.height;
-    if (totalPixels > 100_000_000) return 128;
-    if (totalPixels > 25_000_000) return 256;
-    return 512;
-  }
-
-  showFrame(frameIndex) {
-    if (!this.overlays || this.overlays.length === 0) {
-      console.warn("No overlays loaded yet, cannot show frame");
-      return;
-    }
-    if (frameIndex < 0 || frameIndex >= this.overlays.length) {
-      console.warn(
-        `Invalid frame index: ${frameIndex}, available: 0-${this.overlays.length - 1}`
-      );
-      return;
-    }
-    try {
-      this.geoRasterLayers.forEach((layer, index) => {
-        const opacity = index === frameIndex ? this.currentOpacity : 0;
-        if (layer.setOpacity) {
-          layer.setOpacity(opacity);
-        }
-      });
-      this.currentOverlay = this.geoRasterLayers.get(frameIndex);
-      console.log(
-        `✅ Displayed frame ${frameIndex} (${this.overlays[frameIndex].segmentationKey})`
-      );
-    } catch (error) {
-      console.error(`Failed to show frame ${frameIndex}:`, error);
-    }
   }
 
   fitBounds(bounds) {
@@ -402,35 +237,7 @@ class MapManager {
     return [center.lat, center.lng];
   }
 
-  preloadFrames(startIndex = 0, count = 3) {
-    const endIndex = Math.min(startIndex + count, this.overlays.length);
-    for (let i = startIndex; i < endIndex; i++) {
-      if (!this.geoRasterLayers.has(i)) {
-        const overlayData = this.overlays[i];
-        this.createGeoRasterLayer(overlayData)
-          .then((layer) => {
-            this.geoRasterLayers.set(i, layer);
-            console.log(`Preloaded frame ${i}`);
-          })
-          .catch((error) => {
-            console.error(`Failed to preload frame ${i}:`, error);
-          });
-      }
-    }
-  }
-
-  clearOverlays() {
-    if (this.currentOverlay) {
-      this.map.removeLayer(this.currentOverlay);
-      this.currentOverlay = null;
-    }
-    this.overlays = [];
-    this.geoRasterLayers.clear();
-    console.log("Cleared all overlays");
-  }
-
   destroy() {
-    this.clearOverlays();
     if (this.map) {
       this.map.remove();
       this.map = null;
@@ -440,25 +247,11 @@ class MapManager {
 
   getOverlayInfo() {
     return {
-      totalOverlays: this.overlays.length,
-      cachedLayers: this.geoRasterLayers.size,
       currentOpacity: this.currentOpacity,
-      hasCurrentOverlay: !!this.currentOverlay,
       mapZoom: this.getCurrentZoom(),
       mapCenter: this.getCurrentCenter(),
       mapBounds: this.getCurrentBounds(),
     };
-  }
-
-  measureFrameSwitch(frameIndex) {
-    const startTime = performance.now();
-    this.showFrame(frameIndex);
-    const endTime = performance.now();
-    const switchTime = endTime - startTime;
-    console.log(
-      `Frame switch to ${frameIndex} took ${switchTime.toFixed(2)}ms`
-    );
-    return switchTime;
   }
 
   setupMapClickHandler() {
@@ -476,54 +269,9 @@ class MapManager {
     if (this.interactionMode === "view") {
       return;
     } else if (this.interactionMode === "composite") {
-      this.handleCompositeLabeling(latlng);
+      this.emit("compositeClick", latlng);
     } else if (this.interactionMode === "cluster") {
-      if (!this.currentOverlay || !this.currentOverlay.georasters[0]) {
-        console.log("No active overlay to sample");
-        return;
-      }
-      try {
-        const clusterValue = await this.samplePixelAtCoordinate(latlng);
-        if (
-          clusterValue !== null &&
-          clusterValue !== undefined &&
-          clusterValue >= 0
-        ) {
-          this.emit("clusterClicked", clusterValue, latlng);
-        } else {
-          this.emit("backgroundClicked", latlng);
-        }
-      } catch (error) {
-        console.error("Failed to sample pixel at click:", error);
-      }
-    }
-  }
-
-  handleCompositeLabeling(latlng) {
-    this.emit("compositeClick", latlng);
-  }
-
-  async samplePixelAtCoordinate(latlng) {
-    const georaster = this.currentOverlay.georasters[0];
-    console.log("Sampling pixel at:", latlng.lat, latlng.lng);
-    const x = (latlng.lng - georaster.xmin) / georaster.pixelWidth;
-    const y = (georaster.ymax - latlng.lat) / georaster.pixelHeight;
-    console.log("Pixel coordinates:", x, y);
-    console.log("Georaster size:", georaster.width, georaster.height);
-    if (x < 0 || x >= georaster.width || y < 0 || y >= georaster.height) {
-      console.log("Click outside raster bounds");
-      return null;
-    }
-    const pixelX = Math.floor(x);
-    const pixelY = Math.floor(y);
-    console.log("Array indices:", pixelX, pixelY);
-    try {
-      const pixelValue = georaster.values[0][pixelY][pixelX];
-      console.log("Sampled pixel value:", pixelValue);
-      return pixelValue;
-    } catch (error) {
-      console.error("Error accessing pixel value:", error);
-      return null;
+      this.emit("clusterInteraction", latlng);
     }
   }
 
@@ -561,11 +309,6 @@ class MapManager {
       delete this.overlayLayers[name];
       console.log(`Removed overlay layer: ${name}`);
     }
-  }
-
-  updateAllLayersWithNewLabels(allLabels) {
-    this.allClusterLabels = allLabels;
-    console.log("🎨 All animation layers updated with new labels");
   }
 }
 

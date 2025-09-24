@@ -65,6 +65,8 @@
     console.log("=== COORDINATING DATA LOADING ===");
     const allSegmentationKeys = manifest.segmentation_keys;
     const allOverlays = overlays;
+    mapState?.mapManager?.setDataLoader?.(dataState.dataIO);
+    mapState?.mapManager?.fitBounds?.(manifest.metadata.bounds);
     segmentationState.setFrames?.(allSegmentationKeys, allOverlays);
     hideLoading();
     console.log("✅ Data loading coordination complete");
@@ -123,7 +125,10 @@
 </script>
 
 <DataController bind:this={dataController} />
-<SegmentationController bind:this={segmentationController} />
+<SegmentationController
+  bind:this={segmentationController}
+  mapManager={mapState?.mapManager}
+/>
 
 {#if dataState?.dataIO}
   <MapController
