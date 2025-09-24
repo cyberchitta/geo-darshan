@@ -28,9 +28,7 @@
   let clusters = $derived(currentSegmentation?.getAllClusters?.() || []);
   let clusterColors = $derived(currentSegmentation?.getColors() || new Map());
   let availableSegmentations = $derived(
-    dataState.manifest
-      ? [...dataState.manifest.segmentation_keys, SEGMENTATION_KEYS.COMPOSITE]
-      : []
+    dataState.manifest ? dataState.manifest.segmentation_keys : []
   );
   let currentLabels = $derived(
     segmentationState.currentSegmentationKey &&

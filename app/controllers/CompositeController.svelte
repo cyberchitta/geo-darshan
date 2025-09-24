@@ -1,13 +1,16 @@
 <script>
   import { LandUseHierarchy } from "../js/land-use.js";
 
-  let { clusterLabels = {}, dataState, mapManager, dataLoader } = $props();
+  let { clusterLabels = {}, dataState, segmentationController } = $props();
   let hasSegmentations = $derived(dataState?.segmentations?.size > 0);
   let lastProcessedUserVersion = $state(-1);
   let shouldRegenerateComposite = $derived(
     hasSegmentations && dataState.userLabelsVersion > lastProcessedUserVersion
   );
   let compositeState = $state(null);
+  let currentSegmentationKey = $derived(
+    segmentationController?.getState()?.currentSegmentationKey
+  );
 
   const stateObject = {
     get compositeState() {
@@ -21,13 +24,11 @@
 
   $effect(async () => {
     if (!shouldRegenerateComposite) return;
-
     try {
       if (!LandUseHierarchy.isLoaded()) {
         console.log("Waiting for LandUseHierarchy to load...");
         return;
       }
-
       const allLabelsMap = new Map();
       Object.entries(clusterLabels).forEach(([segKey, labels]) => {
         const labelMap = new Map();
@@ -36,17 +37,13 @@
         });
         allLabelsMap.set(segKey, labelMap);
       });
-
-      const fineGrainSegmentationKey = "k88_s42";
       const compositeResult = await generateComposite(
         dataState.segmentations,
         allLabelsMap,
-        fineGrainSegmentationKey
+        currentSegmentationKey
       );
-
       compositeState = compositeResult;
       lastProcessedUserVersion = dataState.userLabelsVersion;
-
       console.log("✅ Composite data generated, ready for other controllers");
     } catch (error) {
       console.error("Failed to generate composite:", error);
@@ -69,7 +66,7 @@
       segmentations,
       allLabels,
       { priority: "highest_k", requireLabeled: true, fallbackToLower: true },
-      fineGrainSegmentationKey
+      currentSegmentationKey
     );
 
     const compositeGeoRaster = {

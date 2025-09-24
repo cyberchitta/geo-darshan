@@ -63,11 +63,8 @@
 
   function coordinateDataLoading(manifest, overlays) {
     console.log("=== COORDINATING DATA LOADING ===");
-    const allSegmentationKeys = [
-      ...manifest.segmentation_keys,
-      SEGMENTATION_KEYS.COMPOSITE,
-    ];
-    const allOverlays = [...overlays, null];
+    const allSegmentationKeys = manifest.segmentation_keys;
+    const allOverlays = overlays;
     segmentationState.setFrames?.(allSegmentationKeys, allOverlays);
     hideLoading();
     console.log("✅ Data loading coordination complete");
@@ -143,8 +140,7 @@
     bind:this={compositeController}
     clusterLabels={dataLabels}
     {dataState}
-    mapManager={mapState.mapManager}
-    dataLoader={dataState.dataIO}
+    {segmentationController}
   />
 {/if}
 
