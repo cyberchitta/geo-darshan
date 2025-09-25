@@ -19,13 +19,6 @@
     manifest ? `Shape: ${manifest.metadata.shape.join(" × ")}` : ""
   );
   let aoiName = $derived(dataState?.aoiName || "");
-  $effect(() => {
-    if (dataState) {
-      dataState.on("aoiLoaded", (name) => {
-        console.log(`AOI loaded: ${name}`);
-      });
-    }
-  });
 
   function selectFolder() {
     fileInput.click();

@@ -143,7 +143,6 @@
         );
       }
       aoiName = rootDir;
-      emit("aoiLoaded", rootDir);
       console.log("DataController: Starting folder load...");
       isLoading = true;
       error = null;
@@ -152,7 +151,6 @@
       console.error("Failed to load from folder:", err);
       error = err.message;
       isLoading = false;
-      emit("loadError", err);
     }
   }
 
