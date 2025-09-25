@@ -5,6 +5,7 @@
   import { Cluster } from "../js/cluster.js";
 
   let {} = $props();
+  let aoiName = $state("");
   let dataIO = $state(null);
   let isLoading = $state(false);
   let error = $state(null);
@@ -15,6 +16,9 @@
   let overlayMap = $state(new Map()); // segmentationKey -> overlay
 
   const stateObject = {
+    get aoiName() {
+      return aoiName;
+    },
     get dataIO() {
       return dataIO;
     },
@@ -117,15 +121,39 @@
     console.log(`DataController: Loading progress ${current}/${total}`);
   }
 
-  function loadFromFolder(files) {
-    if (!dataIO) {
-      error = "Data dataIO not initialized";
-      return;
+  async function loadFromFolder(files) {
+    try {
+      if (!dataIO) {
+        error = "Data dataIO not initialized";
+        return;
+      }
+      const loadFiles = Array.from(files);
+      if (loadFiles.length === 0) throw new Error("No files selected");
+      const firstFile = loadFiles[0];
+      const rootDir = firstFile.webkitRelativePath
+        ? firstFile.webkitRelativePath.split("/")[0]
+        : "unknown-aoi";
+      const intermediatesPrefix = `${rootDir}/intermediates/`;
+      const filteredFiles = loadFiles.filter((f) =>
+        f.webkitRelativePath.startsWith(intermediatesPrefix)
+      );
+      if (filteredFiles.length === 0) {
+        throw new Error(
+          `No files in ${rootDir}/intermediates/ subfolder—ensure AOI structure is correct`
+        );
+      }
+      aoiName = rootDir;
+      emit("aoiLoaded", rootDir);
+      console.log("DataController: Starting folder load...");
+      isLoading = true;
+      error = null;
+      dataIO.loadFromFolder(filteredFiles);
+    } catch (err) {
+      console.error("Failed to load from folder:", err);
+      error = err.message;
+      isLoading = false;
+      emit("loadError", err);
     }
-    console.log("DataController: Starting folder load...");
-    isLoading = true;
-    error = null;
-    dataIO.loadFromFolder(files);
   }
 
   function setClusterLabel(segmentationKey, clusterId, landUsePath) {

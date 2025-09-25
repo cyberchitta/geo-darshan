@@ -18,6 +18,14 @@
   let dataShape = $derived(
     manifest ? `Shape: ${manifest.metadata.shape.join(" × ")}` : ""
   );
+  let aoiName = $derived(dataState?.aoiName || "");
+  $effect(() => {
+    if (dataState) {
+      dataState.on("aoiLoaded", (name) => {
+        console.log(`AOI loaded: ${name}`);
+      });
+    }
+  });
 
   function selectFolder() {
     fileInput.click();
@@ -97,6 +105,7 @@
 
     {#if !isDatasetInfoCollapsed}
       <div class="dataset-info-content" id="dataset-info-content">
+        <div class="info-item">AOI: {aoiName}</div>
         <div class="info-item">{dataStatus}</div>
         {#if dataBounds}<div class="info-item">{dataBounds}</div>{/if}
         {#if dataShape}<div class="info-item">{dataShape}</div>{/if}
