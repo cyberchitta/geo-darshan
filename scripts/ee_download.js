@@ -30,6 +30,7 @@ Export.image.toDrive({
   fileNamePrefix: exportFilename,
   scale: 1000, // AlphaEarth embeddings are at 10m resolution
   region: aoi.geometry(),
+  crs: "EPSG:4326",
   fileFormat: "GeoTIFF",
 });
 
