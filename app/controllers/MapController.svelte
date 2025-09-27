@@ -1,7 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { SEGMENTATION_KEYS } from "../js/utils.js";
-  import { MapManager } from "../js/map.js";
+  import { MapManager } from "../js/map-manager.js";
   import { LandUseHierarchy } from "../js/land-use.js";
 
   let {
