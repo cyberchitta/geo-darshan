@@ -297,42 +297,6 @@ class DataIO {
     }
   }
 
-  async exportLandCoverFiles(labeledLayer) {
-    try {
-      console.log("Starting land cover export...");
-      if (!window.LandUseHierarchy?.isLoaded()) {
-        throw new Error("Land use hierarchy not loaded");
-      }
-      const hierarchy = window.LandUseHierarchy.getInstance();
-      const hierarchyLevel = labeledLayer.getHierarchyLevel();
-      const { LandUseMapper } = await import("./land-use.js");
-      const mapper = new LandUseMapper(
-        hierarchy,
-        labeledLayer.compositeLayer.georasters[0],
-        labeledLayer.compositeSegmentationMap,
-        labeledLayer.compositeSegmentations,
-        labeledLayer.allLabels,
-        hierarchyLevel
-      );
-      const pixelMapping = mapper.generatePixelMapping();
-      const colorMapping = LandUseMapper.createColorMapping(
-        pixelMapping,
-        hierarchy,
-        hierarchyLevel
-      );
-      const geotiffBlob = await this.generateCompositeGeotiff(mapper);
-      await this.downloadLandCoverFiles(
-        pixelMapping,
-        colorMapping,
-        geotiffBlob
-      );
-      console.log("✅ Land cover export complete");
-    } catch (error) {
-      console.error("Export failed:", error);
-      throw error;
-    }
-  }
-
   async generateCompositeGeotiff(mapper) {
     if (!mapper || !mapper.compositeData) {
       throw new Error(
@@ -450,37 +414,28 @@ class DataIO {
     }
   }
 
-  async downloadLandCoverFiles(pixelMapping, colorMapping, geotiffBlob) {
-    const files = [
-      {
-        name: "pixel-mapping.json",
-        content: JSON.stringify(pixelMapping, null, 2),
-      },
-      {
-        name: "land-cover-colors.json",
-        content: JSON.stringify(colorMapping, null, 2),
-      },
-      {
-        name: "land-cover.tif",
-        blob: geotiffBlob,
-      },
-    ];
-    files.forEach((file, index) => {
-      setTimeout(() => {
-        let blob;
-        if (file.blob) {
-          blob = file.blob;
-        } else {
-          blob = new Blob([file.content], { type: "application/json" });
-        }
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = file.name;
-        link.click();
-        URL.revokeObjectURL(link.href);
-      }, index * 500);
-    });
-    console.log("✅ Files downloaded individually");
+  async downloadLandCoverFiles(
+    pixelMapping,
+    colorMapping,
+    geotiffBlob,
+    aoiName
+  ) {
+    const zip = new JSZip();
+    const folderName = `${aoiName}_land_cover_export`;
+    const folder = zip.folder(folderName);
+    folder.file("pixel-mapping.json", JSON.stringify(pixelMapping, null, 2));
+    folder.file(
+      "land-cover-colors.json",
+      JSON.stringify(colorMapping, null, 2)
+    );
+    folder.file("land-cover_cog.tif", geotiffBlob);
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(zipBlob);
+    link.download = `${folderName}.zip`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    console.log(`✅ Land cover export downloaded as ${folderName}.zip`);
   }
 }
 

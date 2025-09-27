@@ -35,6 +35,7 @@
       height: 100%;
       background: rgba(255, 255, 255, 0.9);
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 1000;
@@ -43,6 +44,44 @@
 
     .loading-overlay.hidden {
       display: none;
+    }
+
+    .file-selector {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .file-selector h3 {
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    .file-selector p {
+      margin-bottom: 20px;
+      color: #666;
+    }
+
+    .file-selector input[type="file"] {
+      margin-bottom: 15px;
+    }
+
+    .file-selector button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .file-selector button:hover {
+      background: #45a049;
+    }
+
+    .file-selector button:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
     }
 
     .legend {
@@ -81,7 +120,15 @@
 <body>
   <div class="viewer-container">
     <div id="map"></div>
-    <div id="loading" class="loading-overlay">Loading land cover data...</div>
+    <div id="loading" class="loading-overlay">
+      <div class="file-selector">
+        <h3>Select Land Cover Export Folder</h3>
+        <p>Choose the extracted {aoi}_land_cover_export folder:</p>
+        <input type="file" webkitdirectory id="folder-input" />
+        <br>
+        <button id="load-button" onclick="viewer.loadFromSelectedFolder()" disabled>Load Land Cover Data</button>
+      </div>
+    </div>
     <div id="legend" class="legend" style="display: none">
       <h4>Land Cover Types</h4>
       <div id="legend-items"></div>
@@ -111,9 +158,40 @@
             }
           ).addTo(this.map);
 
-          // Load data files
-          await this.loadMappingFiles();
-          await this.loadGeotiff();
+          // Set up file selector
+          this.setupFileSelector();
+
+        } catch (error) {
+          console.error("Failed to initialize viewer:", error);
+          this.showError(error.message);
+        }
+      }
+
+      setupFileSelector() {
+        const folderInput = document.getElementById("folder-input");
+        const loadButton = document.getElementById("load-button");
+
+        folderInput.addEventListener("change", (e) => {
+          const files = e.target.files;
+          loadButton.disabled = !files || files.length === 0;
+        });
+      }
+
+      async loadFromSelectedFolder() {
+        const folderInput = document.getElementById("folder-input");
+        const files = folderInput.files;
+
+        if (!files || files.length === 0) {
+          this.showError("No folder selected");
+          return;
+        }
+
+        try {
+          document.getElementById("loading").innerHTML = "Loading land cover data...";
+
+          // Load files from selected folder
+          await this.loadMappingFilesFromFolder(files);
+          await this.loadGeotiffFromFolder(files);
 
           // Create and add land cover layer
           this.createLandCoverLayer();
@@ -123,45 +201,68 @@
 
           this.hideLoading();
         } catch (error) {
-          console.error("Failed to initialize viewer:", error);
+          console.error("Failed to load from folder:", error);
           this.showError(error.message);
         }
       }
 
-      async loadMappingFiles() {
+      async loadMappingFilesFromFolder(files) {
         try {
-          const [pixelResponse, colorResponse] = await Promise.all([
-            fetch("/output/pixel-mapping.json"),
-            fetch("/output/land-cover-colors.json"),
-          ]);
+          const fileArray = Array.from(files);
 
-          if (!pixelResponse.ok || !colorResponse.ok) {
-            throw new Error("Failed to load mapping files");
+          const pixelMappingFile = fileArray.find(f => f.name === "pixel-mapping.json");
+          const colorMappingFile = fileArray.find(f => f.name === "land-cover-colors.json");
+
+          if (!pixelMappingFile || !colorMappingFile) {
+            throw new Error("Required mapping files not found in selected folder");
           }
 
-          this.pixelMapping = await pixelResponse.json();
-          this.colorMapping = await colorResponse.json();
+          const pixelMappingText = await this.readFileAsText(pixelMappingFile);
+          const colorMappingText = await this.readFileAsText(colorMappingFile);
 
-          console.log("✅ Mapping files loaded");
+          this.pixelMapping = JSON.parse(pixelMappingText);
+          this.colorMapping = JSON.parse(colorMappingText);
+
+          console.log("✅ Mapping files loaded from selected folder");
         } catch (error) {
           throw new Error(`Failed to load mapping files: ${error.message}`);
         }
       }
 
-      async loadGeotiff() {
+      async loadGeotiffFromFolder(files) {
         try {
-          const response = await fetch("/output/land-cover_cog.tif");
-          if (!response.ok) {
-            throw new Error("Failed to load geotiff file");
+          const fileArray = Array.from(files);
+          const geotiffFile = fileArray.find(f => f.name === "land-cover_cog.tif");
+
+          if (!geotiffFile) {
+            throw new Error("land-cover_cog.tif not found in selected folder");
           }
 
-          const arrayBuffer = await response.arrayBuffer();
+          const arrayBuffer = await this.readFileAsArrayBuffer(geotiffFile);
           this.georaster = await parseGeoraster(arrayBuffer);
 
-          console.log("✅ Geotiff loaded:", this.georaster);
+          console.log("✅ Geotiff loaded from selected folder");
         } catch (error) {
           throw new Error(`Failed to load geotiff: ${error.message}`);
         }
+      }
+
+      readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = (e) => reject(new Error("Failed to read file"));
+          reader.readAsText(file);
+        });
+      }
+
+      readFileAsArrayBuffer(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = (e) => reject(new Error("Failed to read file"));
+          reader.readAsArrayBuffer(file);
+        });
       }
 
       createLandCoverLayer() {
@@ -185,7 +286,6 @@
         }
       }
 
-      // In land-cover-viewer.html
       mapPixelToColor(pixelValues) {
         if (
           !pixelValues ||
@@ -241,11 +341,11 @@
         legendContainer.innerHTML = legendItems
           .map(
             (item) => `
-                        <div class="legend-item">
-                            <div class="legend-color" style="background-color: ${item.color}"></div>
-                            <span>${item.displayName}</span>
-                        </div>
-                    `
+              <div class="legend-item">
+                <div class="legend-color" style="background-color: ${item.color}"></div>
+                <span>${item.displayName}</span>
+              </div>
+            `
           )
           .join("");
 
@@ -261,11 +361,13 @@
       }
 
       showError(message) {
-        document.getElementById("loading").innerHTML = `Error: ${message}`;
+        document.getElementById("loading").innerHTML = `<div class="file-selector"><h3>Error</h3><p>${message}</p><button onclick="location.reload()">Reload</button></div>`;
       }
     }
+
+    let viewer;
     document.addEventListener("DOMContentLoaded", async () => {
-      const viewer = new LandCoverViewer();
+      viewer = new LandCoverViewer();
       await viewer.initialize();
     });
   </script>

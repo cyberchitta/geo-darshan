@@ -77,7 +77,12 @@
           hierarchyLevel
         );
         const geotiffBlob = await generateCompositeGeotiff(mapper);
-        await downloadLandCoverFiles(pixelMapping, colorMapping, geotiffBlob);
+        await downloadLandCoverFiles(
+          pixelMapping,
+          colorMapping,
+          geotiffBlob,
+          dataState.aoiName
+        );
         console.log("✅ Land cover export complete");
       } catch (error) {
         console.error("Export failed:", error);
