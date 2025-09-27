@@ -133,6 +133,14 @@
       <h4>Land Cover Types</h4>
       <div id="legend-items"></div>
     </div>
+    <div id="export-controls" class="export-controls" style="display: none">
+      <button id="export-image-btn" onclick="viewer.exportAsImage(4)">
+        Export as Image (4x)
+      </button>
+      <button id="export-image-btn-2x" onclick="viewer.exportAsImage(2)">
+        Export as Image (2x)
+      </button>
+    </div>
   </div>
 
   <script>
@@ -146,10 +154,7 @@
 
       async initialize() {
         try {
-          // Initialize map
           this.map = L.map("map").setView([12.0, 79.8], 10);
-
-          // Add base layer
           L.tileLayer(
             "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
             {
@@ -157,10 +162,7 @@
               maxZoom: 19,
             }
           ).addTo(this.map);
-
-          // Set up file selector
           this.setupFileSelector();
-
         } catch (error) {
           console.error("Failed to initialize viewer:", error);
           this.showError(error.message);
@@ -170,7 +172,6 @@
       setupFileSelector() {
         const folderInput = document.getElementById("folder-input");
         const loadButton = document.getElementById("load-button");
-
         folderInput.addEventListener("change", (e) => {
           const files = e.target.files;
           loadButton.disabled = !files || files.length === 0;
@@ -180,25 +181,16 @@
       async loadFromSelectedFolder() {
         const folderInput = document.getElementById("folder-input");
         const files = folderInput.files;
-
         if (!files || files.length === 0) {
           this.showError("No folder selected");
           return;
         }
-
         try {
           document.getElementById("loading").innerHTML = "Loading land cover data...";
-
-          // Load files from selected folder
           await this.loadMappingFilesFromFolder(files);
           await this.loadGeotiffFromFolder(files);
-
-          // Create and add land cover layer
           this.createLandCoverLayer();
-
-          // Generate legend
           this.createLegend();
-
           this.hideLoading();
         } catch (error) {
           console.error("Failed to load from folder:", error);
@@ -209,20 +201,15 @@
       async loadMappingFilesFromFolder(files) {
         try {
           const fileArray = Array.from(files);
-
           const pixelMappingFile = fileArray.find(f => f.name === "pixel-mapping.json");
           const colorMappingFile = fileArray.find(f => f.name === "land-cover-colors.json");
-
           if (!pixelMappingFile || !colorMappingFile) {
             throw new Error("Required mapping files not found in selected folder");
           }
-
           const pixelMappingText = await this.readFileAsText(pixelMappingFile);
           const colorMappingText = await this.readFileAsText(colorMappingFile);
-
           this.pixelMapping = JSON.parse(pixelMappingText);
           this.colorMapping = JSON.parse(colorMappingText);
-
           console.log("✅ Mapping files loaded from selected folder");
         } catch (error) {
           throw new Error(`Failed to load mapping files: ${error.message}`);
@@ -233,14 +220,11 @@
         try {
           const fileArray = Array.from(files);
           const geotiffFile = fileArray.find(f => f.name === "land-cover_cog.tif");
-
           if (!geotiffFile) {
             throw new Error("land-cover_cog.tif not found in selected folder");
           }
-
           const arrayBuffer = await this.readFileAsArrayBuffer(geotiffFile);
           this.georaster = await parseGeoraster(arrayBuffer);
-
           console.log("✅ Geotiff loaded from selected folder");
         } catch (error) {
           throw new Error(`Failed to load geotiff: ${error.message}`);
@@ -273,10 +257,7 @@
             this.mapPixelToColor(pixelValues),
           resolution: 256,
         });
-
         layer.addTo(this.map);
-
-        // Fit map to layer bounds
         if (this.georaster.bounds) {
           const bounds = [
             [this.georaster.bounds[1], this.georaster.bounds[0]], // [south, west]
@@ -293,26 +274,20 @@
           pixelValues[0] === null ||
           pixelValues[0] === -1
         ) {
-          return null; // Transparent for unlabeled
+          return null;
         }
-
         const pixelValue = pixelValues[0];
         const landCoverClass = this.pixelMapping[pixelValue];
-
         if (!landCoverClass) {
           return null;
         }
-
         return this.getColorForLandCover(landCoverClass);
       }
 
       getColorForLandCover(landCoverPath) {
-        // Try exact match first
         if (this.colorMapping[landCoverPath]) {
           return this.colorMapping[landCoverPath];
         }
-
-        // Try parent paths (walk up the hierarchy)
         const pathParts = landCoverPath.split(".");
         while (pathParts.length > 0) {
           pathParts.pop();
@@ -321,15 +296,12 @@
             return this.colorMapping[parentPath];
           }
         }
-
-        // Fallback color
         return "#888888";
       }
 
       createLegend() {
         const legendContainer = document.getElementById("legend-items");
         const usedLandCovers = new Set(Object.values(this.pixelMapping));
-
         const legendItems = Array.from(usedLandCovers)
           .map((landCover) => ({
             landCover,
@@ -337,7 +309,6 @@
             displayName: this.getDisplayName(landCover),
           }))
           .sort((a, b) => a.displayName.localeCompare(b.displayName));
-
         legendContainer.innerHTML = legendItems
           .map(
             (item) => `
@@ -348,8 +319,8 @@
             `
           )
           .join("");
-
         document.getElementById("legend").style.display = "block";
+        document.getElementById("export-controls").style.display = "block";
       }
 
       getDisplayName(landCoverPath) {
@@ -362,6 +333,65 @@
 
       showError(message) {
         document.getElementById("loading").innerHTML = `<div class="file-selector"><h3>Error</h3><p>${message}</p><button onclick="location.reload()">Reload</button></div>`;
+      }
+
+      async exportAsImage(scaleFactor = 4) {
+        if (!this.georaster || !this.pixelMapping) {
+          alert('No data loaded for export');
+          return;
+        }
+        const sourceWidth = this.georaster.width;
+        const sourceHeight = this.georaster.height;
+        const outputWidth = sourceWidth * scaleFactor;
+        const outputHeight = sourceHeight * scaleFactor;
+        const canvas = document.createElement('canvas');
+        canvas.width = outputWidth;
+        canvas.height = outputHeight;
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.createImageData(outputWidth, outputHeight);
+        const data = imageData.data;
+        console.log(`Generating ${outputWidth}x${outputHeight} image...`);
+        for (let y = 0; y < sourceHeight; y++) {
+          for (let x = 0; x < sourceWidth; x++) {
+            const pixelValue = this.georaster.values[0][y][x];
+            const landCoverClass = this.pixelMapping[pixelValue];
+            let color = '#000000';
+            if (landCoverClass && landCoverClass !== 'unlabeled') {
+              color = this.getColorForLandCover(landCoverClass);
+            } else if (pixelValue === -1) {
+              color = null;
+            }
+            let r = 0, g = 0, b = 0, a = 255;
+            if (color) {
+              const hex = color.replace('#', '');
+              r = parseInt(hex.substr(0, 2), 16);
+              g = parseInt(hex.substr(2, 2), 16);
+              b = parseInt(hex.substr(4, 2), 16);
+            } else {
+              a = 0;
+            }
+            for (let dy = 0; dy < scaleFactor; dy++) {
+              for (let dx = 0; dx < scaleFactor; dx++) {
+                const outputX = x * scaleFactor + dx;
+                const outputY = y * scaleFactor + dy;
+                const index = (outputY * outputWidth + outputX) * 4;
+                data[index] = r;     // red
+                data[index + 1] = g; // green
+                data[index + 2] = b; // blue
+                data[index + 3] = a; // alpha
+              }
+            }
+          }
+        }
+        ctx.putImageData(imageData, 0, 0);
+        canvas.toBlob((blob) => {
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `land-cover-${outputWidth}x${outputHeight}.png`;
+          link.click();
+          URL.revokeObjectURL(link.href);
+          console.log(`✅ Exported ${outputWidth}x${outputHeight} image`);
+        }, 'image/png');
       }
     }
 
