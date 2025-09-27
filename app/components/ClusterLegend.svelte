@@ -334,8 +334,11 @@
             <div class="cluster-info">
               <div
                 class="cluster-color-swatch"
-                style="background-color: {clusterColors.get(cluster.id) ||
-                  '#ccc'}"
+                style="background-color: {selectedCluster?.clusterId ===
+                  cluster.id &&
+                selectedCluster?.segmentationKey === currentSegmentationKey
+                  ? '#000000'
+                  : clusterColors.get(cluster.id) || '#ccc'}"
                 aria-hidden="true"
               ></div>
               <span id="cluster-{cluster.id}-label" class="cluster-id">

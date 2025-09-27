@@ -127,7 +127,7 @@
 <DataController bind:this={dataController} />
 <SegmentationController
   bind:this={segmentationController}
-  mapManager={mapState?.mapManager}
+  {mapState}
   clusterLabels={dataLabels}
 />
 
