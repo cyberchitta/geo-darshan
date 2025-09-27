@@ -9,15 +9,27 @@
   import { LandUseHierarchy } from "../js/land-use.js";
   import { RegionLabeler } from "../js/region-labeler.js";
 
-  let { compositeState, clusterLabels, dataState, mapManager, dataLoader } =
-    $props();
+  let {
+    compositeState,
+    dataState,
+    mapManager,
+    dataLoader,
+    segmentationController,
+  } = $props();
   let interactiveLayer = $state(null);
   let layerGroup = $state(null);
   let regionLabeler = $state(null);
   let regionHighlightLayer = $state(null);
   let interactiveSegmentation = $state(null);
   let isLayerVisible = $state(false);
-
+  let lastProcessedSegmentationKey = $state(null);
+  let currentSegmentationKey = $derived(
+    segmentationController?.getState()?.currentSegmentationKey
+  );
+  let shouldRegenerateInteractive = $derived(
+    compositeState?.georaster &&
+      currentSegmentationKey !== lastProcessedSegmentationKey
+  );
   const stateObject = {
     get interactiveSegmentation() {
       return interactiveSegmentation;
@@ -100,9 +112,20 @@
   });
 
   $effect(() => {
-    if (compositeState?.georaster && layerGroup && !interactiveLayer) {
+    if (compositeState?.georaster && layerGroup && !interactiveSegmentation) {
       createInteractiveSegmentation();
       createInteractiveLayer();
+      lastProcessedSegmentationKey = currentSegmentationKey;
+    }
+  });
+  $effect(() => {
+    if (shouldRegenerateInteractive && interactiveSegmentation) {
+      console.log(
+        `Regenerating interactive segmentation for ${currentSegmentationKey}`
+      );
+      createInteractiveSegmentation();
+      createInteractiveLayer();
+      lastProcessedSegmentationKey = currentSegmentationKey;
     }
   });
 
@@ -110,10 +133,11 @@
     if (!compositeState?.georaster || !compositeState?.clusterIdMapping) return;
     const segmentation = Segmentation.createComposite(compositeState.georaster);
     const compositeData = compositeState.georaster.values[0];
+    const interactiveRaster = createInteractiveRaster(compositeData);
     const pixelCounts = new Map();
-    for (let y = 0; y < compositeData.length; y++) {
-      for (let x = 0; x < compositeData[y].length; x++) {
-        const clusterId = compositeData[y][x];
+    for (let y = 0; y < interactiveRaster.length; y++) {
+      for (let x = 0; x < interactiveRaster[y].length; x++) {
+        const clusterId = interactiveRaster[y][x];
         if (clusterId !== CLUSTER_ID_RANGES.NODATA) {
           pixelCounts.set(clusterId, (pixelCounts.get(clusterId) || 0) + 1);
         }
@@ -124,14 +148,31 @@
       const pixelCount = pixelCounts.get(uniqueId) || 0;
       let color;
       if (landUsePath === "unlabeled") {
-        const sourceColorMapping =
-          dataLoader.colorMappings.get(sourceSegmentation);
-        const rgbArray = sourceColorMapping.colors_rgb[originalId];
-        color = `rgb(${Math.round(rgbArray[0] * 255)}, ${Math.round(rgbArray[1] * 255)}, ${Math.round(rgbArray[2] * 255)})`;
+        color = getColorForSourceCluster(sourceSegmentation, originalId);
       } else {
         color = getColorForLandUsePath(landUsePath);
       }
       segmentation.addCluster(uniqueId, pixelCount, landUsePath, color);
+    }
+    if (
+      currentSegmentationKey &&
+      dataState.segmentations?.has(currentSegmentationKey)
+    ) {
+      const currentSegmentation = dataState.segmentations.get(
+        currentSegmentationKey
+      );
+      const currentClusters = currentSegmentation.getAllClusters();
+      for (const cluster of currentClusters) {
+        const fineGrainId = cluster.id + CLUSTER_ID_RANGES.FINE_GRAIN_START;
+        const pixelCount = pixelCounts.get(fineGrainId) || 0;
+        if (pixelCount > 0) {
+          const color = getColorForSourceCluster(
+            currentSegmentationKey,
+            cluster.id
+          );
+          segmentation.addCluster(fineGrainId, pixelCount, "unlabeled", color);
+        }
+      }
     }
     segmentation.finalize();
     interactiveSegmentation = segmentation;
@@ -143,13 +184,47 @@
     );
   }
 
+  function createInteractiveRaster(compositeData) {
+    if (
+      !currentSegmentationKey ||
+      !dataState.segmentations?.has(currentSegmentationKey)
+    ) {
+      return compositeData;
+    }
+    const currentSegmentation = dataState.segmentations.get(
+      currentSegmentationKey
+    );
+    const currentRaster = currentSegmentation.georaster.values[0];
+    const height = compositeData.length;
+    const width = compositeData[0].length;
+    const interactiveRaster = new Array(height);
+    for (let y = 0; y < height; y++) {
+      interactiveRaster[y] = new Array(width);
+      for (let x = 0; x < width; x++) {
+        const compositeValue = compositeData[y][x];
+        if (compositeValue === CLUSTER_ID_RANGES.UNLABELED) {
+          const fineGrainValue =
+            currentRaster[y][x] + CLUSTER_ID_RANGES.FINE_GRAIN_START;
+          interactiveRaster[y][x] = fineGrainValue;
+        } else {
+          interactiveRaster[y][x] = compositeValue;
+        }
+      }
+    }
+    return interactiveRaster;
+  }
+
   function createInteractiveLayer() {
     if (!compositeState?.georaster || !interactiveSegmentation) return;
     if (interactiveLayer) {
       layerGroup.removeLayer(interactiveLayer);
     }
+    const interactiveGeoRaster = {
+      ...compositeState.georaster,
+      values: [createInteractiveRaster(compositeState.georaster.values[0])],
+    };
     interactiveLayer = mapManager.rasterHandler.createMapLayer(
-      compositeState.georaster,
+      interactiveGeoRaster,
       {
         pixelValuesToColorFn: convertInteractivePixelToColor,
         zIndex: 3000,
@@ -188,6 +263,15 @@
     const hierarchy = LandUseHierarchy.getInstance();
     const color = hierarchy.getColorForPath(landUsePath);
     return `rgb(${hexToRgb(color)})`;
+  }
+
+  function getColorForSourceCluster(segmentationKey, originalId) {
+    const sourceColorMapping = dataLoader.colorMappings.get(segmentationKey);
+    if (!sourceColorMapping?.colors_rgb?.[originalId]) {
+      return "rgb(128,128,128)";
+    }
+    const rgbArray = sourceColorMapping.colors_rgb[originalId];
+    return `rgb(${Math.round(rgbArray[0] * 255)}, ${Math.round(rgbArray[1] * 255)}, ${Math.round(rgbArray[2] * 255)})`;
   }
 
   function convertColorStringToArray(colorString) {
