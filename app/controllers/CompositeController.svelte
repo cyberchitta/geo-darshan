@@ -1,5 +1,6 @@
 <script>
   import { LandUseHierarchy } from "../js/land-use.js";
+  import { Compositor } from "../js/compositor.js";
 
   let { clusterLabels = {}, dataState, segmentationController } = $props();
   let hasSegmentations = $derived(dataState?.segmentations?.size > 0);
@@ -39,8 +40,7 @@
       });
       const compositeResult = await generateComposite(
         dataState.segmentations,
-        allLabelsMap,
-        currentSegmentationKey
+        allLabelsMap
       );
       compositeState = compositeResult;
       lastProcessedUserVersion = dataState.userLabelsVersion;
@@ -52,34 +52,23 @@
     }
   });
 
-  async function generateComposite(
-    segmentations,
-    allLabels,
-    fineGrainSegmentationKey
-  ) {
-    const { Compositor } = await import("../js/compositor.js");
-
+  async function generateComposite(segmentations, allLabels) {
     console.log("Generating composite raster with TensorFlow.js...");
     const startTime = performance.now();
-
     const result = await Compositor.generateCompositeRaster(
       segmentations,
       allLabels,
-      { priority: "highest_k", requireLabeled: true, fallbackToLower: true },
-      currentSegmentationKey
+      { priority: "highest_k", requireLabeled: true, fallbackToLower: true }
     );
-
     const compositeGeoRaster = {
       ...result.refGeoRaster,
       values: [result.compositeData],
       numberOfRasters: 1,
     };
-
     const endTime = performance.now();
     console.log(
       `✅ Composite generated in ${(endTime - startTime).toFixed(2)}ms`
     );
-
     return {
       georaster: compositeGeoRaster,
       clusterIdMapping: result.clusterIdMapping,
