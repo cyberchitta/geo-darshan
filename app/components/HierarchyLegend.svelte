@@ -1,9 +1,11 @@
 <script>
   import { LandUseHierarchy } from "../js/land-use.js";
+  import TreeNode from "./TreeNode.svelte";
 
   let { clusterLabels, landUseController } = $props();
   let hierarchyLevel = $derived(landUseController?.hierarchyLevel || 1);
   let isExporting = $state(false);
+  let expandedNodes = $state(new Set());
   const hierarchyLabels = {
     1: "Broad Categories",
     2: "General Types",
@@ -14,9 +16,9 @@
     hierarchyLabels[hierarchyLevel] || `Level ${hierarchyLevel}`
   );
   let labeledPaths = $derived(extractLabeledPaths(clusterLabels || {}));
-  let displayItems = $derived(
+  let treeData = $derived(
     LandUseHierarchy.isLoaded() && labeledPaths.size > 0
-      ? computeDisplayItems(labeledPaths, hierarchyLevel)
+      ? buildHierarchyTree(labeledPaths, hierarchyLevel)
       : []
   );
 
@@ -53,6 +55,17 @@
   function handleHierarchyLevelChange(event) {
     const level = parseInt(event.target.value);
     landUseController?.setHierarchyLevel(level);
+    expandedNodes.clear();
+    expandedNodes = new Set();
+  }
+
+  function handleNodeToggle(nodePath) {
+    if (expandedNodes.has(nodePath)) {
+      expandedNodes.delete(nodePath);
+    } else {
+      expandedNodes.add(nodePath);
+    }
+    expandedNodes = new Set(expandedNodes);
   }
 
   function extractLabeledPaths(allLabels) {
@@ -76,88 +89,107 @@
     return paths;
   }
 
-  function computeDisplayItems(labeledPaths, targetLevel) {
+  function buildHierarchyTree(labeledPaths, maxLevel) {
     if (!LandUseHierarchy.isLoaded() || labeledPaths.size === 0) {
       return [];
     }
     const hierarchy = LandUseHierarchy.getInstance();
-    const relevantPaths = getRelevantPathsForLevel(labeledPaths, targetLevel);
-    const items = [];
-    const hierarchyItems = hierarchy.getHierarchyItemsAtLevel(targetLevel);
-    for (const item of hierarchyItems) {
-      if (relevantPaths.has(item.path)) {
-        items.push(item);
+    const pathCounts = new Map();
+    for (const path of labeledPaths) {
+      const pathParts = path.split(".");
+      for (
+        let level = 1;
+        level <= Math.min(pathParts.length, maxLevel);
+        level++
+      ) {
+        const truncatedPath = pathParts.slice(0, level).join(".");
+        pathCounts.set(truncatedPath, (pathCounts.get(truncatedPath) || 0) + 1);
       }
     }
-    for (const path of relevantPaths) {
+    const tree = [];
+    const nodeMap = new Map();
+    for (const [path, count] of pathCounts) {
       const pathParts = path.split(".");
-      if (pathParts.length < targetLevel) {
-        const existing = items.find((item) => item.path === path);
-        if (!existing) {
-          const color = hierarchy.getColorForPath(path);
-          items.push({
-            path: path,
-            name: pathParts[pathParts.length - 1],
-            displayPath: pathParts.join(" > "),
-            color: color ? `#${color.replace("#", "")}` : "#888888",
-            isPromoted: true,
-          });
+      const level = pathParts.length;
+      const name = pathParts[pathParts.length - 1];
+      let color = null;
+      try {
+        const hierarchyColor = hierarchy.getColorForPath(path);
+        color = hierarchyColor
+          ? `#${hierarchyColor.replace("#", "")}`
+          : "#888888";
+      } catch (error) {
+        color = "#888888";
+      }
+      const node = {
+        path,
+        name,
+        level,
+        children: [],
+        hasDirectPixels: labeledPaths.has(path),
+        hasDescendantPixels: count > 0,
+        color,
+        aggregatedCount: count,
+        isExpanded: expandedNodes.has(path),
+        maxDepth: maxLevel,
+      };
+      nodeMap.set(path, node);
+    }
+    for (const [path, node] of nodeMap) {
+      const pathParts = path.split(".");
+      if (pathParts.length === 1) {
+        tree.push(node);
+      } else if (pathParts.length <= maxLevel) {
+        const parentPath = pathParts.slice(0, -1).join(".");
+        const parent = nodeMap.get(parentPath);
+        if (parent) {
+          parent.children.push(node);
         }
       }
     }
-    return items.sort((a, b) => compareHierarchicalPaths(a.path, b.path));
-  }
 
-  function getRelevantPathsForLevel(labeledPaths, targetLevel) {
-    const relevantPaths = new Set();
-    for (const path of labeledPaths) {
-      const pathParts = path.split(".");
-      if (pathParts.length === targetLevel) {
-        relevantPaths.add(path);
-      } else if (pathParts.length > targetLevel) {
-        const parentPath = pathParts.slice(0, targetLevel).join(".");
-        relevantPaths.add(parentPath);
-      } else if (pathParts.length < targetLevel) {
-        relevantPaths.add(path);
-      }
+    function sortNodeChildren(nodes) {
+      nodes.sort((a, b) => a.name.localeCompare(b.name));
+      nodes.forEach((node) => {
+        if (node.children.length > 0) {
+          sortNodeChildren(node.children);
+        }
+      });
     }
-    return relevantPaths;
+
+    sortNodeChildren(tree);
+    return tree;
   }
 
-  function compareHierarchicalPaths(pathA, pathB) {
-    const partsA = pathA.split(".");
-    const partsB = pathB.split(".");
-    const maxLength = Math.max(partsA.length, partsB.length);
-    for (let i = 0; i < maxLength; i++) {
-      const partA = partsA[i] || "";
-      const partB = partsB[i] || "";
-      if (partA !== partB) {
-        return partA.localeCompare(partB);
-      }
-    }
-    return partsA.length - partsB.length;
-  }
-
-  let promotedCount = $derived(
-    displayItems.filter((item) => item.isPromoted).length
+  let totalCategories = $derived(
+    treeData.reduce((count, node) => count + countTreeNodes(node), 0)
   );
-  let regularCount = $derived(displayItems.length - promotedCount);
+
+  function countTreeNodes(node) {
+    return (
+      1 +
+      node.children.reduce((count, child) => count + countTreeNodes(child), 0)
+    );
+  }
+
   let statsText = $derived(
-    `${regularCount} categories${promotedCount > 0 ? `, ${promotedCount} promoted` : ""}`
+    labeledPaths.size > 0
+      ? `${totalCategories} categories from ${labeledPaths.size} labeled regions`
+      : "No labeled regions"
   );
 </script>
 
 <div
-  class="land-use-legend"
+  class="hierarchy-legend"
   role="region"
-  aria-labelledby="landuse-legend-title"
+  aria-labelledby="hierarchy-legend-title"
 >
   <div class="legend-header">
-    <h3 id="landuse-legend-title">Land Use Classification</h3>
+    <h3 id="hierarchy-legend-title">Classification Hierarchy</h3>
   </div>
   <div class="legend-stats-section">
     <div class="legend-stats" aria-live="polite">
-      <span>{labeledPaths.size > 0 ? statsText : "No labeled regions"}</span>
+      <span>{statsText}</span>
     </div>
   </div>
   <div class="layer-control-group">
@@ -179,7 +211,7 @@
       <button
         class="export-btn"
         class:loading={isExporting}
-        disabled={isExporting || displayItems.length === 0}
+        disabled={isExporting || treeData.length === 0}
         onclick={handleExport}
         aria-describedby="export-btn-desc"
       >
@@ -192,49 +224,29 @@
   </div>
   <div
     class="legend-items-container"
-    role="list"
-    aria-labelledby="landuse-items-title"
+    role="tree"
+    aria-labelledby="hierarchy-tree-title"
   >
-    <span id="landuse-items-title" class="sr-only">
-      Land use categories currently in use
+    <span id="hierarchy-tree-title" class="sr-only">
+      Land use categories hierarchy - use Enter or Space to expand/collapse
+      categories
     </span>
-    {#if displayItems.length === 0}
+    {#if treeData.length === 0}
       <div class="legend-placeholder" role="status">
         {labeledPaths.size === 0
           ? "No labeled regions to display"
-          : "No items at this hierarchy level"}
+          : "No categories at this hierarchy level"}
       </div>
     {:else}
-      {#each displayItems as item (item.path)}
-        <div
-          class="landuse-legend-item"
-          class:promoted={item.isPromoted}
-          role="listitem"
-          data-path={item.path}
-        >
-          <div
-            class="landuse-color-swatch"
-            style="background-color: {item.color}"
-            aria-hidden="true"
-          ></div>
-          <div class="landuse-text">
-            <span class="landuse-name">{item.name}</span>
-            <span class="landuse-path">{item.displayPath}</span>
-            {#if item.isPromoted}
-              <span
-                class="promoted-indicator"
-                aria-label="Promoted from deeper level">↑</span
-              >
-            {/if}
-          </div>
-        </div>
+      {#each treeData as rootNode (rootNode.path)}
+        <TreeNode node={rootNode} onToggle={handleNodeToggle} />
       {/each}
     {/if}
   </div>
 </div>
 
 <style>
-  .land-use-legend {
+  .hierarchy-legend {
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -354,54 +366,6 @@
     padding: 20px;
     font-style: italic;
     font-size: 12px;
-  }
-
-  .landuse-legend-item {
-    display: flex;
-    align-items: center;
-    padding: 8px 12px;
-    border-bottom: 1px solid #f0f0f0;
-    gap: 10px;
-  }
-
-  .landuse-legend-item:last-child {
-    border-bottom: none;
-  }
-
-  .landuse-legend-item.promoted {
-    background-color: #fff3cd;
-  }
-
-  .landuse-color-swatch {
-    width: 20px;
-    height: 15px;
-    border: 1px solid #ccc;
-    border-radius: 2px;
-    flex-shrink: 0;
-  }
-
-  .landuse-text {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .landuse-name {
-    font-weight: bold;
-    font-size: 12px;
-    color: #333;
-  }
-
-  .landuse-path {
-    font-size: 10px;
-    color: #666;
-  }
-
-  .promoted-indicator {
-    font-size: 12px;
-    color: #856404;
-    font-weight: bold;
   }
 
   .sr-only {

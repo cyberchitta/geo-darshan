@@ -1,6 +1,6 @@
 <script>
   import ClusterLegend from "./ClusterLegend.svelte";
-  import LandUseLegend from "./LandUseLegend.svelte";
+  import HierarchyLegend from "./HierarchyLegend.svelte";
   import DataSection from "./DataSection.svelte";
 
   let { appState, clusterLabels, callbacks } = $props();
@@ -26,7 +26,7 @@
       class:active={activeTab === "landuse"}
       onclick={() => switchTab("landuse")}
     >
-      Land Use
+      Legend
     </button>
     <button
       class="panel-tab"
@@ -43,7 +43,7 @@
       </div>
     {:else if activeTab === "landuse"}
       <div class="tab-panel active">
-        <LandUseLegend
+        <HierarchyLegend
           {clusterLabels}
           dataIO={appState.data.dataIO}
           landUseController={appState.landUse}
