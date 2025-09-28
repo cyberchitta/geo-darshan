@@ -30,6 +30,7 @@
     compositeState?.georaster &&
       currentSegmentationKey !== lastProcessedSegmentationKey
   );
+  let processedInteractiveRaster = $state(null);
   const stateObject = {
     get interactiveSegmentation() {
       return interactiveSegmentation;
@@ -134,45 +135,84 @@
     const segmentation = Segmentation.createComposite(compositeState.georaster);
     const compositeData = compositeState.georaster.values[0];
     const interactiveRaster = createInteractiveRaster(compositeData);
-    const pixelCounts = new Map();
+    const aggregationPixelCounts = new Map(); // aggregationKey -> pixelCount
+    const aggregationToId = new Map(); // aggregationKey -> clusterId
+    let nextLabeledId = 1;
     for (let y = 0; y < interactiveRaster.length; y++) {
       for (let x = 0; x < interactiveRaster[y].length; x++) {
-        const clusterId = interactiveRaster[y][x];
-        if (clusterId !== CLUSTER_ID_RANGES.NODATA) {
-          pixelCounts.set(clusterId, (pixelCounts.get(clusterId) || 0) + 1);
+        const originalClusterId = interactiveRaster[y][x];
+        if (originalClusterId === CLUSTER_ID_RANGES.NODATA) continue;
+        let landUsePath = "unlabeled";
+        if (CLUSTER_ID_RANGES.isFineGrain(originalClusterId)) {
+          landUsePath = "unlabeled";
+        } else {
+          for (const [key, mapping] of compositeState.clusterIdMapping) {
+            if (mapping.uniqueId === originalClusterId) {
+              landUsePath = mapping.landUsePath;
+              break;
+            }
+          }
         }
+        let aggregationKey, clusterId;
+        if (landUsePath !== "unlabeled") {
+          aggregationKey = landUsePath;
+          if (!aggregationToId.has(aggregationKey)) {
+            aggregationToId.set(aggregationKey, nextLabeledId++);
+          }
+          clusterId = aggregationToId.get(aggregationKey);
+        } else {
+          aggregationKey = `unlabeled_${originalClusterId}`;
+          clusterId = originalClusterId;
+          if (!aggregationToId.has(aggregationKey)) {
+            aggregationToId.set(aggregationKey, clusterId);
+          }
+        }
+        aggregationPixelCounts.set(
+          aggregationKey,
+          (aggregationPixelCounts.get(aggregationKey) || 0) + 1
+        );
       }
     }
-    for (const [key, mapping] of compositeState.clusterIdMapping) {
-      const { uniqueId, originalId, sourceSegmentation, landUsePath } = mapping;
-      const pixelCount = pixelCounts.get(uniqueId) || 0;
-      let color;
-      if (landUsePath === "unlabeled") {
-        color = getColorForSourceCluster(sourceSegmentation, originalId);
+    for (let y = 0; y < interactiveRaster.length; y++) {
+      for (let x = 0; x < interactiveRaster[y].length; x++) {
+        const originalClusterId = interactiveRaster[y][x];
+        if (originalClusterId === CLUSTER_ID_RANGES.NODATA) continue;
+        let landUsePath = "unlabeled";
+        if (CLUSTER_ID_RANGES.isFineGrain(originalClusterId)) {
+          landUsePath = "unlabeled";
+        } else {
+          for (const [key, mapping] of compositeState.clusterIdMapping) {
+            if (mapping.uniqueId === originalClusterId) {
+              landUsePath = mapping.landUsePath;
+              break;
+            }
+          }
+        }
+        let aggregationKey, clusterId;
+        if (landUsePath !== "unlabeled") {
+          aggregationKey = landUsePath;
+          clusterId = aggregationToId.get(aggregationKey);
+        } else {
+          aggregationKey = `unlabeled_${originalClusterId}`;
+          clusterId = originalClusterId;
+        }
+        interactiveRaster[y][x] = clusterId;
+      }
+    }
+    for (const [aggregationKey, pixelCount] of aggregationPixelCounts) {
+      const clusterId = aggregationToId.get(aggregationKey);
+      let landUsePath;
+      if (aggregationKey.startsWith("unlabeled_")) {
+        landUsePath = "unlabeled";
       } else {
-        color = getColorForLandUsePath(landUsePath);
+        landUsePath = aggregationKey;
       }
-      segmentation.addCluster(uniqueId, pixelCount, landUsePath, color);
-    }
-    if (
-      currentSegmentationKey &&
-      dataState.segmentations?.has(currentSegmentationKey)
-    ) {
-      const currentSegmentation = dataState.segmentations.get(
-        currentSegmentationKey
-      );
-      const currentClusters = currentSegmentation.getAllClusters();
-      for (const cluster of currentClusters) {
-        const fineGrainId = cluster.id + CLUSTER_ID_RANGES.FINE_GRAIN_START;
-        const pixelCount = pixelCounts.get(fineGrainId) || 0;
-        if (pixelCount > 0) {
-          const color = getColorForSourceCluster(
-            currentSegmentationKey,
-            cluster.id
-          );
-          segmentation.addCluster(fineGrainId, pixelCount, "unlabeled", color);
-        }
-      }
+      const color =
+        landUsePath === "unlabeled"
+          ? "rgb(200, 200, 200)"
+          : getColorForLandUsePath(landUsePath);
+
+      segmentation.addCluster(clusterId, pixelCount, landUsePath, color);
     }
     segmentation.finalize();
     interactiveSegmentation = segmentation;
@@ -182,6 +222,7 @@
       SEGMENTATION_KEYS.COMPOSITE,
       compositeColorMapping
     );
+    processedInteractiveRaster = interactiveRaster;
   }
 
   function createInteractiveRaster(compositeData) {
@@ -221,7 +262,7 @@
     }
     const interactiveGeoRaster = {
       ...compositeState.georaster,
-      values: [createInteractiveRaster(compositeState.georaster.values[0])],
+      values: [processedInteractiveRaster],
     };
     interactiveLayer = mapManager.rasterHandler.createMapLayer(
       interactiveGeoRaster,
