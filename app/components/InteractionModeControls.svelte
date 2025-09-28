@@ -22,7 +22,7 @@
       label: "Label Clusters",
       icon: "🎯",
       desc: "Click to label clusters",
-      available: segmentationVisible && !labelRegionsVisible,
+      available: segmentationVisible !== labelRegionsVisible,
     },
     {
       id: "composite",
