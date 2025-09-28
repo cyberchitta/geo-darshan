@@ -2,7 +2,7 @@
   import { LandUseHierarchy } from "../js/land-use.js";
 
   let { clusterLabels, landUseController } = $props();
-  let hierarchyLevel = $state(1);
+  let hierarchyLevel = $derived(landUseController?.hierarchyLevel || 1);
   let isExporting = $state(false);
   const hierarchyLabels = {
     1: "Broad Categories",
@@ -19,11 +19,6 @@
       ? computeDisplayItems(labeledPaths, hierarchyLevel)
       : []
   );
-  $effect(() => {
-    if (landUseController) {
-      landUseController.setHierarchyLevel(hierarchyLevel);
-    }
-  });
 
   async function handleExport() {
     if (!landUseController) {
@@ -56,7 +51,8 @@
   }
 
   function handleHierarchyLevelChange(event) {
-    hierarchyLevel = parseInt(event.target.value);
+    const level = parseInt(event.target.value);
+    landUseController?.setHierarchyLevel(level);
   }
 
   function extractLabeledPaths(allLabels) {
