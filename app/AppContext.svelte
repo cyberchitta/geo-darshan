@@ -164,10 +164,10 @@
   <LabelRegionsController
     bind:this={labelRegionsController}
     compositeState={compositeState.compositeState}
-    clusterLabels={dataLabels}
     {dataState}
     mapManager={mapState.mapManager}
     dataLoader={dataState.dataIO}
+    {segmentationController}
   />
 {/if}
 

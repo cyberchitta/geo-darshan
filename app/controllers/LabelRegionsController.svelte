@@ -113,7 +113,13 @@
   });
 
   $effect(() => {
-    if (compositeState?.georaster && layerGroup && !interactiveSegmentation) {
+    if (
+      compositeState?.georaster &&
+      layerGroup &&
+      !interactiveSegmentation &&
+      currentSegmentationKey &&
+      dataState.segmentations?.has(currentSegmentationKey)
+    ) {
       createInteractiveSegmentation();
       createInteractiveLayer();
       lastProcessedSegmentationKey = currentSegmentationKey;
