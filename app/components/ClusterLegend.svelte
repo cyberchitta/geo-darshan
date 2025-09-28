@@ -1,5 +1,5 @@
 <script>
-  import { SEGMENTATION_KEYS } from "../js/utils.js";
+  import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "../js/utils.js";
   import LandUseDropdown from "./LandUseDropdown.svelte";
   let { appState, callbacks } = $props();
   const {
@@ -85,6 +85,25 @@
   let showCompositeLegend = $derived(
     interactionMode === "composite" ||
       (interactionMode === "view" && compositeAvailable)
+  );
+  let sortedSyntheticClusters = $derived(
+    (syntheticClusters || [])
+      .slice()
+      .sort((a, b) => {
+        const aIsFine = CLUSTER_ID_RANGES.isFineGrain(a.id);
+        const bIsFine = CLUSTER_ID_RANGES.isFineGrain(b.id);
+        if (aIsFine !== bIsFine) return aIsFine ? 1 : -1;
+        return a.id - b.id;
+      })
+      .map((cluster) => ({
+        ...cluster,
+        displayLabel: CLUSTER_ID_RANGES.isFineGrain(cluster.id)
+          ? `Synthetic ${cluster.id}`
+          : `Cluster ${cluster.id}`,
+        dataId: CLUSTER_ID_RANGES.isFineGrain(cluster.id)
+          ? `synthetic-${cluster.id}`
+          : `regular-${cluster.id}`,
+      }))
   );
   $effect(() => {
     if (
@@ -405,20 +424,20 @@
           </div>
         </div>
         <div class="synthetic-clusters-container" role="list">
-          {#if syntheticClusters.length === 0}
+          {#if sortedSyntheticClusters.length === 0}
             <div class="legend-placeholder" role="status">
               {selectedRegion
                 ? "Select land use for region to create synthetic clusters"
                 : "Click unlabeled regions to create synthetic clusters"}
             </div>
           {:else}
-            {#each syntheticClusters as cluster (cluster.id)}
+            {#each sortedSyntheticClusters as cluster (cluster.id)}
               <button
                 class="legend-cluster-item synthetic"
                 class:labeled={syntheticLabels[cluster.id] &&
                   syntheticLabels[cluster.id] !== "unlabeled"}
                 class:focused={focusedClusterId === cluster.id}
-                data-cluster-id="synthetic-{cluster.id}"
+                data-cluster-id={cluster.dataId}
                 onclick={() => handleSyntheticClusterClick(cluster.id)}
               >
                 <div class="cluster-info">
@@ -430,7 +449,7 @@
                     aria-hidden="true"
                   ></div>
                   <span class="cluster-id">
-                    Synthetic {cluster.id}
+                    {cluster.displayLabel}
                   </span>
                   <span class="cluster-stats"
                     >({cluster.pixelCount || 0} pixels)</span
