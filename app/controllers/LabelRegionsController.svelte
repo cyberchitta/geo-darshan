@@ -88,15 +88,15 @@
   onMount(() => {
     if (mapManager && mapManager.map && mapManager.layerControl) {
       layerGroup = L.layerGroup();
-      mapManager.addOverlayLayer("Interactive Regions", layerGroup, false);
+      mapManager.addOverlayLayer("Labeled", layerGroup, false);
       regionLabeler = new RegionLabeler();
       layerGroup.on("add", () => {
         isLayerVisible = true;
-        console.log("Interactive Regions layer visible");
+        console.log("Labeled layer visible");
       });
       layerGroup.on("remove", () => {
         isLayerVisible = false;
-        console.log("Interactive Regions layer hidden");
+        console.log("Labeled layer hidden");
       });
       isLayerVisible = mapManager.map.hasLayer(layerGroup);
     }
@@ -106,7 +106,7 @@
         layerGroup.removeLayer(interactiveLayer);
       }
       if (layerGroup && mapManager) {
-        mapManager.removeOverlayLayer("Interactive Regions");
+        mapManager.removeOverlayLayer("Labeled");
         mapManager.map.removeLayer(layerGroup);
       }
     };

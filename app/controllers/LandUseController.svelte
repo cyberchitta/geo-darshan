@@ -98,14 +98,14 @@
   onMount(() => {
     if (mapManager && mapManager.map && mapManager.layerControl) {
       layerGroup = L.layerGroup();
-      mapManager.addOverlayLayer("Land Use", layerGroup, false);
+      mapManager.addOverlayLayer("Composite", layerGroup, false);
       layerGroup.on("add", () => {
         isLayerVisible = true;
-        console.log("Land Use layer visible");
+        console.log("Composite layer visible");
       });
       layerGroup.on("remove", () => {
         isLayerVisible = false;
-        console.log("Land Use layer hidden");
+        console.log("Composite layer hidden");
       });
       isLayerVisible = mapManager.map.hasLayer(layerGroup);
     }
@@ -114,7 +114,7 @@
         layerGroup.removeLayer(landUseLayer);
       }
       if (layerGroup && mapManager) {
-        mapManager.removeOverlayLayer("Land Use");
+        mapManager.removeOverlayLayer("Composite");
         mapManager.map.removeLayer(layerGroup);
       }
     };
