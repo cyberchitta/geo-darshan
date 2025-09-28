@@ -154,7 +154,7 @@ class RegionLabeler {
     if (!cluster) {
       return "unlabeled";
     }
-    return cluster.landUsePath || "unlabeled";
+    return cluster.landUsePath;
   }
 
   analyzeClusterNeighborhood(clusterId) {

@@ -3,6 +3,7 @@
   import { SEGMENTATION_KEYS } from "../js/utils.js";
   import { MapManager } from "../js/map-manager.js";
   import { LandUseHierarchy } from "../js/land-use.js";
+  import { Segmentation } from "../js/segmentation.js";
 
   let {
     dataState,
@@ -164,14 +165,9 @@
         console.log("No label regions controller available for interaction");
         return;
       }
-      const allLabelsMap = new Map();
-      Object.entries(clusterLabels).forEach(([segKey, labels]) => {
-        const labelMap = new Map();
-        Object.entries(labels).forEach(([clusterId, landUsePath]) => {
-          labelMap.set(parseInt(clusterId), landUsePath);
-        });
-        allLabelsMap.set(segKey, labelMap);
-      });
+      const allLabelsMap = Segmentation.extractAllLabels(
+        dataState.segmentations
+      );
       const result = await labelRegionsState.handleCompositeClick(
         latlng,
         allLabelsMap,
@@ -235,7 +231,6 @@
     if (!mapManager?.currentOverlay?.georasters?.[0]) {
       return "";
     }
-
     const clusterValue = await mapManager.samplePixelAtCoordinate(latlng);
     if (
       clusterValue === null ||
@@ -244,18 +239,15 @@
     ) {
       return "";
     }
-
     const labelRegionsState = labelRegionsController?.getState();
     const interactiveSegmentation = labelRegionsState?.interactiveSegmentation;
     if (!interactiveSegmentation) {
       return "";
     }
-
     const cluster = interactiveSegmentation.getCluster(clusterValue);
     if (!cluster) {
       return "";
     }
-
     return cluster.landUsePath && cluster.landUsePath !== "unlabeled"
       ? cluster.landUsePath
       : "";

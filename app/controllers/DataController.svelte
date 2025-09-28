@@ -89,6 +89,21 @@
     dataIO.on("loadProgress", handleLoadProgress);
   }
 
+  function restoreLabelsToSegmentations() {
+    Object.entries(clusterLabels).forEach(([segKey, labels]) => {
+      const segmentation = segmentations.get(segKey);
+      if (segmentation) {
+        Object.entries(labels).forEach(([clusterId, landUsePath]) => {
+          const cluster = segmentation.getCluster(parseInt(clusterId));
+          if (cluster) {
+            cluster.landUsePath = landUsePath;
+          }
+        });
+      }
+    });
+    console.log("✅ Restored labels to cluster objects");
+  }
+
   async function handleLoadComplete(manifestData, overlayData) {
     try {
       console.log("DataController: Processing loaded data...");
@@ -100,6 +115,7 @@
         manifestData,
         dataIO
       );
+      restoreLabelsToSegmentations();
       isLoading = false;
       error = null;
       manifest = manifestData;
@@ -155,6 +171,13 @@
   }
 
   function setClusterLabel(segmentationKey, clusterId, landUsePath) {
+    const segmentation = segmentations.get(segmentationKey);
+    if (segmentation) {
+      const cluster = segmentation.getCluster(clusterId);
+      if (cluster) {
+        cluster.landUsePath = landUsePath;
+      }
+    }
     clusterLabels = {
       ...clusterLabels,
       [segmentationKey]: {
@@ -183,10 +206,26 @@
       dataIO.saveLabelsToStorage(clusterLabels);
     }
   }
+  function serializeLabelsFromSegmentations() {
+    const serialized = {};
+    segmentations.forEach((segmentation, segKey) => {
+      const clusters = segmentation.getAllClusters();
+      if (clusters.length > 0) {
+        serialized[segKey] = {};
+        clusters.forEach((cluster) => {
+          if (cluster.landUsePath !== "unlabeled") {
+            serialized[segKey][cluster.id] = cluster.landUsePath;
+          }
+        });
+      }
+    });
+    return serialized;
+  }
 
   function exportLabels() {
     if (dataIO) {
-      dataIO.exportLabelsToFile(clusterLabels);
+      const serializedLabels = serializeLabelsFromSegmentations();
+      dataIO.exportLabelsToFile(serializedLabels);
     }
   }
 

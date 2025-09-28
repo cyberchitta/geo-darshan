@@ -10,6 +10,23 @@ class Segmentation {
     this.isImmutable = metadata.source === "file";
   }
 
+  static extractAllLabels(segmentations) {
+    const allLabelsMap = new Map();
+    segmentations.forEach((segmentation, segKey) => {
+      const labelMap = new Map();
+      const clusters = segmentation.getAllClusters();
+      clusters.forEach((cluster) => {
+        if (cluster.landUsePath !== "unlabeled") {
+          labelMap.set(cluster.id, cluster.landUsePath);
+        }
+      });
+      if (labelMap.size > 0) {
+        allLabelsMap.set(segKey, labelMap);
+      }
+    });
+    return allLabelsMap;
+  }
+
   static fromFile(key, georaster, colorMapping, stats) {
     const segmentation = new Segmentation(key, georaster, colorMapping, {
       source: "file",
@@ -48,7 +65,7 @@ class Segmentation {
     this.clusters.set(clusterId, {
       id: clusterId,
       pixelCount,
-      landUsePath,
+      landUsePath: landUsePath || "unlabeled",
       color,
       area_ha: (pixelCount * 0.01).toFixed(2),
       segmentationKey: this.key,

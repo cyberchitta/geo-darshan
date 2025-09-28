@@ -1,6 +1,7 @@
 <script>
   import { LandUseHierarchy } from "../js/land-use.js";
   import { Compositor } from "../js/compositor.js";
+  import { Segmentation } from "../js/segmentation.js";
 
   let { clusterLabels = {}, dataState, segmentationController } = $props();
   let hasSegmentations = $derived(dataState?.segmentations?.size > 0);
@@ -30,14 +31,9 @@
         console.log("Waiting for LandUseHierarchy to load...");
         return;
       }
-      const allLabelsMap = new Map();
-      Object.entries(clusterLabels).forEach(([segKey, labels]) => {
-        const labelMap = new Map();
-        Object.entries(labels).forEach(([clusterId, landUsePath]) => {
-          labelMap.set(parseInt(clusterId), landUsePath);
-        });
-        allLabelsMap.set(segKey, labelMap);
-      });
+      const allLabelsMap = Segmentation.extractAllLabels(
+        dataState.segmentations
+      );
       const compositeResult = await generateComposite(
         dataState.segmentations,
         allLabelsMap

@@ -23,10 +23,10 @@
     dataState.manifest ? dataState.manifest.segmentation_keys : []
   );
   let currentLabels = $derived(
-    segmentationState.currentSegmentationKey &&
-      clusterLabels[segmentationState.currentSegmentationKey]
-      ? clusterLabels[segmentationState.currentSegmentationKey]
-      : {}
+    clusters.reduce((acc, cluster) => {
+      acc[cluster.id] = cluster.landUsePath;
+      return acc;
+    }, {})
   );
   let currentSegmentationKey = $derived(
     segmentationState.currentSegmentationKey
@@ -45,7 +45,10 @@
     syntheticSegmentation?.getColors() || new Map()
   );
   let syntheticLabels = $derived(
-    clusterLabels[SEGMENTATION_KEYS.COMPOSITE] || {}
+    syntheticClusters.reduce((acc, cluster) => {
+      acc[cluster.id] = cluster.landUsePath;
+      return acc;
+    }, {})
   );
   let labeledCount = $derived(
     Object.keys(currentLabels).filter((id) => {
@@ -359,7 +362,7 @@
             <div class="cluster-dropdown-container">
               <LandUseDropdown
                 clusterId={cluster.id}
-                currentSelection={currentLabels[cluster.id] || "unlabeled"}
+                currentSelection={currentLabels[cluster.id]}
                 suggestions={clusterSuggestions}
                 onSelectionChange={handleLabelChange}
               />

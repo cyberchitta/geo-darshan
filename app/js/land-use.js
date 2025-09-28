@@ -237,7 +237,7 @@ class LandUseMapper {
   getPixelLandUsePath(clusterId, x, y) {
     if (CLUSTER_ID_RANGES.isSynthetic(clusterId)) {
       const syntheticLabels = this.allLabels.get(SEGMENTATION_KEYS.COMPOSITE);
-      return syntheticLabels?.get(clusterId) || "unlabeled";
+      return syntheticLabels?.get(clusterId);
     }
     if (!this.segmentationMap || !this.segmentations) {
       return "unlabeled";
@@ -248,7 +248,7 @@ class LandUseMapper {
     if (!labels || !labels.has(clusterId)) {
       return "unlabeled";
     }
-    return labels.get(clusterId) || "unlabeled";
+    return labels.get(clusterId);
   }
 
   truncateToHierarchyLevel(landUsePath) {
