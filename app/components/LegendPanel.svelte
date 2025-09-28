@@ -39,7 +39,7 @@
   <div class="panel-content">
     {#if activeTab === "segmentations"}
       <div class="tab-panel active">
-        <ClusterLegend {appState} {clusterLabels} {callbacks} />
+        <ClusterLegend {appState} {callbacks} />
       </div>
     {:else if activeTab === "landuse"}
       <div class="tab-panel active">

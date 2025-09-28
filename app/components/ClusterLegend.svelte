@@ -1,7 +1,7 @@
 <script>
   import { SEGMENTATION_KEYS } from "../js/utils.js";
   import LandUseDropdown from "./LandUseDropdown.svelte";
-  let { appState, clusterLabels, callbacks } = $props();
+  let { appState, callbacks } = $props();
   const {
     onLabelChange,
     onRegionCancel,
