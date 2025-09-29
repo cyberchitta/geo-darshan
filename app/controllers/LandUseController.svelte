@@ -65,9 +65,8 @@
         const mapper = new LandUseMapper(
           hierarchy,
           compositeState.georaster,
-          null,
-          compositeSegmentation,
-          dataState.clusterLabels,
+          compositeState.clusterIdMapping,
+          dataState.segmentations,
           hierarchyLevel
         );
         const pixelMapping = mapper.generatePixelMapping();

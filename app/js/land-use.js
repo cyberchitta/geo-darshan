@@ -144,16 +144,14 @@ class LandUseMapper {
   constructor(
     hierarchy,
     compositeData,
-    segmentationMap,
+    clusterIdMapping,
     segmentations,
-    allLabels,
     hierarchyLevel
   ) {
     this.hierarchy = hierarchy;
     this.compositeData = compositeData;
-    this.segmentationMap = segmentationMap;
+    this.clusterIdMapping = clusterIdMapping;
     this.segmentations = segmentations;
-    this.allLabels = allLabels;
     this.hierarchyLevel = hierarchyLevel;
   }
 
@@ -236,19 +234,20 @@ class LandUseMapper {
 
   getPixelLandUsePath(clusterId, x, y) {
     if (CLUSTER_ID_RANGES.isSynthetic(clusterId)) {
-      const syntheticLabels = this.allLabels.get(SEGMENTATION_KEYS.COMPOSITE);
-      return syntheticLabels?.get(clusterId);
+      const syntheticSegmentation = this.segmentations.get(
+        SEGMENTATION_KEYS.COMPOSITE
+      );
+      const cluster = syntheticSegmentation?.getCluster(clusterId);
+      return cluster?.landUsePath || "unlabeled";
     }
-    if (!this.segmentationMap || !this.segmentations) {
-      return "unlabeled";
+    let mapping = null;
+    for (const [key, value] of this.clusterIdMapping) {
+      if (value.uniqueId === clusterId) {
+        mapping = value;
+        break;
+      }
     }
-    const segmentationIndex = this.segmentationMap[y][x];
-    const segmentationKey = this.segmentations[segmentationIndex];
-    const labels = this.allLabels?.get(segmentationKey);
-    if (!labels || !labels.has(clusterId)) {
-      return "unlabeled";
-    }
-    return labels.get(clusterId);
+    return mapping?.landUsePath || "unlabeled";
   }
 
   truncateToHierarchyLevel(landUsePath) {
