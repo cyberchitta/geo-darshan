@@ -128,7 +128,7 @@
 <SegmentationController
   bind:this={segmentationController}
   {mapState}
-  clusterLabels={dataLabels}
+  {dataState}
 />
 
 {#if dataState?.dataIO}

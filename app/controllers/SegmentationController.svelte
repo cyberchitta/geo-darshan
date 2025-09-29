@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { convertToGrayscale } from "../js/utils.js";
 
-  let { mapState, clusterLabels } = $props();
+  let { mapState, dataState } = $props();
 
   let mapManager = $derived(mapState?.mapManager);
   let selectedCluster = $derived(mapState?.selectedCluster);
@@ -251,10 +251,12 @@
       ) {
         return "rgba(0, 0, 0, 1)";
       }
+      const segmentation = dataState.segmentations?.get(segmentationKey);
+      const cluster = segmentation?.getCluster(pixelValue);
       if (
         (interactionMode === "cluster" || interactionMode === "composite") &&
-        clusterLabels?.[segmentationKey]?.[pixelValue] &&
-        clusterLabels[segmentationKey][pixelValue] !== "unlabeled"
+        cluster?.landUsePath &&
+        cluster.landUsePath !== "unlabeled"
       ) {
         const grayColor = convertToGrayscale(baseColor);
         return `rgba(${grayColor.r},${grayColor.g},${grayColor.b},${grayColor.a / 255})`;
