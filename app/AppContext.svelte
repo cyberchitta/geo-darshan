@@ -26,7 +26,6 @@
   let landUseState = $derived(landUseController?.getState());
   let labelRegionsState = $derived(labelRegionsController?.getState());
 
-  let dataLabels = $derived(dataState?.clusterLabels || {});
   let hasCoordinated = $state(false);
 
   const appState = $derived({

@@ -37,9 +37,6 @@
     get userLabelsVersion() {
       return userLabelsVersion;
     },
-    get clusterLabels() {
-      return clusterLabels;
-    },
     addSegmentation: (key, segmentation) => {
       segmentations.set(key, segmentation);
     },
