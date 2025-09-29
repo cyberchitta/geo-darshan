@@ -155,6 +155,17 @@ class LandUseMapper {
     this.hierarchyLevel = hierarchyLevel;
   }
 
+  static truncateToHierarchyLevel(landUsePath, hierarchyLevel) {
+    if (!landUsePath || landUsePath === "unlabeled") {
+      return landUsePath;
+    }
+    const pathParts = landUsePath.split(".");
+    if (pathParts.length <= hierarchyLevel) {
+      return landUsePath;
+    }
+    return pathParts.slice(0, hierarchyLevel).join(".");
+  }
+
   generatePixelMapping() {
     const uniqueLandUses = new Set();
     const height = this.compositeData.height;
@@ -251,14 +262,10 @@ class LandUseMapper {
   }
 
   truncateToHierarchyLevel(landUsePath) {
-    if (!landUsePath || landUsePath === "unlabeled") {
-      return landUsePath;
-    }
-    const pathParts = landUsePath.split(".");
-    if (pathParts.length <= this.hierarchyLevel) {
-      return landUsePath;
-    }
-    return pathParts.slice(0, this.hierarchyLevel).join(".");
+    return LandUseMapper.truncateToHierarchyLevel(
+      landUsePath,
+      this.hierarchyLevel
+    );
   }
 }
 

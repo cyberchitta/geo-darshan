@@ -6,7 +6,7 @@
     hexToRgb,
   } from "../js/utils.js";
   import { Segmentation } from "../js/segmentation.js";
-  import { LandUseHierarchy } from "../js/land-use.js";
+  import { LandUseHierarchy, LandUseMapper } from "../js/land-use.js";
   import { RegionLabeler } from "../js/region-labeler.js";
 
   let {
@@ -15,6 +15,7 @@
     mapManager,
     dataLoader,
     segmentationController,
+    hierarchyLevel,
   } = $props();
   let interactiveLayer = $state(null);
   let layerGroup = $state(null);
@@ -22,6 +23,7 @@
   let regionHighlightLayer = $state(null);
   let interactiveSegmentation = $state(null);
   let isLayerVisible = $state(false);
+  let lastProcessedHierarchyLevel = $state(null);
   let lastProcessedSegmentationKey = $state(null);
   let currentSegmentationKey = $derived(
     segmentationController?.getState()?.currentSegmentationKey
@@ -135,7 +137,18 @@
       lastProcessedSegmentationKey = currentSegmentationKey;
     }
   });
-
+  $effect(() => {
+    if (
+      interactiveSegmentation &&
+      hierarchyLevel !== lastProcessedHierarchyLevel
+    ) {
+      console.log(
+        `Hierarchy level changed to ${hierarchyLevel}, regenerating layer...`
+      );
+      createInteractiveLayer();
+      lastProcessedHierarchyLevel = hierarchyLevel;
+    }
+  });
   function createInteractiveSegmentation() {
     if (!compositeState?.georaster || !compositeState?.clusterIdMapping) return;
     const segmentation = Segmentation.createComposite(compositeState.georaster);
@@ -289,7 +302,7 @@
     if (!interactiveSegmentation) return null;
     const cluster = interactiveSegmentation.getCluster(clusterId);
     if (!cluster) return null;
-    return cluster.color;
+    return getColorForLandUsePath(cluster.landUsePath);
   }
 
   function createCompositeColorMapping(segmentation) {
@@ -307,18 +320,16 @@
   }
 
   function getColorForLandUsePath(landUsePath) {
-    const hierarchy = LandUseHierarchy.getInstance();
-    const color = hierarchy.getColorForPath(landUsePath);
-    return `rgb(${hexToRgb(color)})`;
-  }
-
-  function getColorForSourceCluster(segmentationKey, originalId) {
-    const sourceColorMapping = dataLoader.colorMappings.get(segmentationKey);
-    if (!sourceColorMapping?.colors_rgb?.[originalId]) {
-      return "rgb(128,128,128)";
+    if (!landUsePath || landUsePath === "unlabeled") {
+      return null;
     }
-    const rgbArray = sourceColorMapping.colors_rgb[originalId];
-    return `rgb(${Math.round(rgbArray[0] * 255)}, ${Math.round(rgbArray[1] * 255)}, ${Math.round(rgbArray[2] * 255)})`;
+    const hierarchy = LandUseHierarchy.getInstance();
+    const truncatedPath = LandUseMapper.truncateToHierarchyLevel(
+      landUsePath,
+      hierarchyLevel
+    );
+    const color = hierarchy.getColorForPath(truncatedPath);
+    return `rgb(${hexToRgb(color)})`;
   }
 
   function convertColorStringToArray(colorString) {

@@ -157,7 +157,7 @@
   />
 {/if}
 
-{#if compositeState?.compositeState && mapState?.mapManager}
+{#if compositeState?.compositeState && mapState?.mapManager && landUseState?.hierarchyLevel}
   <LabelRegionsController
     bind:this={labelRegionsController}
     compositeState={compositeState.compositeState}
@@ -165,6 +165,7 @@
     mapManager={mapState.mapManager}
     dataLoader={dataState.dataIO}
     {segmentationController}
+    hierarchyLevel={landUseState.hierarchyLevel}
   />
 {/if}
 

@@ -167,14 +167,7 @@
   }
 
   function truncateToHierarchyLevel(landUsePath) {
-    if (!landUsePath || landUsePath === "unlabeled") {
-      return landUsePath;
-    }
-    const pathParts = landUsePath.split(".");
-    if (pathParts.length <= hierarchyLevel) {
-      return landUsePath;
-    }
-    return pathParts.slice(0, hierarchyLevel).join(".");
+    return LandUseMapper.truncateToHierarchyLevel(landUsePath, hierarchyLevel);
   }
 
   function resolveLandUseColor(landUsePath) {
