@@ -144,7 +144,6 @@
 {#if dataState?.dataIO && mapState?.mapManager && segmentationController && dataState?.manifest}
   <CompositeController
     bind:this={compositeController}
-    clusterLabels={dataLabels}
     {dataState}
     {segmentationController}
   />

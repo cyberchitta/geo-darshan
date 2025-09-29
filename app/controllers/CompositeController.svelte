@@ -3,7 +3,7 @@
   import { Compositor } from "../js/compositor.js";
   import { Segmentation } from "../js/segmentation.js";
 
-  let { clusterLabels = {}, dataState, segmentationController } = $props();
+  let { dataState, segmentationController } = $props();
   let hasSegmentations = $derived(dataState?.segmentations?.size > 0);
   let lastProcessedUserVersion = $state(-1);
   let shouldRegenerateComposite = $derived(
