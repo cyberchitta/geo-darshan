@@ -5,12 +5,7 @@
   import { LandUseHierarchy } from "../js/land-use.js";
   import { Segmentation } from "../js/segmentation.js";
 
-  let {
-    dataState,
-    segmentationController,
-    labelRegionsController,
-    clusterLabels,
-  } = $props();
+  let { dataState, segmentationController, labelRegionsController } = $props();
   let mapManager = $state(null);
   let segmentationOpacity = $state(0.8);
   let labelRegionsOpacity = $state(0.8);
@@ -252,11 +247,4 @@
       ? cluster.landUsePath
       : "";
   }
-
-  function updateAllLayersWithLabels(clusterLabels) {
-    if (mapManager) {
-      mapManager.updateAllLayersWithNewLabels(clusterLabels);
-    }
-  }
-  export { updateAllLayersWithLabels };
 </script>

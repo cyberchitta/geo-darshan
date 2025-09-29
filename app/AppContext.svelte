@@ -137,7 +137,6 @@
     {dataState}
     {segmentationController}
     {labelRegionsController}
-    clusterLabels={dataLabels}
   />
 {/if}
 
