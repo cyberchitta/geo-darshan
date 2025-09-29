@@ -1,5 +1,5 @@
 <script>
-  import { LandUseHierarchy } from "../js/land-use.js";
+  import { ClassificationHierarchy } from "../js/classification.js";
 
   let {
     clusterId,
@@ -13,11 +13,12 @@
   let selectionState = $state("unlabeled");
   let options = $state([]);
   $effect(() => {
-    if (!LandUseHierarchy.isLoaded()) {
+    if (!ClassificationHierarchy.isLoaded()) {
       options = [];
       return;
     }
-    const allOptions = LandUseHierarchy.getInstance().getSelectableOptions();
+    const allOptions =
+      ClassificationHierarchy.getInstance().getSelectableOptions();
     if (!suggestions || suggestions.length === 0) {
       options = allOptions;
       return;
@@ -75,12 +76,12 @@
 
 <select
   bind:this={selectElement}
-  class="land-use-dropdown {selectionState}"
+  class="hierarchy-selector {selectionState}"
   class:disabled
   {disabled}
   value={currentSelection}
   onchange={handleChange}
-  aria-label="Land use classification for cluster {clusterId}"
+  aria-label="Classification for cluster {clusterId}"
 >
   {#each options as option}
     <option
@@ -98,7 +99,7 @@
 </select>
 
 <style>
-  .land-use-dropdown {
+  .hierarchy-selector {
     width: 100%;
     padding: 4px 6px;
     border: 1px solid #ddd;
@@ -108,28 +109,28 @@
     cursor: pointer;
   }
 
-  .land-use-dropdown.unlabeled {
+  .hierarchy-selector.unlabeled {
     background-color: #f9f9f9;
     color: #999;
   }
 
-  .land-use-dropdown.intermediate {
+  .hierarchy-selector.intermediate {
     background-color: #fff3cd;
     border-color: #ffeaa7;
   }
 
-  .land-use-dropdown.leaf {
+  .hierarchy-selector.leaf {
     background-color: #d4edda;
     border-color: #c3e6cb;
   }
 
-  .land-use-dropdown:focus {
+  .hierarchy-selector:focus {
     outline: 2px solid #007cba;
     outline-offset: -2px;
   }
 
-  .land-use-dropdown:disabled,
-  .land-use-dropdown.disabled {
+  .hierarchy-selector:disabled,
+  .hierarchy-selector.disabled {
     background-color: #f5f5f5;
     color: #999;
     border-color: #e0e0e0;

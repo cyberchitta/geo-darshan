@@ -1,6 +1,6 @@
 import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "./utils.js";
 
-class LandUseHierarchy {
+class ClassificationHierarchy {
   constructor(hierarchyData, colorData) {
     this.hierarchy = hierarchyData;
     this.colors = colorData;
@@ -8,8 +8,8 @@ class LandUseHierarchy {
   }
 
   static async loadFromFile(
-    hierarchyUrl = "land-use.json",
-    colorUrl = "land-use-colors.json"
+    hierarchyUrl = "hierarchy.json",
+    colorUrl = "hierarchy-colors.json"
   ) {
     try {
       const [hierarchyResponse, colorResponse] = await Promise.all([
@@ -30,27 +30,30 @@ class LandUseHierarchy {
         hierarchyResponse.json(),
         colorResponse.json(),
       ]);
-      const instance = new LandUseHierarchy(hierarchyData, colorData);
-      LandUseHierarchy._instance = instance;
+      const instance = new ClassificationHierarchy(hierarchyData, colorData);
+      ClassificationHierarchy._instance = instance;
       console.log(
-        "✅ Land use hierarchy and colors loaded as singleton service"
+        "✅ Classification hierarchy and colors loaded as singleton service"
       );
       return instance;
     } catch (error) {
-      console.error("Failed to load land-use hierarchy or colors:", error);
+      console.error(
+        "Failed to load classification hierarchy or colors:",
+        error
+      );
       throw error;
     }
   }
 
   static getInstance() {
-    if (!LandUseHierarchy._instance) {
+    if (!ClassificationHierarchy._instance) {
       throw new Error("Hierarchy not loaded. Call loadFromFile() first.");
     }
-    return LandUseHierarchy._instance;
+    return ClassificationHierarchy._instance;
   }
 
   static isLoaded() {
-    return !!LandUseHierarchy._instance;
+    return !!ClassificationHierarchy._instance;
   }
 
   flattenHierarchy(obj = this.hierarchy, currentPath = [], result = []) {
@@ -140,7 +143,7 @@ class LandUseHierarchy {
   }
 }
 
-class LandUseMapper {
+class PixelClassifier {
   constructor(
     hierarchy,
     compositeData,
@@ -155,54 +158,60 @@ class LandUseMapper {
     this.hierarchyLevel = hierarchyLevel;
   }
 
-  static truncateToHierarchyLevel(landUsePath, hierarchyLevel) {
-    if (!landUsePath || landUsePath === "unlabeled") {
-      return landUsePath;
+  static truncateToHierarchyLevel(classificationPath, hierarchyLevel) {
+    if (!classificationPath || classificationPath === "unlabeled") {
+      return classificationPath;
     }
-    const pathParts = landUsePath.split(".");
+    const pathParts = classificationPath.split(".");
     if (pathParts.length <= hierarchyLevel) {
-      return landUsePath;
+      return classificationPath;
     }
     return pathParts.slice(0, hierarchyLevel).join(".");
   }
 
   generatePixelMapping() {
-    const uniqueLandUses = new Set();
+    const uniqueClassifications = new Set();
     const height = this.compositeData.height;
     const width = this.compositeData.width;
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const clusterId = this.compositeData.values[0][y][x];
         if (clusterId === CLUSTER_ID_RANGES.NODATA) continue;
-        const landUsePath = this.getPixelLandUsePath(clusterId, x, y);
-        if (landUsePath && landUsePath !== "unlabeled") {
-          const truncatedPath = this.truncateToHierarchyLevel(landUsePath);
-          uniqueLandUses.add(truncatedPath);
+        const classificationPath = this.getPixelClassificationPath(
+          clusterId,
+          x,
+          y
+        );
+        if (classificationPath && classificationPath !== "unlabeled") {
+          const truncatedPath =
+            this.truncateToHierarchyLevel(classificationPath);
+          uniqueClassifications.add(truncatedPath);
         } else {
-          uniqueLandUses.add("unlabeled");
+          uniqueClassifications.add("unlabeled");
         }
       }
     }
     const pixelMapping = {};
     let nextId = 0;
-    Array.from(uniqueLandUses)
+    Array.from(uniqueClassifications)
       .sort()
-      .forEach((landUsePath) => {
-        if (landUsePath === "unlabeled") {
-          pixelMapping[CLUSTER_ID_RANGES.UNLABELED.toString()] = landUsePath;
+      .forEach((classificationPath) => {
+        if (classificationPath === "unlabeled") {
+          pixelMapping[CLUSTER_ID_RANGES.UNLABELED.toString()] =
+            classificationPath;
         } else {
-          pixelMapping[nextId.toString()] = landUsePath;
+          pixelMapping[nextId.toString()] = classificationPath;
           nextId++;
         }
       });
     return pixelMapping;
   }
 
-  createLandUseRaster() {
+  createClassificationRaster() {
     const pixelMapping = this.generatePixelMapping();
-    const landUseToId = new Map();
-    Object.entries(pixelMapping).forEach(([id, landUsePath]) => {
-      landUseToId.set(landUsePath, parseInt(id));
+    const classificationToId = new Map();
+    Object.entries(pixelMapping).forEach(([id, classificationPath]) => {
+      classificationToId.set(classificationPath, parseInt(id));
     });
     const height = this.compositeData.height;
     const width = this.compositeData.width;
@@ -215,14 +224,21 @@ class LandUseMapper {
           rasterData[y][x] = CLUSTER_ID_RANGES.NODATA;
           continue;
         }
-        const landUsePath = this.getPixelLandUsePath(clusterId, x, y);
-        if (!landUsePath || landUsePath === "unlabeled") {
+        const classificationPath = this.getPixelClassificationPath(
+          clusterId,
+          x,
+          y
+        );
+        if (!classificationPath || classificationPath === "unlabeled") {
           rasterData[y][x] = CLUSTER_ID_RANGES.UNLABELED;
         } else {
-          const truncatedPath = this.truncateToHierarchyLevel(landUsePath);
-          const landUseId = landUseToId.get(truncatedPath);
+          const truncatedPath =
+            this.truncateToHierarchyLevel(classificationPath);
+          const classificationId = classificationToId.get(truncatedPath);
           rasterData[y][x] =
-            landUseId !== undefined ? landUseId : CLUSTER_ID_RANGES.UNLABELED;
+            classificationId !== undefined
+              ? classificationId
+              : CLUSTER_ID_RANGES.UNLABELED;
         }
       }
     }
@@ -233,17 +249,20 @@ class LandUseMapper {
     const colorMapping = {};
     colorMapping[CLUSTER_ID_RANGES.NODATA] = "#000000";
     colorMapping[CLUSTER_ID_RANGES.UNLABELED] = null;
-    Object.entries(pixelMapping).forEach(([id, landUsePath]) => {
-      if (landUsePath === "unlabeled") {
+    Object.entries(pixelMapping).forEach(([id, classificationPath]) => {
+      if (classificationPath === "unlabeled") {
         return;
       }
-      const color = hierarchy.getColorForPath(landUsePath, hierarchyLevel);
+      const color = hierarchy.getColorForPath(
+        classificationPath,
+        hierarchyLevel
+      );
       colorMapping[id] = color;
     });
     return colorMapping;
   }
 
-  getPixelLandUsePath(clusterId, x, y) {
+  getPixelClassificationPath(clusterId, x, y) {
     if (CLUSTER_ID_RANGES.isSynthetic(clusterId)) {
       const syntheticSegmentation = this.segmentations.get(
         SEGMENTATION_KEYS.COMPOSITE
@@ -261,12 +280,12 @@ class LandUseMapper {
     return mapping?.landUsePath || "unlabeled";
   }
 
-  truncateToHierarchyLevel(landUsePath) {
-    return LandUseMapper.truncateToHierarchyLevel(
-      landUsePath,
+  truncateToHierarchyLevel(classificationPath) {
+    return PixelClassifier.truncateToHierarchyLevel(
+      classificationPath,
       this.hierarchyLevel
     );
   }
 }
 
-export { LandUseHierarchy, LandUseMapper };
+export { ClassificationHierarchy, PixelClassifier };

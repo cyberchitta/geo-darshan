@@ -6,7 +6,10 @@
     hexToRgb,
   } from "../js/utils.js";
   import { Segmentation } from "../js/segmentation.js";
-  import { LandUseHierarchy, LandUseMapper } from "../js/land-use.js";
+  import {
+    ClassificationHierarchy,
+    PixelClassifier,
+  } from "../js/classification.js";
   import { RegionLabeler } from "../js/region-labeler.js";
 
   let {
@@ -323,8 +326,8 @@
     if (!landUsePath || landUsePath === "unlabeled") {
       return null;
     }
-    const hierarchy = LandUseHierarchy.getInstance();
-    const truncatedPath = LandUseMapper.truncateToHierarchyLevel(
+    const hierarchy = ClassificationHierarchy.getInstance();
+    const truncatedPath = PixelClassifier.truncateToHierarchyLevel(
       landUsePath,
       hierarchyLevel
     );

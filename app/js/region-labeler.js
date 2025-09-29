@@ -225,10 +225,13 @@ class RegionLabeler {
     if (!landUsePath || landUsePath === "unlabeled") {
       return "rgb(255, 255, 0)";
     }
-    if (!window.LandUseHierarchy || !window.LandUseHierarchy.isLoaded()) {
+    if (
+      !window.ClassificationHierarchy ||
+      !window.ClassificationHierarchy.isLoaded()
+    ) {
       return "rgb(128, 128, 128)";
     }
-    const hierarchy = window.LandUseHierarchy.getInstance();
+    const hierarchy = window.ClassificationHierarchy.getInstance();
     const color = hierarchy.getColorForPath(landUsePath);
     if (!color) {
       return "rgb(128, 128, 128)";

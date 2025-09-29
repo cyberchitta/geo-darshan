@@ -82,12 +82,15 @@ export class Cluster {
     if (!landUsePath || landUsePath === "unlabeled") {
       return "rgb(255, 255, 0)";
     }
-    if (!window.LandUseHierarchy || !window.LandUseHierarchy.isLoaded()) {
+    if (
+      !window.ClassificationHierarchy ||
+      !window.ClassificationHierarchy.isLoaded()
+    ) {
       throw new Error(
-        "LandUseHierarchy not loaded - cannot generate synthetic cluster colors"
+        "ClassificationHierarchy not loaded - cannot generate synthetic cluster colors"
       );
     }
-    const hierarchy = window.LandUseHierarchy.getInstance();
+    const hierarchy = window.ClassificationHierarchy.getInstance();
     const color = hierarchy.getColorForPath(landUsePath);
     if (!color) {
       throw new Error(

@@ -1,5 +1,5 @@
 <script>
-  import { LandUseHierarchy } from "../js/land-use.js";
+  import { ClassificationHierarchy } from "../js/classification.js";
   import { Compositor } from "../js/compositor.js";
   import { Segmentation } from "../js/segmentation.js";
 
@@ -27,8 +27,8 @@
   $effect(async () => {
     if (!shouldRegenerateComposite) return;
     try {
-      if (!LandUseHierarchy.isLoaded()) {
-        console.log("Waiting for LandUseHierarchy to load...");
+      if (!ClassificationHierarchy.isLoaded()) {
+        console.log("Waiting for ClassificationHierarchy to load...");
         return;
       }
       const allLabelsMap = Segmentation.extractAllLabels(

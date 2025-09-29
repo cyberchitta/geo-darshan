@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { SEGMENTATION_KEYS } from "../js/utils.js";
   import { MapManager } from "../js/map-manager.js";
-  import { LandUseHierarchy } from "../js/land-use.js";
+  import { ClassificationHierarchy } from "../js/classification.js";
   import { Segmentation } from "../js/segmentation.js";
 
   let { dataState, segmentationController, labelRegionsController } = $props();
@@ -74,7 +74,7 @@
 
   onMount(async () => {
     try {
-      await LandUseHierarchy.loadFromFile();
+      await ClassificationHierarchy.loadFromFile();
       const rasterHandler = window.rasterHandler;
       if (!rasterHandler) {
         throw new Error(

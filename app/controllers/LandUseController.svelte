@@ -1,13 +1,16 @@
 <script>
   import { onMount } from "svelte";
   import { SEGMENTATION_KEYS, hexToRgb } from "../js/utils.js";
-  import { LandUseHierarchy, LandUseMapper } from "../js/land-use.js";
+  import {
+    ClassificationHierarchy,
+    PixelClassifier,
+  } from "../js/classification.js";
 
   let { compositeState, dataState, mapManager, dataIO } = $props();
-  let landUseLayer = $state(null);
+  let classificationLayer = $state(null);
   let layerGroup = $state(null);
   let hierarchyLevel = $state(1);
-  let landUseColorCache = $state(new Map());
+  let classificationColorCache = $state(new Map());
   let isLayerVisible = $state(false);
 
   const stateObject = {
@@ -15,18 +18,18 @@
       return hierarchyLevel;
     },
     get hasActiveLayer() {
-      return landUseLayer && isLayerVisible;
+      return classificationLayer && isLayerVisible;
     },
     setHierarchyLevel: (level) => {
       if (level >= 1 && level <= 4 && level !== hierarchyLevel) {
         hierarchyLevel = level;
-        landUseColorCache.clear();
+        classificationColorCache.clear();
         refreshLayer();
       }
     },
     setOpacity: (opacity) => {
-      if (landUseLayer) {
-        landUseLayer.setOpacity(opacity);
+      if (classificationLayer) {
+        classificationLayer.setOpacity(opacity);
       }
     },
     getStats: () => {
@@ -48,34 +51,36 @@
     },
     exportLandCoverFiles: async () => {
       try {
-        console.log("Starting land cover export from LandUseController...");
-        if (!window.LandUseHierarchy?.isLoaded()) {
-          throw new Error("Land use hierarchy not loaded");
+        console.log(
+          "Starting land cover export from ClassificationController..."
+        );
+        if (!window.ClassificationHierarchy?.isLoaded()) {
+          throw new Error("Classification hierarchy not loaded");
         }
         if (!compositeState?.georaster) {
           throw new Error("No composite data available for export");
         }
-        const hierarchy = window.LandUseHierarchy.getInstance();
+        const hierarchy = window.ClassificationHierarchy.getInstance();
         const compositeSegmentation = dataState.segmentations?.get(
           SEGMENTATION_KEYS.COMPOSITE
         );
         if (!compositeSegmentation) {
           throw new Error("No composite segmentation available");
         }
-        const mapper = new LandUseMapper(
+        const classifier = new PixelClassifier(
           hierarchy,
           compositeState.georaster,
           compositeState.clusterIdMapping,
           dataState.segmentations,
           hierarchyLevel
         );
-        const pixelMapping = mapper.generatePixelMapping();
-        const colorMapping = LandUseMapper.createColorMapping(
+        const pixelMapping = classifier.generatePixelMapping();
+        const colorMapping = PixelClassifier.createColorMapping(
           pixelMapping,
           hierarchy,
           hierarchyLevel
         );
-        const geotiffBlob = await generateCompositeGeotiff(mapper);
+        const geotiffBlob = await generateCompositeGeotiff(classifier);
         await downloadLandCoverFiles(
           pixelMapping,
           colorMapping,
@@ -109,8 +114,8 @@
       isLayerVisible = mapManager.map.hasLayer(layerGroup);
     }
     return () => {
-      if (landUseLayer && layerGroup) {
-        layerGroup.removeLayer(landUseLayer);
+      if (classificationLayer && layerGroup) {
+        layerGroup.removeLayer(classificationLayer);
       }
       if (layerGroup && mapManager) {
         mapManager.removeOverlayLayer("Composite");
@@ -120,34 +125,34 @@
   });
 
   $effect(() => {
-    if (compositeState?.georaster && layerGroup && !landUseLayer) {
-      createLandUseLayer();
+    if (compositeState?.georaster && layerGroup && !classificationLayer) {
+      createClassificationLayer();
     }
   });
 
-  function createLandUseLayer() {
+  function createClassificationLayer() {
     if (!compositeState?.georaster) return;
-    if (landUseLayer) {
-      layerGroup.removeLayer(landUseLayer);
+    if (classificationLayer) {
+      layerGroup.removeLayer(classificationLayer);
     }
-    landUseLayer = mapManager.rasterHandler.createMapLayer(
+    classificationLayer = mapManager.rasterHandler.createMapLayer(
       compositeState.georaster,
       {
-        pixelValuesToColorFn: convertLandUsePixelToColor,
+        pixelValuesToColorFn: convertClassificationPixelToColor,
         zIndex: 2000,
       }
     );
-    layerGroup.addLayer(landUseLayer);
-    landUseLayer.setOpacity(mapManager.currentOpacity);
+    layerGroup.addLayer(classificationLayer);
+    classificationLayer.setOpacity(mapManager.currentOpacity);
   }
 
   function refreshLayer() {
-    if (landUseLayer && compositeState?.georaster) {
-      createLandUseLayer();
+    if (classificationLayer && compositeState?.georaster) {
+      createClassificationLayer();
     }
   }
 
-  function convertLandUsePixelToColor(values) {
+  function convertClassificationPixelToColor(values) {
     if (!values || values.length === 0 || values[0] === 0) {
       return null;
     }
@@ -163,42 +168,45 @@
       return null;
     }
     const truncatedPath = truncateToHierarchyLevel(mapping.landUsePath);
-    return resolveLandUseColor(truncatedPath);
+    return resolveClassificationColor(truncatedPath);
   }
 
-  function truncateToHierarchyLevel(landUsePath) {
-    return LandUseMapper.truncateToHierarchyLevel(landUsePath, hierarchyLevel);
+  function truncateToHierarchyLevel(classificationPath) {
+    return PixelClassifier.truncateToHierarchyLevel(
+      classificationPath,
+      hierarchyLevel
+    );
   }
 
-  function resolveLandUseColor(landUsePath) {
-    if (!landUsePath || landUsePath === "unlabeled") {
+  function resolveClassificationColor(classificationPath) {
+    if (!classificationPath || classificationPath === "unlabeled") {
       return null;
     }
-    if (!LandUseHierarchy.isLoaded()) {
-      console.warn("LandUseHierarchy not loaded");
+    if (!ClassificationHierarchy.isLoaded()) {
+      console.warn("ClassificationHierarchy not loaded");
       return null;
     }
-    const cacheKey = `${landUsePath}:${hierarchyLevel}`;
-    if (landUseColorCache.has(cacheKey)) {
-      return landUseColorCache.get(cacheKey);
+    const cacheKey = `${classificationPath}:${hierarchyLevel}`;
+    if (classificationColorCache.has(cacheKey)) {
+      return classificationColorCache.get(cacheKey);
     }
-    const hierarchy = LandUseHierarchy.getInstance();
-    const color = hierarchy.getColorForPath(landUsePath, hierarchyLevel);
+    const hierarchy = ClassificationHierarchy.getInstance();
+    const color = hierarchy.getColorForPath(classificationPath, hierarchyLevel);
     const rgbColor = color ? `rgb(${hexToRgb(color)})` : null;
-    landUseColorCache.set(cacheKey, rgbColor);
+    classificationColorCache.set(cacheKey, rgbColor);
     return rgbColor;
   }
 
-  async function generateCompositeGeotiff(mapper) {
-    if (!mapper || !compositeState?.georaster) {
+  async function generateCompositeGeotiff(classifier) {
+    if (!classifier || !compositeState?.georaster) {
       throw new Error(
         "No composite layer available. Please ensure labeled regions are visible."
       );
     }
     console.log("Extracting composite geotiff data...");
-    const landUseRasterData = mapper.createLandUseRaster();
+    const classificationRasterData = classifier.createClassificationRaster();
     const tiffArrayBuffer = await dataIO.createGeoTiffWithLibrary(
-      landUseRasterData,
+      classificationRasterData,
       compositeState.georaster
     );
     return new Blob([tiffArrayBuffer], { type: "image/tiff" });

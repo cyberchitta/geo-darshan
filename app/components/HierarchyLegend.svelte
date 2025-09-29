@@ -1,5 +1,5 @@
 <script>
-  import { LandUseHierarchy } from "../js/land-use.js";
+  import { ClassificationHierarchy } from "../js/classification.js";
   import TreeNode from "./TreeNode.svelte";
 
   let { dataState, landUseController } = $props();
@@ -17,7 +17,7 @@
   );
   let labeledPaths = $derived(extractLabeledPaths(dataState?.segmentations));
   let treeData = $derived(
-    LandUseHierarchy.isLoaded() && labeledPaths.size > 0
+    ClassificationHierarchy.isLoaded() && labeledPaths.size > 0
       ? buildHierarchyTree(labeledPaths, hierarchyLevel)
       : []
   );
@@ -83,10 +83,10 @@
   }
 
   function buildHierarchyTree(labeledPaths, maxLevel) {
-    if (!LandUseHierarchy.isLoaded() || labeledPaths.size === 0) {
+    if (!ClassificationHierarchy.isLoaded() || labeledPaths.size === 0) {
       return [];
     }
-    const hierarchy = LandUseHierarchy.getInstance();
+    const hierarchy = ClassificationHierarchy.getInstance();
     const pathCounts = new Map();
     for (const path of labeledPaths) {
       const pathParts = path.split(".");
