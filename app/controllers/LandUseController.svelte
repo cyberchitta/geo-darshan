@@ -152,23 +152,19 @@
     if (!values || values.length === 0 || values[0] === 0) {
       return null;
     }
-    const clusterId = values[0];
-    const compositeSegmentation = dataState.segmentations?.get(
-      SEGMENTATION_KEYS.COMPOSITE
-    );
-    if (!compositeSegmentation) {
+    const uniqueId = values[0];
+    let mapping = null;
+    for (const [key, value] of compositeState.clusterIdMapping) {
+      if (value.uniqueId === uniqueId) {
+        mapping = value;
+        break;
+      }
+    }
+    if (!mapping || mapping.landUsePath === "unlabeled") {
       return null;
     }
-    const cluster = compositeSegmentation.getCluster(clusterId);
-    if (!cluster) {
-      return null;
-    }
-    if (cluster.landUsePath === "unlabeled") {
-      return null;
-    } else {
-      const truncatedPath = truncateToHierarchyLevel(cluster.landUsePath);
-      return resolveLandUseColor(truncatedPath);
-    }
+    const truncatedPath = truncateToHierarchyLevel(mapping.landUsePath);
+    return resolveLandUseColor(truncatedPath);
   }
 
   function truncateToHierarchyLevel(landUsePath) {
