@@ -2,7 +2,7 @@
   import { LandUseHierarchy } from "../js/land-use.js";
   import TreeNode from "./TreeNode.svelte";
 
-  let { clusterLabels, landUseController } = $props();
+  let { dataState, landUseController } = $props();
   let hierarchyLevel = $derived(landUseController?.hierarchyLevel || 1);
   let isExporting = $state(false);
   let expandedNodes = $state(new Set());
@@ -15,7 +15,7 @@
   let hierarchyLabelText = $derived(
     hierarchyLabels[hierarchyLevel] || `Level ${hierarchyLevel}`
   );
-  let labeledPaths = $derived(extractLabeledPaths(clusterLabels || {}));
+  let labeledPaths = $derived(extractLabeledPaths(dataState?.segmentations));
   let treeData = $derived(
     LandUseHierarchy.isLoaded() && labeledPaths.size > 0
       ? buildHierarchyTree(labeledPaths, hierarchyLevel)
@@ -68,24 +68,17 @@
     expandedNodes = new Set(expandedNodes);
   }
 
-  function extractLabeledPaths(allLabels) {
+  function extractLabeledPaths(segmentations) {
     const paths = new Set();
-    if (!allLabels || typeof allLabels !== "object") {
-      return paths;
-    }
-    Object.entries(allLabels).forEach(
-      ([segmentationKey, segmentationLabels]) => {
-        if (segmentationLabels && typeof segmentationLabels === "object") {
-          Object.entries(segmentationLabels).forEach(
-            ([clusterId, landUsePath]) => {
-              if (landUsePath && landUsePath !== "unlabeled") {
-                paths.add(landUsePath);
-              }
-            }
-          );
+    if (!segmentations) return paths;
+    segmentations.forEach((segmentation) => {
+      const clusters = segmentation.getAllClusters();
+      clusters.forEach((cluster) => {
+        if (cluster.landUsePath && cluster.landUsePath !== "unlabeled") {
+          paths.add(cluster.landUsePath);
         }
-      }
-    );
+      });
+    });
     return paths;
   }
 

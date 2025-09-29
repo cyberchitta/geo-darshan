@@ -44,8 +44,7 @@
     {:else if activeTab === "landuse"}
       <div class="tab-panel active">
         <HierarchyLegend
-          {clusterLabels}
-          dataIO={appState.data.dataIO}
+          dataState={appState.data}
           landUseController={appState.landUse}
         />
       </div>
