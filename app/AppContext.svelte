@@ -171,7 +171,7 @@
 {/if}
 
 {#if dataState?.dataIO && mapState?.mapManager && segmentationController}
-  <LegendPanel {appState} clusterLabels={dataLabels} {callbacks} />
+  <LegendPanel {appState} {callbacks} />
   <ControlsPanel
     {segmentationState}
     {mapState}

@@ -3,7 +3,7 @@
   import HierarchyLegend from "./HierarchyLegend.svelte";
   import DataSection from "./DataSection.svelte";
 
-  let { appState, clusterLabels, callbacks } = $props();
+  let { appState, callbacks } = $props();
   let activeTab = $state("data");
 
   function switchTab(tabId) {
