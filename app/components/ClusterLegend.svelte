@@ -79,11 +79,14 @@
     labelRegionsState?.hasActiveLayer && !segmentationState?.hasActiveLayer
   );
   let showClusterLegend = $derived(
-    interactionMode === "cluster" ||
+    (interactionMode === "cluster" &&
+      segmentationState?.hasActiveLayer &&
+      !labelRegionsState?.hasActiveLayer) ||
       (interactionMode === "view" && clusterAvailable)
   );
   let showCompositeLegend = $derived(
-    interactionMode === "composite" ||
+    (interactionMode === "cluster" && labelRegionsState?.hasActiveLayer) ||
+      interactionMode === "composite" ||
       (interactionMode === "view" && compositeAvailable)
   );
   let sortedSyntheticClusters = $derived(
