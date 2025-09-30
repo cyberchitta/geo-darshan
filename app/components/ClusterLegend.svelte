@@ -134,7 +134,27 @@
     selectCluster(clusterId);
   }
   function handleSyntheticClusterClick(clusterId) {
-    selectSyntheticCluster(clusterId);
+    focusedClusterId = clusterId;
+    console.log("Synthetic cluster selected:", clusterId);
+    announceChange(`Selected synthetic cluster ${clusterId}`);
+    if (labelRegionsState?.selectClusterAt) {
+      const compositeSegmentation = dataState.segmentations?.get(
+        SEGMENTATION_KEYS.COMPOSITE
+      );
+      if (!compositeSegmentation?.georaster) return;
+      const georaster = compositeSegmentation.georaster;
+      const rasterData = georaster.values[0];
+      for (let y = 0; y < georaster.height; y++) {
+        for (let x = 0; x < georaster.width; x++) {
+          if (rasterData[y][x] === clusterId) {
+            const lng = georaster.xmin + (x + 0.5) * georaster.pixelWidth;
+            const lat = georaster.ymax - (y + 0.5) * georaster.pixelHeight;
+            labelRegionsState.selectClusterAt({ lat, lng });
+            return;
+          }
+        }
+      }
+    }
   }
   function handleClusterKeydown(event, clusterId) {
     if (event.key === "Enter" || event.key === " ") {

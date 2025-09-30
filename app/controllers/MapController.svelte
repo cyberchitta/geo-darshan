@@ -94,6 +94,15 @@
         }
       };
       checkForSegController();
+      const checkForLabelRegionsController = () => {
+        const labelRegionsState = labelRegionsController?.getState();
+        if (labelRegionsState?.on) {
+          setupLabelRegionsListeners(labelRegionsState);
+        } else {
+          setTimeout(checkForLabelRegionsController, 10);
+        }
+      };
+      checkForLabelRegionsController();
       console.log("✅ MapController initialized");
     } catch (error) {
       console.error("Failed to initialize MapController:", error);
@@ -125,33 +134,44 @@
 
   function setupSegmentationListeners(segState) {
     console.log("Setting up SegmentationController event listeners");
-    segState.on("clusterClicked", (clusterValue, latlng) => {
-      console.log("Cluster clicked:", clusterValue);
-      selectedCluster = {
-        clusterId: clusterValue,
-        segmentationKey: segState.currentSegmentationKey,
-        latlng,
-      };
-    });
-  }
-
-  function setupEventListeners(manager) {
-    manager.on("clusterInteraction", async (latlng) => {
-      const segState = segmentationController?.getState();
-      if (segState?.handleClusterInteraction) {
-        await segState.handleClusterInteraction(latlng);
-      }
-    });
-    manager.on("clusterInteraction", async (latlng) => {
-      const segState = segmentationController?.getState();
-      if (!segState?.samplePixelAtCoordinate) return;
-      const clusterValue = await segState.samplePixelAtCoordinate(latlng);
-      if (clusterValue !== null && clusterValue >= 0) {
+    segState.on("clusterSelected", (clusterValue, latlng) => {
+      if (clusterValue === null) {
+        selectedCluster = null;
+      } else {
         selectedCluster = {
           clusterId: clusterValue,
           segmentationKey: segState.currentSegmentationKey,
           latlng,
         };
+      }
+    });
+  }
+
+  function setupLabelRegionsListeners(labelRegionsState) {
+    console.log("Setting up LabelRegionsController event listeners");
+    labelRegionsState.on("clusterSelected", (clusterValue, latlng) => {
+      if (clusterValue === null) {
+        selectedCluster = null;
+      } else {
+        selectedCluster = {
+          clusterId: clusterValue,
+          segmentationKey: SEGMENTATION_KEYS.COMPOSITE,
+          latlng,
+        };
+      }
+    });
+  }
+
+  function setupEventListeners(manager) {
+    manager.on("clusterInteraction", async (latlng) => {
+      if (labelRegionsLayerVisible && !segmentationLayerVisible) {
+        const labelRegionsState = labelRegionsController?.getState();
+        await labelRegionsState?.selectClusterAt?.(latlng);
+      } else if (segmentationLayerVisible && !labelRegionsLayerVisible) {
+        const segState = segmentationController?.getState();
+        await segState?.selectClusterAt?.(latlng);
+      } else {
+        console.log("→ No handler matched conditions");
       }
     });
     manager.on("compositeClick", async (latlng) => {

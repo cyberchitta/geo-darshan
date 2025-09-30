@@ -114,7 +114,17 @@
       geoRasterLayers.clear();
     },
     samplePixelAtCoordinate,
-    handleClusterInteraction,
+    selectClusterAt: async (latlng) => {
+      const clusterValue = await samplePixelAtCoordinate(latlng);
+      if (clusterValue !== null && clusterValue >= 0) {
+        stateObject.emit("clusterSelected", clusterValue, latlng);
+      } else {
+        stateObject.emit("clusterSelected", null, null);
+      }
+    },
+    clearSelection: () => {
+      stateObject.emit("clusterSelected", null, null);
+    },
     on: (event, callback) => {
       if (!listeners) listeners = {};
       if (!listeners[event]) listeners[event] = [];
@@ -148,13 +158,6 @@
     } catch (error) {
       console.error("Error accessing pixel value:", error);
       return null;
-    }
-  }
-
-  async function handleClusterInteraction(latlng) {
-    const clusterValue = await samplePixelAtCoordinate(latlng);
-    if (clusterValue !== null && clusterValue >= 0) {
-      stateObject.emit("clusterClicked", clusterValue, latlng);
     }
   }
 

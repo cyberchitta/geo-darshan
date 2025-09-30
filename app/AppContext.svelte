@@ -54,6 +54,12 @@
       );
     }
   });
+  $effect(() => {
+    if (mapState?.interactionMode !== "cluster") {
+      segmentationController?.getState()?.clearSelection?.();
+      labelRegionsController?.getState()?.clearSelection?.();
+    }
+  });
 
   onMount(async () => {
     console.log("AppContext mounted, loading saved labels...");
@@ -162,6 +168,7 @@
     bind:this={labelRegionsController}
     compositeState={compositeState.compositeState}
     {dataState}
+    {mapState}
     mapManager={mapState.mapManager}
     dataLoader={dataState.dataIO}
     {segmentationController}

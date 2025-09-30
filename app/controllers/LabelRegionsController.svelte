@@ -15,6 +15,7 @@
   let {
     compositeState,
     dataState,
+    mapState,
     mapManager,
     dataLoader,
     segmentationController,
@@ -36,6 +37,8 @@
       currentSegmentationKey !== lastProcessedSegmentationKey
   );
   let processedInteractiveRaster = $state(null);
+  let selectedCluster = $derived(mapState?.selectedCluster);
+  let listeners = $state({});
   const stateObject = {
     get interactiveSegmentation() {
       return interactiveSegmentation;
@@ -48,12 +51,6 @@
     },
     handleCompositeClick: async (latlng, allLabels, segmentations) => {
       if (!compositeState?.georaster || !regionLabeler) return null;
-      regionLabeler.updateCompositeData(
-        compositeState.georaster,
-        interactiveSegmentation,
-        allLabels,
-        segmentations
-      );
       const pixelCoord = regionLabeler.latlngToPixelCoord(latlng);
       if (!pixelCoord) return null;
       const isUnlabeled = regionLabeler.isPixelUnlabeled(pixelCoord);
@@ -82,6 +79,41 @@
     setOpacity: (opacity) => {
       if (interactiveLayer) {
         interactiveLayer.setOpacity(opacity);
+      }
+    },
+    selectClusterAt: async (latlng) => {
+      if (!processedInteractiveRaster || !interactiveSegmentation?.georaster) {
+        return;
+      }
+      const georaster = interactiveSegmentation.georaster;
+      const x = Math.floor(
+        (latlng.lng - georaster.xmin) / georaster.pixelWidth
+      );
+      const y = Math.floor(
+        (georaster.ymax - latlng.lat) / georaster.pixelHeight
+      );
+      if (x < 0 || x >= georaster.width || y < 0 || y >= georaster.height) {
+        stateObject.emit("clusterSelected", null, null);
+        return;
+      }
+      const clusterId = processedInteractiveRaster[y][x];
+      if (clusterId === CLUSTER_ID_RANGES.NODATA) {
+        stateObject.emit("clusterSelected", null, null);
+        return;
+      }
+      stateObject.emit("clusterSelected", clusterId, latlng);
+    },
+    clearSelection: () => {
+      stateObject.emit("clusterSelected", null, null);
+    },
+    on: (event, callback) => {
+      if (!listeners) listeners = {};
+      if (!listeners[event]) listeners[event] = [];
+      listeners[event].push(callback);
+    },
+    emit: (event, ...args) => {
+      if (listeners?.[event]) {
+        listeners[event].forEach((callback) => callback(...args));
       }
     },
   };
@@ -150,6 +182,19 @@
       );
       createInteractiveLayer();
       lastProcessedHierarchyLevel = hierarchyLevel;
+    }
+  });
+  $effect(() => {
+    if (compositeState?.georaster && regionLabeler && interactiveSegmentation) {
+      const allLabelsMap = Segmentation.extractAllLabels(
+        dataState.segmentations
+      );
+      regionLabeler.updateCompositeData(
+        compositeState.georaster,
+        interactiveSegmentation,
+        allLabelsMap,
+        dataState.segmentations
+      );
     }
   });
   function createInteractiveSegmentation() {
@@ -302,6 +347,12 @@
       return null;
     }
     const clusterId = values[0];
+    if (
+      selectedCluster?.clusterId === clusterId &&
+      selectedCluster?.segmentationKey === SEGMENTATION_KEYS.COMPOSITE
+    ) {
+      return "rgba(0, 0, 0, 1)";
+    }
     if (!interactiveSegmentation) return null;
     const cluster = interactiveSegmentation.getCluster(clusterId);
     if (!cluster) return null;
