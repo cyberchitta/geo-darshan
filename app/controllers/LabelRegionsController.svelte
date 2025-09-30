@@ -395,7 +395,8 @@
   function highlightRegion(region) {
     clearRegionHighlight();
     if (!regionLabeler) return;
-    const boundaryPoints = region.map((pixel) => {
+    const boundaryPixels = regionLabeler.findRegionBoundary(region);
+    const boundaryPoints = boundaryPixels.map((pixel) => {
       const coords = regionLabeler.pixelToLatLng(pixel);
       return [coords.lat, coords.lng];
     });
@@ -403,8 +404,7 @@
       regionHighlightLayer = L.polygon(boundaryPoints, {
         color: "#ff0000",
         weight: 2,
-        fillOpacity: 0.1,
-        fillColor: "#ff0000",
+        fill: false,
       }).addTo(mapManager.map);
     }
   }
