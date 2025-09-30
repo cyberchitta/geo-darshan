@@ -66,6 +66,14 @@
         labelRegionsState.clearRegionHighlight();
       }
     },
+    cancelSelection: () => {
+      selectedCluster = null;
+      selectedRegion = null;
+      const labelRegionsState = labelRegionsController?.getState();
+      if (labelRegionsState?.clearRegionHighlight) {
+        labelRegionsState.clearRegionHighlight();
+      }
+    },
   };
 
   export function getState() {
@@ -236,7 +244,7 @@
           break;
         case "Escape":
           e.preventDefault();
-          selectedCluster = null;
+          stateObject.cancelSelection();
           break;
       }
     });

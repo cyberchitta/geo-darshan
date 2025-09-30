@@ -114,8 +114,7 @@
   }
 
   function handleRegionCancel() {
-    mapState.clearSelectedRegion?.();
-    mapState.clearRegionHighlight?.();
+    mapState.cancelSelection?.();
   }
 
   function handleRegionCommit(landUsePath) {
