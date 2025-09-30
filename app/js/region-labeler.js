@@ -157,41 +157,6 @@ class RegionLabeler {
     return cluster.landUsePath;
   }
 
-  analyzeClusterNeighborhood(clusterId) {
-    const clusterPixels = this.findAllClusterPixels(clusterId);
-    const adjacentLabels = new Map();
-    for (const pixel of clusterPixels) {
-      const neighbors = this.getNeighbors(pixel);
-      for (const neighbor of neighbors) {
-        const neighborClusterId =
-          this.compositeGeoRaster.values[0][neighbor.y][neighbor.x];
-        if (neighborClusterId !== clusterId) {
-          const landUsePath = this.getPixelLandUsePath(neighborClusterId);
-          if (landUsePath && landUsePath !== "unlabeled") {
-            adjacentLabels.set(
-              landUsePath,
-              (adjacentLabels.get(landUsePath) || 0) + 1
-            );
-          }
-        }
-      }
-    }
-    return this.formatSuggestions(adjacentLabels);
-  }
-
-  findAllClusterPixels(clusterId) {
-    const pixels = [];
-    const rasterData = this.compositeGeoRaster.values[0];
-    for (let y = 0; y < this.compositeGeoRaster.height; y++) {
-      for (let x = 0; x < this.compositeGeoRaster.width; x++) {
-        if (rasterData[y][x] === clusterId) {
-          pixels.push({ x, y });
-        }
-      }
-    }
-    return pixels;
-  }
-
   getNeighbors(pixel) {
     const neighbors = [];
     for (let dx = -1; dx <= 1; dx++) {

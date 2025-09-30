@@ -124,17 +124,8 @@
     }
   });
   $effect(() => {
-    if (
-      selectedCluster &&
-      selectedCluster.segmentationKey === SEGMENTATION_KEYS.COMPOSITE &&
-      labelRegionsController
-    ) {
-      const labelRegionsState = labelRegionsController.getState();
-      if (labelRegionsState?.analyzeClusterNeighborhood) {
-        clusterSuggestions = labelRegionsState.analyzeClusterNeighborhood(
-          selectedCluster.clusterId
-        );
-      }
+    if (selectedRegion?.suggestions) {
+      clusterSuggestions = selectedRegion.suggestions;
     } else {
       clusterSuggestions = [];
     }

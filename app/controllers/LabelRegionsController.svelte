@@ -46,9 +46,6 @@
     get hasActiveLayer() {
       return interactiveLayer && isLayerVisible;
     },
-    analyzeClusterNeighborhood: (clusterId) => {
-      return regionLabeler?.analyzeClusterNeighborhood(clusterId) || [];
-    },
     handleCompositeClick: async (latlng, allLabels, segmentations) => {
       if (!compositeState?.georaster || !regionLabeler) return null;
       const pixelCoord = regionLabeler.latlngToPixelCoord(latlng);
