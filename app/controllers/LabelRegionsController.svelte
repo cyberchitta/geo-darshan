@@ -24,7 +24,6 @@
   let interactiveLayer = $state(null);
   let layerGroup = $state(null);
   let regionLabeler = $state(null);
-  let regionHighlightLayer = $state(null);
   let interactiveSegmentation = $state(null);
   let isLayerVisible = $state(false);
   let lastProcessedHierarchyLevel = $state(null);
@@ -55,7 +54,6 @@
       const contiguousRegion = regionLabeler.findContiguousRegion(pixelCoord);
       if (contiguousRegion.length === 0) return null;
       const suggestions = regionLabeler.analyzeNeighborhood(contiguousRegion);
-      highlightRegion(contiguousRegion);
       return {
         action: "create_new",
         region: contiguousRegion,
@@ -66,13 +64,11 @@
     labelRegion: (region, landUsePath) => {
       if (!regionLabeler) return null;
       const syntheticId = regionLabeler.labelRegion(region, landUsePath);
-      clearRegionHighlight();
       showBriefMessage(
         `Created synthetic cluster ${syntheticId}. Switch to Region Labeling to see it.`
       );
       return syntheticId;
     },
-    clearRegionHighlight,
     setOpacity: (opacity) => {
       if (interactiveLayer) {
         interactiveLayer.setOpacity(opacity);
@@ -135,7 +131,6 @@
       isLayerVisible = mapManager.map.hasLayer(layerGroup);
     }
     return () => {
-      clearRegionHighlight();
       if (interactiveLayer && layerGroup) {
         layerGroup.removeLayer(interactiveLayer);
       }
@@ -199,8 +194,8 @@
     const segmentation = Segmentation.createComposite(compositeState.georaster);
     const compositeData = compositeState.georaster.values[0];
     const interactiveRaster = createInteractiveRaster(compositeData);
-    const aggregationPixelCounts = new Map(); // aggregationKey -> pixelCount
-    const aggregationToId = new Map(); // aggregationKey -> clusterId
+    const aggregationPixelCounts = new Map();
+    const aggregationToId = new Map();
     let nextLabeledId = 1;
     for (let y = 0; y < interactiveRaster.length; y++) {
       for (let x = 0; x < interactiveRaster[y].length; x++) {
@@ -390,30 +385,6 @@
       parseInt(match[2]) / 255,
       parseInt(match[3]) / 255,
     ];
-  }
-
-  function highlightRegion(region) {
-    clearRegionHighlight();
-    if (!regionLabeler) return;
-    const boundaryPixels = regionLabeler.findRegionBoundary(region);
-    const boundaryPoints = boundaryPixels.map((pixel) => {
-      const coords = regionLabeler.pixelToLatLng(pixel);
-      return [coords.lat, coords.lng];
-    });
-    if (boundaryPoints.length > 0) {
-      regionHighlightLayer = L.polygon(boundaryPoints, {
-        color: "#ff0000",
-        weight: 2,
-        fill: false,
-      }).addTo(mapManager.map);
-    }
-  }
-
-  function clearRegionHighlight() {
-    if (regionHighlightLayer) {
-      mapManager.map.removeLayer(regionHighlightLayer);
-      regionHighlightLayer = null;
-    }
   }
 
   function showBriefMessage(message) {

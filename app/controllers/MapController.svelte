@@ -59,19 +59,19 @@
     },
     setInteractionMode: (mode) => (interactionMode = mode),
     clearSelectedCluster: () => (selectedCluster = null),
-    clearSelectedRegion: () => (selectedRegion = null),
-    clearRegionHighlight: () => {
+    clearSelectedRegion: () => {
+      selectedRegion = null;
       const labelRegionsState = labelRegionsController?.getState();
-      if (labelRegionsState) {
-        labelRegionsState.clearRegionHighlight();
+      if (labelRegionsState?.clearSelection) {
+        labelRegionsState.clearSelection();
       }
     },
     cancelSelection: () => {
       selectedCluster = null;
       selectedRegion = null;
       const labelRegionsState = labelRegionsController?.getState();
-      if (labelRegionsState?.clearRegionHighlight) {
-        labelRegionsState.clearRegionHighlight();
+      if (labelRegionsState?.clearSelection) {
+        labelRegionsState.clearSelection();
       }
     },
   };
