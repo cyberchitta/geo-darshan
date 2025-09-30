@@ -109,12 +109,17 @@
       }))
   );
   $effect(() => {
-    if (
-      selectedCluster &&
-      selectedCluster.segmentationKey === currentSegmentationKey
-    ) {
-      scrollToCluster(selectedCluster.clusterId);
-      highlightCluster(selectedCluster.clusterId);
+    if (!selectedCluster) return;
+    const isRegularCluster =
+      selectedCluster.segmentationKey === currentSegmentationKey;
+    const isCompositeCluster =
+      selectedCluster.segmentationKey === SEGMENTATION_KEYS.COMPOSITE;
+    if (isRegularCluster) {
+      scrollToCluster(selectedCluster.clusterId, false);
+      highlightCluster(selectedCluster.clusterId, false);
+    } else if (isCompositeCluster) {
+      scrollToCluster(selectedCluster.clusterId, true);
+      highlightCluster(selectedCluster.clusterId, true);
     }
   });
   function handleRegionCommit(clusterId, selectedOption) {
@@ -194,8 +199,18 @@
       }, 0);
     }
   }
-  function scrollToCluster(clusterId) {
-    const element = document.querySelector(`[data-cluster-id="${clusterId}"]`);
+  function scrollToCluster(clusterId, isComposite) {
+    let selector;
+    if (isComposite) {
+      const isFineGrain = CLUSTER_ID_RANGES.isFineGrain(clusterId);
+      const dataId = isFineGrain
+        ? `synthetic-${clusterId}`
+        : `regular-${clusterId}`;
+      selector = `[data-cluster-id="${dataId}"]`;
+    } else {
+      selector = `[data-cluster-id="${clusterId}"]`;
+    }
+    const element = document.querySelector(selector);
     if (element) {
       element.scrollIntoView({
         behavior: "smooth",
@@ -204,11 +219,21 @@
       element.focus();
     }
   }
-  function highlightCluster(clusterId) {
+  function highlightCluster(clusterId, isComposite) {
     document
       .querySelectorAll(".legend-cluster-item.highlighted")
       .forEach((el) => el.classList.remove("highlighted"));
-    const element = document.querySelector(`[data-cluster-id="${clusterId}"]`);
+    let selector;
+    if (isComposite) {
+      const isFineGrain = CLUSTER_ID_RANGES.isFineGrain(clusterId);
+      const dataId = isFineGrain
+        ? `synthetic-${clusterId}`
+        : `regular-${clusterId}`;
+      selector = `[data-cluster-id="${dataId}"]`;
+    } else {
+      selector = `[data-cluster-id="${clusterId}"]`;
+    }
+    const element = document.querySelector(selector);
     if (element) {
       element.classList.add("highlighted");
       setTimeout(() => {
