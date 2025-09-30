@@ -1,6 +1,6 @@
 <script>
   import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "../js/utils.js";
-  import LandUseDropdown from "./LandUseDropdown.svelte";
+  import HierarchySelector from "./HierarchySelector.svelte";
   let { appState, callbacks } = $props();
   const {
     onLabelChange,
@@ -382,7 +382,7 @@
                 : `labeled as ${currentLabels[cluster.id]}`}
             </span>
             <div class="cluster-dropdown-container">
-              <LandUseDropdown
+              <HierarchySelector
                 clusterId={cluster.id}
                 currentSelection={currentLabels[cluster.id]}
                 suggestions={clusterSuggestions}
@@ -405,7 +405,7 @@
               >
             </div>
             <div class="region-dropdown-container">
-              <LandUseDropdown
+              <HierarchySelector
                 clusterId="temp-region"
                 currentSelection="unlabeled"
                 suggestions={selectedRegion.suggestions || []}
@@ -459,7 +459,7 @@
                   >
                 </div>
                 <div class="cluster-dropdown-container">
-                  <LandUseDropdown
+                  <HierarchySelector
                     clusterId={cluster.id}
                     currentSelection={syntheticLabels[cluster.id] ||
                       "unlabeled"}

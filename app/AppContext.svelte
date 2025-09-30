@@ -5,7 +5,7 @@
   import SegmentationController from "./controllers/SegmentationController.svelte";
   import MapController from "./controllers/MapController.svelte";
   import CompositeController from "./controllers/CompositeController.svelte";
-  import LandUseController from "./controllers/LandUseController.svelte";
+  import ClassificationController from "./controllers/ClassificationController.svelte";
   import LabelRegionsController from "./controllers/LabelRegionsController.svelte";
   import LegendPanel from "./components/LegendPanel.svelte";
   import ControlsPanel from "./components/ControlsPanel.svelte";
@@ -148,7 +148,7 @@
 {/if}
 
 {#if compositeState?.compositeState && mapState?.mapManager}
-  <LandUseController
+  <ClassificationController
     bind:this={landUseController}
     compositeState={compositeState.compositeState}
     {dataState}
