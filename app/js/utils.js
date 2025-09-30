@@ -49,6 +49,11 @@ export const CLUSTER_ID_RANGES = {
   UNLABELED: 9999,
   SYNTHETIC_START: 10000,
   FINE_GRAIN_START: 50000,
+  SELECTED_REGION: -2,
+
+  isSelected(clusterId) {
+    return clusterId === this.SELECTED_REGION;
+  },
 
   isSynthetic(clusterId) {
     return (

@@ -70,8 +70,8 @@
       selectedCluster = null;
       selectedRegion = null;
       const labelRegionsState = labelRegionsController?.getState();
-      if (labelRegionsState?.clearSelection) {
-        labelRegionsState.clearSelection();
+      if (labelRegionsState?.cancelSelection) {
+        labelRegionsState.cancelSelection();
       }
     },
   };

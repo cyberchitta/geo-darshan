@@ -126,7 +126,8 @@ class RegionLabeler {
 
   findContiguousRegion(
     startPixel,
-    maxPixels = CLUSTER_ID_RANGES.SYNTHETIC_START
+    maxPixels = CLUSTER_ID_RANGES.SYNTHETIC_START,
+    diagonalConnections = true
   ) {
     const visited = new Set();
     const region = [];
@@ -138,11 +139,11 @@ class RegionLabeler {
       const key = `${pixel.x},${pixel.y}`;
       if (visited.has(key)) continue;
       visited.add(key);
-      if (
-        this.compositeGeoRaster.values[0][pixel.y][pixel.x] === startClusterId
-      ) {
+      const pixelClusterId =
+        this.compositeGeoRaster.values[0][pixel.y][pixel.x];
+      if (pixelClusterId === startClusterId) {
         region.push(pixel);
-        const neighbors = this.getNeighbors(pixel);
+        const neighbors = this.getNeighbors(pixel, diagonalConnections);
         neighbors.forEach((neighbor) => queue.push(neighbor));
       }
     }
@@ -178,7 +179,7 @@ class RegionLabeler {
   analyzeNeighborhood(region) {
     const adjacentLabels = new Map();
     for (const pixel of region) {
-      const neighbors = this.getNeighbors(pixel);
+      const neighbors = this.getNeighbors(pixel, true);
       for (const neighbor of neighbors) {
         const clusterId =
           this.compositeGeoRaster.values[0][neighbor.y][neighbor.x];
@@ -205,20 +206,34 @@ class RegionLabeler {
     return cluster.landUsePath;
   }
 
-  getNeighbors(pixel) {
+  getNeighbors(pixel, includeDiagonal = false) {
     const neighbors = [];
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        if (dx === 0 && dy === 0) continue;
-        const neighbor = { x: pixel.x + dx, y: pixel.y + dy };
-        if (
-          neighbor.x >= 0 &&
-          neighbor.x < this.compositeGeoRaster.width &&
-          neighbor.y >= 0 &&
-          neighbor.y < this.compositeGeoRaster.height
-        ) {
-          neighbors.push(neighbor);
-        }
+    const offsets = includeDiagonal
+      ? [
+          [-1, -1],
+          [0, -1],
+          [1, -1],
+          [-1, 0],
+          [1, 0],
+          [-1, 1],
+          [0, 1],
+          [1, 1],
+        ]
+      : [
+          [0, -1],
+          [-1, 0],
+          [1, 0],
+          [0, 1],
+        ];
+    for (const [dx, dy] of offsets) {
+      const neighbor = { x: pixel.x + dx, y: pixel.y + dy };
+      if (
+        neighbor.x >= 0 &&
+        neighbor.x < this.compositeGeoRaster.width &&
+        neighbor.y >= 0 &&
+        neighbor.y < this.compositeGeoRaster.height
+      ) {
+        neighbors.push(neighbor);
       }
     }
     return neighbors;

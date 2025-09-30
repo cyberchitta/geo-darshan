@@ -37,6 +37,7 @@
   );
   let processedInteractiveRaster = $state(null);
   let selectedCluster = $derived(mapState?.selectedCluster);
+  let selectedPixelData = $state(new Map()); // Map<"x,y", originalClusterId>
   let listeners = $state({});
   const stateObject = {
     get interactiveSegmentation() {
@@ -54,6 +55,7 @@
       const contiguousRegion = regionLabeler.findContiguousRegion(pixelCoord);
       if (contiguousRegion.length === 0) return null;
       const suggestions = regionLabeler.analyzeNeighborhood(contiguousRegion);
+      markRegionAsSelected(contiguousRegion);
       return {
         action: "create_new",
         region: contiguousRegion,
@@ -63,9 +65,12 @@
     },
     labelRegion: (region, landUsePath) => {
       if (!regionLabeler) return null;
+      restoreOriginalValues();
       const syntheticId = regionLabeler.labelRegion(region, landUsePath);
+      createInteractiveSegmentation();
+      createInteractiveLayer();
       showBriefMessage(
-        `Created synthetic cluster ${syntheticId}. Switch to Region Labeling to see it.`
+        `Created synthetic cluster ${syntheticId} with classification: ${landUsePath}`
       );
       return syntheticId;
     },
@@ -96,7 +101,15 @@
       }
       stateObject.emit("clusterSelected", clusterId, latlng);
     },
+    cancelSelection: () => {
+      restoreOriginalValues();
+      createInteractiveLayer();
+    },
     clearSelection: () => {
+      if (selectedPixelData.size > 0) {
+        restoreOriginalValues();
+        createInteractiveLayer();
+      }
       stateObject.emit("clusterSelected", null, null);
     },
     on: (event, callback) => {
@@ -189,6 +202,29 @@
       );
     }
   });
+
+  function markRegionAsSelected(region) {
+    if (!processedInteractiveRaster) return;
+    selectedPixelData.clear();
+    region.forEach((pixel) => {
+      const key = `${pixel.x},${pixel.y}`;
+      const original = processedInteractiveRaster[pixel.y][pixel.x];
+      selectedPixelData.set(key, original);
+      processedInteractiveRaster[pixel.y][pixel.x] =
+        CLUSTER_ID_RANGES.SELECTED_REGION;
+    });
+    createInteractiveLayer();
+  }
+
+  function restoreOriginalValues() {
+    if (!processedInteractiveRaster || selectedPixelData.size === 0) return;
+    selectedPixelData.forEach((original, key) => {
+      const [x, y] = key.split(",").map(Number);
+      processedInteractiveRaster[y][x] = original;
+    });
+    selectedPixelData.clear();
+  }
+
   function createInteractiveSegmentation() {
     if (!compositeState?.georaster || !compositeState?.clusterIdMapping) return;
     const segmentation = Segmentation.createComposite(compositeState.georaster);
@@ -339,6 +375,9 @@
       return null;
     }
     const clusterId = values[0];
+    if (CLUSTER_ID_RANGES.isSelected(clusterId)) {
+      return "rgba(0, 0, 0, 1)";
+    }
     if (
       selectedCluster?.clusterId === clusterId &&
       selectedCluster?.segmentationKey === SEGMENTATION_KEYS.COMPOSITE
