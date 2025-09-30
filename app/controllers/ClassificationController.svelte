@@ -41,7 +41,7 @@
       );
       const clusters = compositeSegmentation?.getAllClusters() || [];
       const labeledClusters = clusters.filter(
-        (c) => c.landUsePath !== "unlabeled"
+        (c) => c.classificationPath !== "unlabeled"
       );
       return {
         totalLabels: labeledClusters.length,
@@ -164,10 +164,10 @@
         break;
       }
     }
-    if (!mapping || mapping.landUsePath === "unlabeled") {
+    if (!mapping || mapping.classificationPath === "unlabeled") {
       return null;
     }
-    const truncatedPath = truncateToHierarchyLevel(mapping.landUsePath);
+    const truncatedPath = truncateToHierarchyLevel(mapping.classificationPath);
     return resolveClassificationColor(truncatedPath);
   }
 

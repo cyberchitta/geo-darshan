@@ -90,10 +90,10 @@
     Object.entries(clusterLabels).forEach(([segKey, labels]) => {
       const segmentation = segmentations.get(segKey);
       if (segmentation) {
-        Object.entries(labels).forEach(([clusterId, landUsePath]) => {
+        Object.entries(labels).forEach(([clusterId, classificationPath]) => {
           const cluster = segmentation.getCluster(parseInt(clusterId));
           if (cluster) {
-            cluster.landUsePath = landUsePath;
+            cluster.classificationPath = classificationPath;
           }
         });
       }
@@ -167,19 +167,19 @@
     }
   }
 
-  function setClusterLabel(segmentationKey, clusterId, landUsePath) {
+  function setClusterLabel(segmentationKey, clusterId, classificationPath) {
     const segmentation = segmentations.get(segmentationKey);
     if (segmentation) {
       const cluster = segmentation.getCluster(clusterId);
       if (cluster) {
-        cluster.landUsePath = landUsePath;
+        cluster.classificationPath = classificationPath;
       }
     }
     clusterLabels = {
       ...clusterLabels,
       [segmentationKey]: {
         ...clusterLabels[segmentationKey],
-        [clusterId]: landUsePath,
+        [clusterId]: classificationPath,
       },
     };
     if (segmentationKey !== SEGMENTATION_KEYS.COMPOSITE) {
@@ -210,8 +210,8 @@
       if (clusters.length > 0) {
         serialized[segKey] = {};
         clusters.forEach((cluster) => {
-          if (cluster.landUsePath !== "unlabeled") {
-            serialized[segKey][cluster.id] = cluster.landUsePath;
+          if (cluster.classificationPath !== "unlabeled") {
+            serialized[segKey][cluster.id] = cluster.classificationPath;
           }
         });
       }

@@ -16,8 +16,8 @@ class Segmentation {
       const labelMap = new Map();
       const clusters = segmentation.getAllClusters();
       clusters.forEach((cluster) => {
-        if (cluster.landUsePath !== "unlabeled") {
-          labelMap.set(cluster.id, cluster.landUsePath);
+        if (cluster.classificationPath !== "unlabeled") {
+          labelMap.set(cluster.id, cluster.classificationPath);
         }
       });
       if (labelMap.size > 0) {
@@ -60,23 +60,23 @@ class Segmentation {
     return colorMap;
   }
 
-  addCluster(clusterId, pixelCount, landUsePath, color) {
+  addCluster(clusterId, pixelCount, classificationPath, color) {
     if (this.isImmutable) return;
     this.clusters.set(clusterId, {
       id: clusterId,
       pixelCount,
-      landUsePath: landUsePath || "unlabeled",
+      classificationPath: classificationPath || "unlabeled",
       color,
       area_ha: (pixelCount * 0.01).toFixed(2),
       segmentationKey: this.key,
     });
   }
 
-  updateCluster(clusterId, landUsePath, color) {
+  updateCluster(clusterId, classificationPath, color) {
     if (this.isImmutable) return;
     const cluster = this.clusters.get(clusterId);
     if (cluster) {
-      cluster.landUsePath = landUsePath;
+      cluster.classificationPath = classificationPath;
       cluster.color = color;
     }
   }

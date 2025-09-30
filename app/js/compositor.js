@@ -19,17 +19,17 @@ export class Compositor {
     const nodataValue = refGeoRaster.noDataValue ?? CLUSTER_ID_RANGES.NODATA;
 
     let nextUniqueId = 1;
-    const clusterIdMapping = new Map(); // originalId_segKey → {uniqueId, originalId, sourceSegmentation, landUsePath}
+    const clusterIdMapping = new Map(); // originalId_segKey → {uniqueId, originalId, sourceSegmentation, classificationPath}
     // First pass: assign unique IDs to all labeled clusters
     for (const segKey of segmentationKeys) {
       const labels = allLabels.get(segKey) || new Map();
-      for (const [originalId, landUsePath] of labels) {
+      for (const [originalId, classificationPath] of labels) {
         const key = `${originalId}_${segKey}`;
         clusterIdMapping.set(key, {
           uniqueId: nextUniqueId++,
           originalId,
           sourceSegmentation: segKey,
-          landUsePath,
+          classificationPath,
         });
       }
     }

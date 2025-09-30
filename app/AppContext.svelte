@@ -16,14 +16,14 @@
   let segmentationController = $state();
   let mapController = $state();
   let compositeController = $state();
-  let landUseController = $state();
+  let classificationController = $state();
   let labelRegionsController = $state();
 
   let dataState = $derived(dataController?.getState());
   let segmentationState = $derived(segmentationController?.getState());
   let mapState = $derived(mapController?.getState());
   let compositeState = $derived(compositeController?.getState());
-  let landUseState = $derived(landUseController?.getState());
+  let classificationState = $derived(classificationController?.getState());
   let labelRegionsState = $derived(labelRegionsController?.getState());
 
   let hasCoordinated = $state(false);
@@ -33,7 +33,7 @@
     map: mapState,
     segmentation: segmentationState,
     composite: compositeState,
-    landUse: landUseState,
+    classification: classificationState,
     labelRegions: labelRegionsState,
   });
 
@@ -80,19 +80,23 @@
   function handleLabelChange(
     segmentationKey,
     clusterId,
-    landUsePath,
+    classificationPath,
     bulkLabels = null
   ) {
     console.log("🔧 handleLabelChange called:", {
       segmentationKey,
       clusterId,
-      landUsePath,
+      classificationPath,
       bulkLabels,
     });
     if (bulkLabels !== null) {
       dataState?.setBulkLabels?.(bulkLabels);
     } else if (segmentationKey && clusterId !== null) {
-      dataState?.setClusterLabel?.(segmentationKey, clusterId, landUsePath);
+      dataState?.setClusterLabel?.(
+        segmentationKey,
+        clusterId,
+        classificationPath
+      );
     }
   }
 
@@ -117,11 +121,11 @@
     mapState.cancelSelection?.();
   }
 
-  function handleRegionCommit(landUsePath) {
+  function handleRegionCommit(classificationPath) {
     if (mapState.selectedRegion && labelRegionsState) {
       labelRegionsState.labelRegion(
         mapState.selectedRegion.region,
-        landUsePath
+        classificationPath
       );
       mapState.clearSelectedRegion?.();
     }
@@ -154,7 +158,7 @@
 
 {#if compositeState?.compositeState && mapState?.mapManager}
   <ClassificationController
-    bind:this={landUseController}
+    bind:this={classificationController}
     compositeState={compositeState.compositeState}
     {dataState}
     mapManager={mapState.mapManager}
@@ -162,7 +166,7 @@
   />
 {/if}
 
-{#if compositeState?.compositeState && mapState?.mapManager && landUseState?.hierarchyLevel}
+{#if compositeState?.compositeState && mapState?.mapManager && classificationState?.hierarchyLevel}
   <LabelRegionsController
     bind:this={labelRegionsController}
     compositeState={compositeState.compositeState}
@@ -171,7 +175,7 @@
     mapManager={mapState.mapManager}
     dataLoader={dataState.dataIO}
     {segmentationController}
-    hierarchyLevel={landUseState.hierarchyLevel}
+    hierarchyLevel={classificationState.hierarchyLevel}
   />
 {/if}
 
@@ -180,7 +184,7 @@
   <ControlsPanel
     {segmentationState}
     {mapState}
-    landUseState={appState.landUse}
+    classificationState={appState.classification}
     labelRegionsState={appState.labelRegions}
   />
   <MapInfoPanel

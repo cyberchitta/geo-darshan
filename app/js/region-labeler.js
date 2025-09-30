@@ -121,7 +121,9 @@ class RegionLabeler {
     if (!cluster) {
       return true;
     }
-    return !cluster.landUsePath || cluster.landUsePath === "unlabeled";
+    return (
+      !cluster.classificationPath || cluster.classificationPath === "unlabeled"
+    );
   }
 
   findContiguousRegion(
@@ -150,17 +152,17 @@ class RegionLabeler {
     return region;
   }
 
-  labelRegion(region, landUsePath) {
-    const syntheticId = this.getOrCreateSyntheticId(landUsePath);
+  labelRegion(region, classificationPath) {
+    const syntheticId = this.getOrCreateSyntheticId(classificationPath);
     region.forEach((pixel) => {
       this.compositeGeoRaster.values[0][pixel.y][pixel.x] = syntheticId;
     });
     if (this.compositeSegmentation) {
-      const color = this.getColorForLandUse(landUsePath);
+      const color = this.getColorForClassification(classificationPath);
       this.compositeSegmentation.addCluster(
         syntheticId,
         region.length,
-        landUsePath,
+        classificationPath,
         color
       );
     }
@@ -169,9 +171,9 @@ class RegionLabeler {
     }
     this.allLabels
       .get(SEGMENTATION_KEYS.COMPOSITE)
-      .set(syntheticId, landUsePath);
+      .set(syntheticId, classificationPath);
     console.log(
-      `Labeled ${region.length} pixels as synthetic cluster ${syntheticId} (${landUsePath})`
+      `Labeled ${region.length} pixels as synthetic cluster ${syntheticId} (${classificationPath})`
     );
     return syntheticId;
   }
@@ -183,11 +185,11 @@ class RegionLabeler {
       for (const neighbor of neighbors) {
         const clusterId =
           this.compositeGeoRaster.values[0][neighbor.y][neighbor.x];
-        const landUsePath = this.getPixelLandUsePath(clusterId);
-        if (landUsePath && landUsePath !== "unlabeled") {
+        const classificationPath = this.getPixelClassificationPath(clusterId);
+        if (classificationPath && classificationPath !== "unlabeled") {
           adjacentLabels.set(
-            landUsePath,
-            (adjacentLabels.get(landUsePath) || 0) + 1
+            classificationPath,
+            (adjacentLabels.get(classificationPath) || 0) + 1
           );
         }
       }
@@ -195,7 +197,7 @@ class RegionLabeler {
     return this.formatSuggestions(adjacentLabels);
   }
 
-  getPixelLandUsePath(clusterId) {
+  getPixelClassificationPath(clusterId) {
     if (!this.compositeSegmentation) {
       return "unlabeled";
     }
@@ -203,7 +205,7 @@ class RegionLabeler {
     if (!cluster) {
       return "unlabeled";
     }
-    return cluster.landUsePath;
+    return cluster.classificationPath;
   }
 
   getNeighbors(pixel, includeDiagonal = false) {
@@ -249,8 +251,8 @@ class RegionLabeler {
     return { lat, lng };
   }
 
-  getColorForLandUse(landUsePath) {
-    if (!landUsePath || landUsePath === "unlabeled") {
+  getColorForClassification(classificationPath) {
+    if (!classificationPath || classificationPath === "unlabeled") {
       return "rgb(255, 255, 0)";
     }
     if (
@@ -260,18 +262,18 @@ class RegionLabeler {
       return "rgb(128, 128, 128)";
     }
     const hierarchy = window.ClassificationHierarchy.getInstance();
-    const color = hierarchy.getColorForPath(landUsePath);
+    const color = hierarchy.getColorForPath(classificationPath);
     if (!color) {
       return "rgb(128, 128, 128)";
     }
     return `rgb(${hexToRgb(color)})`;
   }
 
-  getOrCreateSyntheticId(landUsePath) {
+  getOrCreateSyntheticId(classificationPath) {
     const syntheticLabels = this.allLabels.get(SEGMENTATION_KEYS.COMPOSITE);
     if (syntheticLabels) {
       for (const [clusterId, existingPath] of syntheticLabels) {
-        if (existingPath === landUsePath) {
+        if (existingPath === classificationPath) {
           return clusterId;
         }
       }
@@ -281,7 +283,7 @@ class RegionLabeler {
 
   formatSuggestions(adjacentLabels) {
     return Array.from(adjacentLabels.entries())
-      .map(([landUsePath, count]) => ({ landUsePath, count }))
+      .map(([classificationPath, count]) => ({ classificationPath, count }))
       .sort((a, b) => b.count - a.count);
   }
 }

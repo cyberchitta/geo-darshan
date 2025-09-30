@@ -24,8 +24,10 @@
       return;
     }
     const suggestionOptions = suggestions
-      .map(({ landUsePath, count }) => {
-        const baseOption = allOptions.find((opt) => opt.path === landUsePath);
+      .map(({ classificationPath, count }) => {
+        const baseOption = allOptions.find(
+          (opt) => opt.path === classificationPath
+        );
         return baseOption
           ? {
               ...baseOption,
@@ -36,7 +38,9 @@
           : null;
       })
       .filter(Boolean);
-    const suggestionPaths = new Set(suggestions.map((s) => s.landUsePath));
+    const suggestionPaths = new Set(
+      suggestions.map((s) => s.classificationPath)
+    );
     const remainingOptions = allOptions.filter(
       (opt) => !suggestionPaths.has(opt.path)
     );

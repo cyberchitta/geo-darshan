@@ -258,8 +258,8 @@
       const cluster = segmentation?.getCluster(pixelValue);
       if (
         (interactionMode === "cluster" || interactionMode === "composite") &&
-        cluster?.landUsePath &&
-        cluster.landUsePath !== "unlabeled"
+        cluster?.classificationPath &&
+        cluster.classificationPath !== "unlabeled"
       ) {
         const grayColor = convertToGrayscale(baseColor);
         return `rgba(${grayColor.r},${grayColor.g},${grayColor.b},${grayColor.a / 255})`;

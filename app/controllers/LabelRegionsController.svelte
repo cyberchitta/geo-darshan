@@ -63,14 +63,14 @@
         suggestions,
       };
     },
-    labelRegion: (region, landUsePath) => {
+    labelRegion: (region, classificationPath) => {
       if (!regionLabeler) return null;
       restoreOriginalValues();
-      const syntheticId = regionLabeler.labelRegion(region, landUsePath);
+      const syntheticId = regionLabeler.labelRegion(region, classificationPath);
       createInteractiveSegmentation();
       createInteractiveLayer();
       showBriefMessage(
-        `Created synthetic cluster ${syntheticId} with classification: ${landUsePath}`
+        `Created synthetic cluster ${syntheticId} with classification: ${classificationPath}`
       );
       return syntheticId;
     },
@@ -237,20 +237,20 @@
       for (let x = 0; x < interactiveRaster[y].length; x++) {
         const originalClusterId = interactiveRaster[y][x];
         if (originalClusterId === CLUSTER_ID_RANGES.NODATA) continue;
-        let landUsePath = "unlabeled";
+        let classificationPath = "unlabeled";
         if (CLUSTER_ID_RANGES.isFineGrain(originalClusterId)) {
-          landUsePath = "unlabeled";
+          classificationPath = "unlabeled";
         } else {
           for (const [key, mapping] of compositeState.clusterIdMapping) {
             if (mapping.uniqueId === originalClusterId) {
-              landUsePath = mapping.landUsePath;
+              classificationPath = mapping.classificationPath;
               break;
             }
           }
         }
         let aggregationKey, clusterId;
-        if (landUsePath !== "unlabeled") {
-          aggregationKey = landUsePath;
+        if (classificationPath !== "unlabeled") {
+          aggregationKey = classificationPath;
           if (!aggregationToId.has(aggregationKey)) {
             aggregationToId.set(aggregationKey, nextLabeledId++);
           }
@@ -272,20 +272,20 @@
       for (let x = 0; x < interactiveRaster[y].length; x++) {
         const originalClusterId = interactiveRaster[y][x];
         if (originalClusterId === CLUSTER_ID_RANGES.NODATA) continue;
-        let landUsePath = "unlabeled";
+        let classificationPath = "unlabeled";
         if (CLUSTER_ID_RANGES.isFineGrain(originalClusterId)) {
-          landUsePath = "unlabeled";
+          classificationPath = "unlabeled";
         } else {
           for (const [key, mapping] of compositeState.clusterIdMapping) {
             if (mapping.uniqueId === originalClusterId) {
-              landUsePath = mapping.landUsePath;
+              classificationPath = mapping.classificationPath;
               break;
             }
           }
         }
         let aggregationKey, clusterId;
-        if (landUsePath !== "unlabeled") {
-          aggregationKey = landUsePath;
+        if (classificationPath !== "unlabeled") {
+          aggregationKey = classificationPath;
           clusterId = aggregationToId.get(aggregationKey);
         } else {
           aggregationKey = `unlabeled_${originalClusterId}`;
@@ -296,18 +296,18 @@
     }
     for (const [aggregationKey, pixelCount] of aggregationPixelCounts) {
       const clusterId = aggregationToId.get(aggregationKey);
-      let landUsePath;
+      let classificationPath;
       if (aggregationKey.startsWith("unlabeled_")) {
-        landUsePath = "unlabeled";
+        classificationPath = "unlabeled";
       } else {
-        landUsePath = aggregationKey;
+        classificationPath = aggregationKey;
       }
       const color =
-        landUsePath === "unlabeled"
+        classificationPath === "unlabeled"
           ? "rgb(200, 200, 200)"
-          : getColorForLandUsePath(landUsePath);
+          : getColorForClassificationPath(classificationPath);
 
-      segmentation.addCluster(clusterId, pixelCount, landUsePath, color);
+      segmentation.addCluster(clusterId, pixelCount, classificationPath, color);
     }
     segmentation.finalize();
     interactiveSegmentation = segmentation;
@@ -387,7 +387,7 @@
     if (!interactiveSegmentation) return null;
     const cluster = interactiveSegmentation.getCluster(clusterId);
     if (!cluster) return null;
-    return getColorForLandUsePath(cluster.landUsePath);
+    return getColorForClassificationPath(cluster.classificationPath);
   }
 
   function createCompositeColorMapping(segmentation) {
@@ -404,13 +404,13 @@
     };
   }
 
-  function getColorForLandUsePath(landUsePath) {
-    if (!landUsePath || landUsePath === "unlabeled") {
+  function getColorForClassificationPath(classificationPath) {
+    if (!classificationPath || classificationPath === "unlabeled") {
       return null;
     }
     const hierarchy = ClassificationHierarchy.getInstance();
     const truncatedPath = PixelClassifier.truncateToHierarchyLevel(
-      landUsePath,
+      classificationPath,
       hierarchyLevel
     );
     const color = hierarchy.getColorForPath(truncatedPath);

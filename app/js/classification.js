@@ -268,7 +268,7 @@ class PixelClassifier {
         SEGMENTATION_KEYS.COMPOSITE
       );
       const cluster = syntheticSegmentation?.getCluster(clusterId);
-      return cluster?.landUsePath || "unlabeled";
+      return cluster?.classificationPath || "unlabeled";
     }
     let mapping = null;
     for (const [key, value] of this.clusterIdMapping) {
@@ -277,7 +277,7 @@ class PixelClassifier {
         break;
       }
     }
-    return mapping?.landUsePath || "unlabeled";
+    return mapping?.classificationPath || "unlabeled";
   }
 
   truncateToHierarchyLevel(classificationPath) {

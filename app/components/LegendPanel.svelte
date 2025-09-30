@@ -23,8 +23,8 @@
     </button>
     <button
       class="panel-tab"
-      class:active={activeTab === "landuse"}
-      onclick={() => switchTab("landuse")}
+      class:active={activeTab === "classification"}
+      onclick={() => switchTab("classification")}
     >
       Legend
     </button>
@@ -41,11 +41,11 @@
       <div class="tab-panel active">
         <ClusterLegend {appState} {callbacks} />
       </div>
-    {:else if activeTab === "landuse"}
+    {:else if activeTab === "classification"}
       <div class="tab-panel active">
         <HierarchyLegend
           dataState={appState.data}
-          landUseController={appState.landUse}
+          classificationController={appState.classification}
         />
       </div>
     {:else if activeTab === "data"}

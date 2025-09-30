@@ -1,12 +1,12 @@
 <script>
-  let { landUseState, labelRegionsState, segmentationState } = $props();
+  let { classificationState, labelRegionsState, segmentationState } = $props();
   let opacity = $state(0.8);
   $effect(() => {
     if (segmentationState?.setOpacity) {
       segmentationState.setOpacity(opacity);
     }
-    if (landUseState?.setOpacity) {
-      landUseState.setOpacity(opacity);
+    if (classificationState?.setOpacity) {
+      classificationState.setOpacity(opacity);
     }
     if (labelRegionsState?.setOpacity) {
       labelRegionsState.setOpacity(opacity);

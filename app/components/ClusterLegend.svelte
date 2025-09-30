@@ -12,7 +12,7 @@
   let segmentationState = $derived(appState.segmentation);
   let dataState = $derived(appState.data);
   let labelRegionsState = $derived(appState.labelRegions);
-  let hierarchyLevel = $derived(appState.landUse?.hierarchyLevel || 1);
+  let hierarchyLevel = $derived(appState.classification?.hierarchyLevel || 1);
   let selectedCluster = $derived(appState.map?.selectedCluster);
   let selectedRegion = $derived(appState.map?.selectedRegion);
   let interactionMode = $derived(appState.map?.interactionMode || "view");
@@ -26,7 +26,7 @@
   );
   let currentLabels = $derived(
     clusters.reduce((acc, cluster) => {
-      acc[cluster.id] = cluster.landUsePath;
+      acc[cluster.id] = cluster.classificationPath;
       return acc;
     }, {})
   );
@@ -50,7 +50,7 @@
   );
   let syntheticLabels = $derived(
     syntheticClusters.reduce((acc, cluster) => {
-      acc[cluster.id] = cluster.landUsePath;
+      acc[cluster.id] = cluster.classificationPath;
       return acc;
     }, {})
   );
@@ -272,11 +272,14 @@
     const hierarchy = ClassificationHierarchy.getInstance();
     const clusters = segmentation.getAllClusters();
     clusters.forEach((cluster) => {
-      if (!cluster.landUsePath || cluster.landUsePath === "unlabeled") {
+      if (
+        !cluster.classificationPath ||
+        cluster.classificationPath === "unlabeled"
+      ) {
         colorMap.set(cluster.id, null);
         return;
       }
-      const pathParts = cluster.landUsePath.split(".");
+      const pathParts = cluster.classificationPath.split(".");
       const truncatedPath = pathParts
         .slice(0, Math.min(pathParts.length, level))
         .join(".");

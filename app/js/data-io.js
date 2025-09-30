@@ -305,17 +305,17 @@ class DataIO {
     }
     console.log("Extracting composite geotiff data...");
     const georaster = mapper.compositeData;
-    const landUseRasterData = mapper.createLandUseRaster();
+    const classificationRasterData = mapper.createClassificationRaster();
     const tiffArrayBuffer = await this.createGeoTiffWithLibrary(
-      landUseRasterData,
+      classificationRasterData,
       georaster
     );
     return new Blob([tiffArrayBuffer], { type: "image/tiff" });
   }
 
-  async createGeoTiffWithLibrary(landUseRasterData, georaster) {
+  async createGeoTiffWithLibrary(classificationRasterData, georaster) {
     const maxLandCoverId = Math.max(
-      ...landUseRasterData.flat().filter((id) => id >= 0)
+      ...classificationRasterData.flat().filter((id) => id >= 0)
     );
     const useInt8 = maxLandCoverId < 127;
     const TypedArray = useInt8 ? Int8Array : Int16Array;
@@ -333,7 +333,7 @@ class DataIO {
     let unlabeledCount = 0;
     for (let y = 0; y < georaster.height; y++) {
       for (let x = 0; x < georaster.width; x++) {
-        const landCoverId = landUseRasterData[y][x];
+        const landCoverId = classificationRasterData[y][x];
         if (landCoverId === -1) {
           unlabeledCount++;
         }

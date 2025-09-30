@@ -9,7 +9,7 @@
   let mapManager = $state(null);
   let segmentationOpacity = $state(0.8);
   let labelRegionsOpacity = $state(0.8);
-  let landUseOpacity = $state(0.8);
+  let classificationOpacity = $state(0.8);
   let interactionMode = $state("view");
   let selectedCluster = $state(null);
   let clusterSuggestions = $state([]);
@@ -52,7 +52,7 @@
     setOpacity: (value) => {
       segmentationOpacity = value;
       labelRegionsOpacity = value;
-      landUseOpacity = value;
+      classificationOpacity = value;
       if (mapManager) {
         mapManager.setOverlayOpacity(value);
       }
@@ -262,8 +262,9 @@
     if (!cluster) {
       return "";
     }
-    return cluster.landUsePath && cluster.landUsePath !== "unlabeled"
-      ? cluster.landUsePath
+    return cluster.classificationPath &&
+      cluster.classificationPath !== "unlabeled"
+      ? cluster.classificationPath
       : "";
   }
 </script>

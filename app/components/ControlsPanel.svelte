@@ -4,7 +4,7 @@
   import NavigationControls from "./NavigationControls.svelte";
   import OverlayControls from "./OverlayControls.svelte";
 
-  let { segmentationState, mapState, landUseState, labelRegionsState } =
+  let { segmentationState, mapState, classificationState, labelRegionsState } =
     $props();
 
   let totalFrames = $derived(segmentationState.totalFrames || 0);
@@ -33,7 +33,7 @@
       <div class="controls-row">
         <div class="control-group overlay-group">
           <OverlayControls
-            {landUseState}
+            {classificationState}
             {labelRegionsState}
             {segmentationState}
           />

@@ -65,7 +65,7 @@ export class Cluster {
     }
     const clusters = [];
     const colors = new Map();
-    for (const [clusterId, landUsePath] of syntheticLabels) {
+    for (const [clusterId, classificationPath] of syntheticLabels) {
       const pixelCount = pixelCounts[clusterId] || 0;
       clusters.push({
         id: clusterId,
@@ -73,13 +73,13 @@ export class Cluster {
         segmentationKey: SEGMENTATION_KEYS.COMPOSITE,
         area_ha: (pixelCount * 0.01).toFixed(2),
       });
-      colors.set(clusterId, this.getSyntheticClusterColor(landUsePath));
+      colors.set(clusterId, this.getSyntheticClusterColor(classificationPath));
     }
     clusterData[SEGMENTATION_KEYS.COMPOSITE] = { clusters, colors };
   }
 
-  static getSyntheticClusterColor(landUsePath) {
-    if (!landUsePath || landUsePath === "unlabeled") {
+  static getSyntheticClusterColor(classificationPath) {
+    if (!classificationPath || classificationPath === "unlabeled") {
       return "rgb(255, 255, 0)";
     }
     if (
@@ -91,10 +91,10 @@ export class Cluster {
       );
     }
     const hierarchy = window.ClassificationHierarchy.getInstance();
-    const color = hierarchy.getColorForPath(landUsePath);
+    const color = hierarchy.getColorForPath(classificationPath);
     if (!color) {
       throw new Error(
-        `No color mapping found for land use path: ${landUsePath}`
+        `No color mapping found for land use path: ${classificationPath}`
       );
     }
     return `rgb(${hexToRgb(color)})`;

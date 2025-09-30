@@ -2,8 +2,8 @@
   import { ClassificationHierarchy } from "../js/classification.js";
   import TreeNode from "./TreeNode.svelte";
 
-  let { dataState, landUseController } = $props();
-  let hierarchyLevel = $derived(landUseController?.hierarchyLevel || 1);
+  let { dataState, classificationController } = $props();
+  let hierarchyLevel = $derived(classificationController?.hierarchyLevel || 1);
   let isExporting = $state(false);
   let expandedNodes = $state(new Set());
   const hierarchyLabels = {
@@ -23,11 +23,11 @@
   );
 
   async function handleExport() {
-    if (!landUseController) {
+    if (!classificationController) {
       alert("No land use controller available for export");
       return;
     }
-    const stats = landUseController.getStats();
+    const stats = classificationController.getStats();
     if (stats.totalLabels === 0) {
       alert(
         "No labeled clusters available for export. Please label some clusters first."
@@ -42,7 +42,7 @@
     }
     try {
       isExporting = true;
-      await landUseController.exportLandCoverFiles();
+      await classificationController.exportLandCoverFiles();
       alert("Land cover files exported successfully!");
     } catch (error) {
       console.error("Export failed:", error);
@@ -54,7 +54,7 @@
 
   function handleHierarchyLevelChange(event) {
     const level = parseInt(event.target.value);
-    landUseController?.setHierarchyLevel(level);
+    classificationController?.setHierarchyLevel(level);
     expandedNodes.clear();
     expandedNodes = new Set();
   }
@@ -74,8 +74,11 @@
     segmentations.forEach((segmentation) => {
       const clusters = segmentation.getAllClusters();
       clusters.forEach((cluster) => {
-        if (cluster.landUsePath && cluster.landUsePath !== "unlabeled") {
-          paths.add(cluster.landUsePath);
+        if (
+          cluster.classificationPath &&
+          cluster.classificationPath !== "unlabeled"
+        ) {
+          paths.add(cluster.classificationPath);
         }
       });
     });
