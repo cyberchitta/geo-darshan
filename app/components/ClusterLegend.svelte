@@ -1,6 +1,7 @@
 <script>
   import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "../js/utils.js";
   import HierarchySelector from "./HierarchySelector.svelte";
+  import { ClassificationHierarchy } from "../js/classification.js";
   let { appState, callbacks } = $props();
   const {
     onLabelChange,
@@ -11,6 +12,7 @@
   let segmentationState = $derived(appState.segmentation);
   let dataState = $derived(appState.data);
   let labelRegionsState = $derived(appState.labelRegions);
+  let hierarchyLevel = $derived(appState.landUse?.hierarchyLevel || 1);
   let selectedCluster = $derived(appState.map?.selectedCluster);
   let selectedRegion = $derived(appState.map?.selectedRegion);
   let interactionMode = $derived(appState.map?.interactionMode || "view");
@@ -42,7 +44,9 @@
     syntheticSegmentation?.getAllClusters?.() || []
   );
   let syntheticClusterColors = $derived(
-    syntheticSegmentation?.getColors() || new Map()
+    syntheticSegmentation
+      ? calculateSyntheticColors(syntheticSegmentation, hierarchyLevel)
+      : new Map()
   );
   let syntheticLabels = $derived(
     syntheticClusters.reduce((acc, cluster) => {
@@ -178,11 +182,6 @@
     console.log("Cluster selected:", clusterId);
     announceChange(`Selected cluster ${clusterId}`);
   }
-  function selectSyntheticCluster(clusterId) {
-    focusedClusterId = clusterId;
-    console.log("Synthetic cluster selected:", clusterId);
-    announceChange(`Selected synthetic cluster ${clusterId}`);
-  }
   function navigateToNextCluster(currentId, direction) {
     const currentIndex = clusters.findIndex((c) => c.id === currentId);
     const nextIndex = currentIndex + direction;
@@ -266,6 +265,32 @@
         ? "unlabeled"
         : selectedOption.displayPath.split(" > ").pop();
     announceChange(`Synthetic cluster ${clusterId} labeled as ${labelText}`);
+  }
+  function calculateSyntheticColors(segmentation, level) {
+    const colorMap = new Map();
+    if (!ClassificationHierarchy.isLoaded()) return colorMap;
+    const hierarchy = ClassificationHierarchy.getInstance();
+    const clusters = segmentation.getAllClusters();
+    clusters.forEach((cluster) => {
+      if (!cluster.landUsePath || cluster.landUsePath === "unlabeled") {
+        colorMap.set(cluster.id, null);
+        return;
+      }
+      const pathParts = cluster.landUsePath.split(".");
+      const truncatedPath = pathParts
+        .slice(0, Math.min(pathParts.length, level))
+        .join(".");
+      try {
+        const color = hierarchy.getColorForPath(truncatedPath, level);
+        colorMap.set(
+          cluster.id,
+          color ? `#${color.replace("#", "")}` : "#888888"
+        );
+      } catch (error) {
+        colorMap.set(cluster.id, "#888888");
+      }
+    });
+    return colorMap;
   }
   function announceChange(message) {
     announcementText = message;
