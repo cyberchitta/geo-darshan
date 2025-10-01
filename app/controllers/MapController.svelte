@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { SEGMENTATION_KEYS } from "../js/utils.js";
+  import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "../js/utils.js";
   import { MapManager } from "../js/map-manager.js";
   import { ClassificationHierarchy } from "../js/classification.js";
   import { Segmentation } from "../js/segmentation.js";
@@ -242,29 +242,29 @@
   }
 
   async function getCurrentLabelAtPosition(latlng) {
-    if (!mapManager?.currentOverlay?.georasters?.[0]) {
+    const labelRegionsState = labelRegionsController?.getState();
+    const interactiveSegmentation = labelRegionsState?.interactiveSegmentation;
+    const raster = labelRegionsState?.processedInteractiveRaster;
+    if (!interactiveSegmentation?.georaster || !raster) {
       return "";
     }
-    const clusterValue = await mapManager.samplePixelAtCoordinate(latlng);
+    const georaster = interactiveSegmentation.georaster;
+    const x = Math.floor((latlng.lng - georaster.xmin) / georaster.pixelWidth);
+    const y = Math.floor((georaster.ymax - latlng.lat) / georaster.pixelHeight);
+    if (x < 0 || x >= georaster.width || y < 0 || y >= georaster.height) {
+      return "";
+    }
+    const clusterId = raster[y][x];
+    if (clusterId === undefined || CLUSTER_ID_RANGES.isNoData(clusterId)) {
+      return "";
+    }
+    const cluster = interactiveSegmentation.getCluster(clusterId);
     if (
-      clusterValue === null ||
-      clusterValue === undefined ||
-      clusterValue < 0
+      !cluster?.classificationPath ||
+      cluster.classificationPath === "unlabeled"
     ) {
       return "";
     }
-    const labelRegionsState = labelRegionsController?.getState();
-    const interactiveSegmentation = labelRegionsState?.interactiveSegmentation;
-    if (!interactiveSegmentation) {
-      return "";
-    }
-    const cluster = interactiveSegmentation.getCluster(clusterValue);
-    if (!cluster) {
-      return "";
-    }
-    return cluster.classificationPath &&
-      cluster.classificationPath !== "unlabeled"
-      ? cluster.classificationPath
-      : "";
+    return cluster.classificationPath;
   }
 </script>

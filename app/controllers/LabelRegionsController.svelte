@@ -36,6 +36,9 @@
     get interactiveSegmentation() {
       return interactiveSegmentation;
     },
+    get processedInteractiveRaster() {
+      return processedInteractiveRaster;
+    },
     get hasActiveLayer() {
       return interactiveLayer && isLayerVisible;
     },
