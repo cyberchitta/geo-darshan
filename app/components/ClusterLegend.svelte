@@ -649,8 +649,11 @@
     border-color: #1976d2;
   }
   .legend-cluster-item.synthetic.labeled {
-    background: #f8f9fa;
-    opacity: 0.8;
+    opacity: 1;
+  }
+  .legend-cluster-item.synthetic.labeled .cluster-color-swatch {
+    opacity: 1;
+    filter: none;
   }
   .legend-header {
     flex-shrink: 0;
