@@ -1,3 +1,4 @@
+import { ClassificationHierarchy } from "./classification.js";
 import { CLUSTER_ID_RANGES, hexToRgb, SEGMENTATION_KEYS } from "./utils.js";
 
 class RegionLabeler {
@@ -107,13 +108,16 @@ class RegionLabeler {
     return region;
   }
 
-  labelRegion(region, classificationPath) {
+  labelRegion(region, classificationPath, hierarchyLevel = null) {
     const syntheticId = this.getOrCreateSyntheticId(classificationPath);
     region.forEach((pixel) => {
       this.compositeGeoRaster.values[0][pixel.y][pixel.x] = syntheticId;
     });
     if (this.compositeSegmentation) {
-      const color = this.getColorForClassification(classificationPath);
+      const color = ClassificationHierarchy.getColorForClassification(
+        classificationPath,
+        hierarchyLevel
+      );
       this.compositeSegmentation.addCluster(
         syntheticId,
         region.length,
@@ -204,24 +208,6 @@ class RegionLabeler {
       this.compositeGeoRaster.ymax -
       (pixel.y + 0.5) * this.compositeGeoRaster.pixelHeight;
     return { lat, lng };
-  }
-
-  getColorForClassification(classificationPath) {
-    if (!classificationPath || classificationPath === "unlabeled") {
-      return "rgb(255, 255, 0)";
-    }
-    if (
-      !window.ClassificationHierarchy ||
-      !window.ClassificationHierarchy.isLoaded()
-    ) {
-      return "rgb(128, 128, 128)";
-    }
-    const hierarchy = window.ClassificationHierarchy.getInstance();
-    const color = hierarchy.getColorForPath(classificationPath);
-    if (!color) {
-      return "rgb(128, 128, 128)";
-    }
-    return `rgb(${hexToRgb(color)})`;
   }
 
   getOrCreateSyntheticId(classificationPath) {

@@ -32,6 +32,13 @@ export function hexToRgb(hex) {
   return `${parseInt(result[1], 16)},${parseInt(result[2], 16)},${parseInt(result[3], 16)}`;
 }
 
+export function rgbToHex(rgbString) {
+  const match = rgbString.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  if (!match) return null;
+  const [_, r, g, b] = match;
+  return `#${[r, g, b].map((n) => parseInt(n).toString(16).padStart(2, "0")).join("")}`;
+}
+
 export const STORAGE_KEYS = {
   CLUSTER_LABELS: "cluster-labels-v2",
   ACTIVE_PANEL: "activePanel-v1",

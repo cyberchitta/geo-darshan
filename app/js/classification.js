@@ -1,10 +1,25 @@
-import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "./utils.js";
+import { CLUSTER_ID_RANGES, hexToRgb, SEGMENTATION_KEYS } from "./utils.js";
 
 class ClassificationHierarchy {
   constructor(hierarchyData, colorData) {
     this.hierarchy = hierarchyData;
     this.colors = colorData;
     this.flatPaths = this.flattenHierarchy();
+  }
+
+  static getColorForClassification(classificationPath, hierarchyLevel = null) {
+    if (!classificationPath || classificationPath === "unlabeled") {
+      return null;
+    }
+    const hierarchy = ClassificationHierarchy.getInstance();
+    const effectivePath = hierarchyLevel
+      ? PixelClassifier.truncateToHierarchyLevel(
+          classificationPath,
+          hierarchyLevel
+        )
+      : classificationPath;
+    const hexColor = hierarchy.getColorForPath(effectivePath);
+    return `rgb(${hexToRgb(hexColor)})`;
   }
 
   static async loadFromFile(

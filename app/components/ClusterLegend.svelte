@@ -1,5 +1,9 @@
 <script>
-  import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "../js/utils.js";
+  import {
+    CLUSTER_ID_RANGES,
+    SEGMENTATION_KEYS,
+    rgbToHex,
+  } from "../js/utils.js";
   import HierarchySelector from "./HierarchySelector.svelte";
   import { ClassificationHierarchy } from "../js/classification.js";
   let { appState, callbacks } = $props();
@@ -269,29 +273,14 @@
   function calculateSyntheticColors(segmentation, level) {
     const colorMap = new Map();
     if (!ClassificationHierarchy.isLoaded()) return colorMap;
-    const hierarchy = ClassificationHierarchy.getInstance();
     const clusters = segmentation.getAllClusters();
     clusters.forEach((cluster) => {
-      if (
-        !cluster.classificationPath ||
-        cluster.classificationPath === "unlabeled"
-      ) {
-        colorMap.set(cluster.id, null);
-        return;
-      }
-      const pathParts = cluster.classificationPath.split(".");
-      const truncatedPath = pathParts
-        .slice(0, Math.min(pathParts.length, level))
-        .join(".");
-      try {
-        const color = hierarchy.getColorForPath(truncatedPath, level);
-        colorMap.set(
-          cluster.id,
-          color ? `#${color.replace("#", "")}` : "#888888"
-        );
-      } catch (error) {
-        colorMap.set(cluster.id, "#888888");
-      }
+      const rgbColor = ClassificationHierarchy.getColorForClassification(
+        cluster.classificationPath,
+        level
+      );
+      const hexColor = rgbColor ? rgbToHex(rgbColor) : null;
+      colorMap.set(cluster.id, hexColor);
     });
     return colorMap;
   }

@@ -66,7 +66,11 @@
     labelRegion: (region, classificationPath) => {
       if (!regionLabeler) return null;
       restoreOriginalValues();
-      const syntheticId = regionLabeler.labelRegion(region, classificationPath);
+      const syntheticId = regionLabeler.labelRegion(
+        region,
+        classificationPath,
+        hierarchyLevel
+      );
       createInteractiveSegmentation();
       createInteractiveLayer();
       showBriefMessage(
@@ -305,9 +309,11 @@
       }
       const color =
         classificationPath === "unlabeled"
-          ? "rgb(200, 200, 200)"
-          : getColorForClassificationPath(classificationPath);
-
+          ? null
+          : ClassificationHierarchy.getColorForClassification(
+              classificationPath,
+              hierarchyLevel
+            );
       segmentation.addCluster(clusterId, pixelCount, classificationPath, color);
     }
     segmentation.finalize();
@@ -388,15 +394,22 @@
     if (!interactiveSegmentation) return null;
     const cluster = interactiveSegmentation.getCluster(clusterId);
     if (!cluster) return null;
-    return getColorForClassificationPath(cluster.classificationPath);
+    return ClassificationHierarchy.getColorForClassification(
+      cluster.classificationPath,
+      hierarchyLevel
+    );
   }
 
   function createCompositeColorMapping(segmentation) {
     const clusters = segmentation.getAllClusters();
     const colors_rgb = [];
     clusters.forEach((cluster) => {
-      const rgbArray = convertColorStringToArray(cluster.color);
-      colors_rgb[cluster.id] = rgbArray;
+      if (cluster.color === null) {
+        colors_rgb[cluster.id] = null;
+      } else {
+        const rgbArray = convertColorStringToArray(cluster.color);
+        colors_rgb[cluster.id] = rgbArray;
+      }
     });
     return {
       method: "cluster_specific",

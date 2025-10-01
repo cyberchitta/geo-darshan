@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { SEGMENTATION_KEYS, hexToRgb } from "../js/utils.js";
+  import { SEGMENTATION_KEYS } from "../js/utils.js";
   import {
     ClassificationHierarchy,
     PixelClassifier,
@@ -167,32 +167,18 @@
     if (!mapping || mapping.classificationPath === "unlabeled") {
       return null;
     }
-    const truncatedPath = truncateToHierarchyLevel(mapping.classificationPath);
-    return resolveClassificationColor(truncatedPath);
-  }
-
-  function truncateToHierarchyLevel(classificationPath) {
-    return PixelClassifier.truncateToHierarchyLevel(
-      classificationPath,
-      hierarchyLevel
-    );
+    return resolveClassificationColor(mapping.classificationPath);
   }
 
   function resolveClassificationColor(classificationPath) {
-    if (!classificationPath || classificationPath === "unlabeled") {
-      return null;
-    }
-    if (!ClassificationHierarchy.isLoaded()) {
-      console.warn("ClassificationHierarchy not loaded");
-      return null;
-    }
     const cacheKey = `${classificationPath}:${hierarchyLevel}`;
     if (classificationColorCache.has(cacheKey)) {
       return classificationColorCache.get(cacheKey);
     }
-    const hierarchy = ClassificationHierarchy.getInstance();
-    const color = hierarchy.getColorForPath(classificationPath, hierarchyLevel);
-    const rgbColor = color ? `rgb(${hexToRgb(color)})` : null;
+    const rgbColor = ClassificationHierarchy.getColorForClassification(
+      classificationPath,
+      hierarchyLevel
+    );
     classificationColorCache.set(cacheKey, rgbColor);
     return rgbColor;
   }
