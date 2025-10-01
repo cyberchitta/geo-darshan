@@ -5,10 +5,14 @@ compose:
   filters: ["flt-repo"]
 gitignores:
   full-files:
+    - "land-cover*.html"
     - "*.svelte"
+    - "*.config.js"
     - "*.json"
     - "*.css"
   excerpted-files:
+    - "land-cover*.html"
+    - "*.config.js"
     - "*.json"
     - "*.css"
 limit-to:
