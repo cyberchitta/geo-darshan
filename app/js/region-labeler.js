@@ -7,6 +7,7 @@ class RegionLabeler {
     this.allLabels = null;
     this.segmentations = null;
     this.nextSyntheticId = CLUSTER_ID_RANGES.SYNTHETIC_START;
+    this.processedInteractiveRaster = null;
   }
 
   findRegionBoundary(region) {
@@ -61,12 +62,14 @@ class RegionLabeler {
     compositeGeoRaster,
     compositeSegmentation,
     allLabels,
-    segmentationsMap
+    segmentationsMap,
+    processedInteractiveRaster
   ) {
     this.compositeGeoRaster = compositeGeoRaster;
     this.compositeSegmentation = compositeSegmentation;
     this.allLabels = allLabels;
     this.segmentations = segmentationsMap;
+    this.processedInteractiveRaster = processedInteractiveRaster;
     this.initializeSyntheticTracking();
   }
 
@@ -184,7 +187,7 @@ class RegionLabeler {
       const neighbors = this.getNeighbors(pixel, true);
       for (const neighbor of neighbors) {
         const clusterId =
-          this.compositeGeoRaster.values[0][neighbor.y][neighbor.x];
+          this.processedInteractiveRaster[neighbor.y][neighbor.x];
         const classificationPath = this.getPixelClassificationPath(clusterId);
         if (classificationPath && classificationPath !== "unlabeled") {
           adjacentLabels.set(

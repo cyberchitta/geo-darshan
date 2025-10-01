@@ -198,7 +198,8 @@
         compositeState.georaster,
         interactiveSegmentation,
         allLabelsMap,
-        dataState.segmentations
+        dataState.segmentations,
+        processedInteractiveRaster
       );
     }
   });
