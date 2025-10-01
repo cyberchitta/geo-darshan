@@ -1,15 +1,8 @@
 <script>
   import { onMount } from "svelte";
-  import {
-    CLUSTER_ID_RANGES,
-    SEGMENTATION_KEYS,
-    hexToRgb,
-  } from "../js/utils.js";
+  import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "../js/utils.js";
   import { Segmentation } from "../js/segmentation.js";
-  import {
-    ClassificationHierarchy,
-    PixelClassifier,
-  } from "../js/classification.js";
+  import { ClassificationHierarchy } from "../js/classification.js";
   import { RegionLabeler } from "../js/region-labeler.js";
 
   let {
@@ -416,19 +409,6 @@
       colors_rgb,
       nodata_value: CLUSTER_ID_RANGES.NODATA,
     };
-  }
-
-  function getColorForClassificationPath(classificationPath) {
-    if (!classificationPath || classificationPath === "unlabeled") {
-      return null;
-    }
-    const hierarchy = ClassificationHierarchy.getInstance();
-    const truncatedPath = PixelClassifier.truncateToHierarchyLevel(
-      classificationPath,
-      hierarchyLevel
-    );
-    const color = hierarchy.getColorForPath(truncatedPath);
-    return `rgb(${hexToRgb(color)})`;
   }
 
   function convertColorStringToArray(colorString) {
