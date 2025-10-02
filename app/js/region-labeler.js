@@ -9,6 +9,7 @@ class RegionLabeler {
     this.segmentations = null;
     this.nextSyntheticId = CLUSTER_ID_RANGES.SYNTHETIC_START;
     this.processedInteractiveRaster = null;
+    this.syntheticSegmentation = null;
   }
 
   updateCompositeData(
@@ -23,12 +24,15 @@ class RegionLabeler {
     this.allLabels = allLabels;
     this.segmentations = segmentationsMap;
     this.processedInteractiveRaster = processedInteractiveRaster;
+    this.syntheticSegmentation = segmentationsMap.get(
+      SEGMENTATION_KEYS.SYNTHETIC
+    );
     this.initializeSyntheticTracking();
   }
 
   initializeSyntheticTracking() {
-    const syntheticLabels = this.allLabels.get(SEGMENTATION_KEYS.COMPOSITE);
-    let maxId = 9999;
+    const syntheticLabels = this.allLabels.get(SEGMENTATION_KEYS.SYNTHETIC);
+    let maxId = CLUSTER_ID_RANGES.SYNTHETIC_START - 1;
     if (syntheticLabels && syntheticLabels.size > 0) {
       const existingIds = Array.from(syntheticLabels.keys());
       maxId = Math.max(
@@ -36,8 +40,8 @@ class RegionLabeler {
         ...existingIds.filter((id) => CLUSTER_ID_RANGES.isSynthetic(id))
       );
     }
-    if (this.compositeSegmentation) {
-      const clusters = this.compositeSegmentation.getAllClusters();
+    if (this.syntheticSegmentation) {
+      const clusters = this.syntheticSegmentation.getAllClusters();
       const existingIds = clusters.map((c) => c.id);
       maxId = Math.max(
         maxId,
@@ -109,27 +113,29 @@ class RegionLabeler {
   }
 
   labelRegion(region, classificationPath, hierarchyLevel = null) {
-    const syntheticId = this.getOrCreateSyntheticId(classificationPath);
-    region.forEach((pixel) => {
-      this.compositeGeoRaster.values[0][pixel.y][pixel.x] = syntheticId;
-    });
-    if (this.compositeSegmentation) {
-      const color = ClassificationHierarchy.getColorForClassification(
-        classificationPath,
-        hierarchyLevel
-      );
-      this.compositeSegmentation.addCluster(
-        syntheticId,
-        region.length,
-        classificationPath,
-        color
-      );
+    if (!this.syntheticSegmentation) {
+      throw new Error("Synthetic segmentation not initialized");
     }
-    if (!this.allLabels.has(SEGMENTATION_KEYS.COMPOSITE)) {
-      this.allLabels.set(SEGMENTATION_KEYS.COMPOSITE, new Map());
+    const syntheticId = this.getOrCreateSyntheticId(classificationPath);
+    const syntheticRaster = this.syntheticSegmentation.georaster.values[0];
+    region.forEach((pixel) => {
+      syntheticRaster[pixel.y][pixel.x] = syntheticId;
+    });
+    const color = ClassificationHierarchy.getColorForClassification(
+      classificationPath,
+      hierarchyLevel
+    );
+    this.syntheticSegmentation.addCluster(
+      syntheticId,
+      region.length,
+      classificationPath,
+      color
+    );
+    if (!this.allLabels.has(SEGMENTATION_KEYS.SYNTHETIC)) {
+      this.allLabels.set(SEGMENTATION_KEYS.SYNTHETIC, new Map());
     }
     this.allLabels
-      .get(SEGMENTATION_KEYS.COMPOSITE)
+      .get(SEGMENTATION_KEYS.SYNTHETIC)
       .set(syntheticId, classificationPath);
     console.log(
       `Labeled ${region.length} pixels as synthetic cluster ${syntheticId} (${classificationPath})`
@@ -157,10 +163,13 @@ class RegionLabeler {
   }
 
   getPixelClassificationPath(clusterId) {
-    if (!this.compositeSegmentation) {
+    const interactiveSegmentation = this.segmentations.get(
+      SEGMENTATION_KEYS.INTERACTIVE
+    );
+    if (!interactiveSegmentation) {
       return "unlabeled";
     }
-    const cluster = this.compositeSegmentation.getCluster(clusterId);
+    const cluster = interactiveSegmentation.getCluster(clusterId);
     if (!cluster) {
       return "unlabeled";
     }
@@ -211,7 +220,7 @@ class RegionLabeler {
   }
 
   getOrCreateSyntheticId(classificationPath) {
-    const syntheticLabels = this.allLabels.get(SEGMENTATION_KEYS.COMPOSITE);
+    const syntheticLabels = this.allLabels.get(SEGMENTATION_KEYS.SYNTHETIC);
     if (syntheticLabels) {
       for (const [clusterId, existingPath] of syntheticLabels) {
         if (existingPath === classificationPath) {

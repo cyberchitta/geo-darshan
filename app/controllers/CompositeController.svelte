@@ -2,6 +2,7 @@
   import { ClassificationHierarchy } from "../js/classification.js";
   import { Compositor } from "../js/compositor.js";
   import { Segmentation } from "../js/segmentation.js";
+  import { SEGMENTATION_KEYS } from "../js/utils.js";
 
   let { dataState, segmentationController } = $props();
   let hasSegmentations = $derived(dataState?.segmentations?.size > 0);
@@ -61,6 +62,24 @@
       values: [result.compositeData],
       numberOfRasters: 1,
     };
+    const compositeSegmentation =
+      Segmentation.createComposite(compositeGeoRaster);
+    for (const [key, mapping] of result.clusterIdMapping) {
+      const color = ClassificationHierarchy.getColorForClassification(
+        mapping.classificationPath
+      );
+      compositeSegmentation.addCluster(
+        mapping.uniqueId,
+        0,
+        mapping.classificationPath,
+        color
+      );
+    }
+    compositeSegmentation.finalize();
+    dataState.addSegmentation(
+      SEGMENTATION_KEYS.COMPOSITE,
+      compositeSegmentation
+    );
     const endTime = performance.now();
     console.log(
       `✅ Composite generated in ${(endTime - startTime).toFixed(2)}ms`

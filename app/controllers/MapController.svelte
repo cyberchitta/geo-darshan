@@ -154,7 +154,7 @@
       } else {
         selectedCluster = {
           clusterId: clusterValue,
-          segmentationKey: SEGMENTATION_KEYS.COMPOSITE,
+          segmentationKey: SEGMENTATION_KEYS.INTERACTIVE,
           latlng,
         };
       }

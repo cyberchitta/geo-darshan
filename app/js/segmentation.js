@@ -1,4 +1,4 @@
-import { SEGMENTATION_KEYS } from "./utils.js";
+import { SEGMENTATION_KEYS, CLUSTER_ID_RANGES } from "./utils.js";
 
 class Segmentation {
   constructor(key, georaster, colorMapping, metadata = {}) {
@@ -37,9 +37,40 @@ class Segmentation {
     return segmentation;
   }
 
+  static createSynthetic(refGeoRaster) {
+    const height = refGeoRaster.height;
+    const width = refGeoRaster.width;
+    const syntheticRasterData = Array(height)
+      .fill(null)
+      .map(() => Array(width).fill(CLUSTER_ID_RANGES.NODATA));
+
+    const syntheticGeoRaster = {
+      ...refGeoRaster,
+      values: [syntheticRasterData],
+      numberOfRasters: 1,
+    };
+
+    return new Segmentation(
+      SEGMENTATION_KEYS.SYNTHETIC,
+      syntheticGeoRaster,
+      null,
+      {
+        source: "user_labels",
+        created: new Date().toISOString(),
+      }
+    );
+  }
+
   static createComposite(refGeoRaster) {
     return new Segmentation(SEGMENTATION_KEYS.COMPOSITE, refGeoRaster, null, {
       source: "composite",
+      created: new Date().toISOString(),
+    });
+  }
+
+  static createInteractive(refGeoRaster) {
+    return new Segmentation(SEGMENTATION_KEYS.INTERACTIVE, refGeoRaster, null, {
+      source: "interactive",
       created: new Date().toISOString(),
     });
   }

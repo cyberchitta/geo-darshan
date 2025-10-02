@@ -121,7 +121,7 @@
     const isRegularCluster =
       selectedCluster.segmentationKey === currentSegmentationKey;
     const isCompositeCluster =
-      selectedCluster.segmentationKey === SEGMENTATION_KEYS.COMPOSITE;
+      selectedCluster.segmentationKey === SEGMENTATION_KEYS.INTERACTIVE;
     if (isRegularCluster) {
       scrollToCluster(selectedCluster.clusterId, false);
       highlightCluster(selectedCluster.clusterId, false);
@@ -152,7 +152,7 @@
     announceChange(`Selected synthetic cluster ${clusterId}`);
     if (labelRegionsState?.selectClusterAt) {
       const compositeSegmentation = dataState.segmentations?.get(
-        SEGMENTATION_KEYS.COMPOSITE
+        SEGMENTATION_KEYS.INTERACTIVE
       );
       if (!compositeSegmentation?.georaster) return;
       const georaster = compositeSegmentation.georaster;

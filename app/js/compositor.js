@@ -6,9 +6,18 @@ import {
 
 export class Compositor {
   static async generateCompositeRaster(segmentations, allLabels, rules) {
-    const segmentationKeys = Array.from(segmentations.keys())
-      .filter((key) => key !== SEGMENTATION_KEYS.COMPOSITE)
+    const syntheticSeg = segmentations.get(SEGMENTATION_KEYS.SYNTHETIC);
+    const regularKeys = Array.from(segmentations.keys())
+      .filter(
+        (key) =>
+          key !== SEGMENTATION_KEYS.COMPOSITE &&
+          key !== SEGMENTATION_KEYS.INTERACTIVE &&
+          key !== SEGMENTATION_KEYS.SYNTHETIC
+      )
       .sort((a, b) => this.compareSegmentationsByRule(a, b, rules));
+    const segmentationKeys = syntheticSeg
+      ? [SEGMENTATION_KEYS.SYNTHETIC, ...regularKeys]
+      : regularKeys;
     if (segmentationKeys.length === 0) {
       throw new Error("No segmentations available");
     }
@@ -17,9 +26,8 @@ export class Compositor {
     const height = refGeoRaster.height;
     const width = refGeoRaster.width;
     const nodataValue = refGeoRaster.noDataValue ?? CLUSTER_ID_RANGES.NODATA;
-
     let nextUniqueId = 1;
-    const clusterIdMapping = new Map(); // originalId_segKey → {uniqueId, originalId, sourceSegmentation, classificationPath}
+    const clusterIdMapping = new Map();
     // First pass: assign unique IDs to all labeled clusters
     for (const segKey of segmentationKeys) {
       const labels = allLabels.get(segKey) || new Map();
@@ -89,7 +97,7 @@ export class Compositor {
       compositeData,
       clusterIdMapping,
       refGeoRaster,
-      highestKKey: segmentationKeys[0],
+      highestKKey: regularKeys[0], // First regular key (highest k)
     };
   }
 

@@ -3,6 +3,7 @@
   import { SEGMENTATION_KEYS } from "../js/utils.js";
   import { DataIO } from "../js/data-io.js";
   import { Cluster } from "../js/cluster.js";
+  import { Segmentation } from "../js/segmentation.js";
 
   let {} = $props();
   let aoiName = $state("");
@@ -13,7 +14,7 @@
   let segmentations = $state(new Map());
   let userLabelsVersion = $state(0);
   let clusterLabels = $state({});
-  let overlayMap = $state(new Map()); // segmentationKey -> overlay
+  let overlayMap = $state(new Map());
 
   const stateObject = {
     get aoiName() {
@@ -112,6 +113,10 @@
         manifestData,
         dataIO
       );
+      const refGeoRaster = overlayData[0].georaster;
+      const syntheticSegmentation = Segmentation.createSynthetic(refGeoRaster);
+      segmentations.set(SEGMENTATION_KEYS.SYNTHETIC, syntheticSegmentation);
+      console.log("✅ Created synthetic segmentation for user labels");
       restoreLabelsToSegmentations();
       isLoading = false;
       error = null;
@@ -182,7 +187,10 @@
         [clusterId]: classificationPath,
       },
     };
-    if (segmentationKey !== SEGMENTATION_KEYS.COMPOSITE) {
+    if (
+      segmentationKey !== SEGMENTATION_KEYS.COMPOSITE &&
+      segmentationKey !== SEGMENTATION_KEYS.INTERACTIVE
+    ) {
       userLabelsVersion++;
     }
     if (dataIO) {
@@ -203,6 +211,7 @@
       dataIO.saveLabelsToStorage(clusterLabels);
     }
   }
+
   function serializeLabelsFromSegmentations() {
     const serialized = {};
     segmentations.forEach((segmentation, segKey) => {

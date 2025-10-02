@@ -30,8 +30,9 @@
   );
   let processedInteractiveRaster = $state(null);
   let selectedCluster = $derived(mapState?.selectedCluster);
-  let selectedPixelData = $state(new Map()); // Map<"x,y", originalClusterId>
+  let selectedPixelData = $state(new Map());
   let listeners = $state({});
+
   const stateObject = {
     get interactiveSegmentation() {
       return interactiveSegmentation;
@@ -67,8 +68,11 @@
         classificationPath,
         hierarchyLevel
       );
-      createInteractiveSegmentation();
-      createInteractiveLayer();
+      dataState.setClusterLabel(
+        SEGMENTATION_KEYS.SYNTHETIC,
+        syntheticId,
+        classificationPath
+      );
       showBriefMessage(
         `Created synthetic cluster ${syntheticId} with classification: ${classificationPath}`
       );
@@ -185,6 +189,7 @@
       console.log(
         `Hierarchy level changed to ${hierarchyLevel}, regenerating layer...`
       );
+      createInteractiveSegmentation();
       createInteractiveLayer();
       lastProcessedHierarchyLevel = hierarchyLevel;
     }
@@ -194,9 +199,12 @@
       const allLabelsMap = Segmentation.extractAllLabels(
         dataState.segmentations
       );
+      const compositeSegmentation = dataState.segmentations?.get(
+        SEGMENTATION_KEYS.COMPOSITE
+      );
       regionLabeler.updateCompositeData(
         compositeState.georaster,
-        interactiveSegmentation,
+        compositeSegmentation,
         allLabelsMap,
         dataState.segmentations,
         processedInteractiveRaster
@@ -227,8 +235,14 @@
   }
 
   function createInteractiveSegmentation() {
-    if (!compositeState?.georaster || !compositeState?.clusterIdMapping) return;
-    const segmentation = Segmentation.createComposite(compositeState.georaster);
+    if (!compositeState?.georaster) return;
+    const compositeSegmentation = dataState.segmentations?.get(
+      SEGMENTATION_KEYS.COMPOSITE
+    );
+    if (!compositeSegmentation) {
+      console.error("Composite segmentation not found");
+      return;
+    }
     const compositeData = compositeState.georaster.values[0];
     const interactiveRaster = createInteractiveRaster(compositeData);
     const aggregationPixelCounts = new Map();
@@ -242,12 +256,8 @@
         if (CLUSTER_ID_RANGES.isFineGrain(originalClusterId)) {
           classificationPath = "unlabeled";
         } else {
-          for (const [key, mapping] of compositeState.clusterIdMapping) {
-            if (mapping.uniqueId === originalClusterId) {
-              classificationPath = mapping.classificationPath;
-              break;
-            }
-          }
+          const cluster = compositeSegmentation.getCluster(originalClusterId);
+          classificationPath = cluster?.classificationPath || "unlabeled";
         }
         let aggregationKey, clusterId;
         if (classificationPath !== "unlabeled") {
@@ -277,12 +287,8 @@
         if (CLUSTER_ID_RANGES.isFineGrain(originalClusterId)) {
           classificationPath = "unlabeled";
         } else {
-          for (const [key, mapping] of compositeState.clusterIdMapping) {
-            if (mapping.uniqueId === originalClusterId) {
-              classificationPath = mapping.classificationPath;
-              break;
-            }
-          }
+          const cluster = compositeSegmentation.getCluster(originalClusterId);
+          classificationPath = cluster?.classificationPath || "unlabeled";
         }
         let aggregationKey, clusterId;
         if (classificationPath !== "unlabeled") {
@@ -295,6 +301,11 @@
         interactiveRaster[y][x] = clusterId;
       }
     }
+    const interactiveGeoRaster = {
+      ...compositeState.georaster,
+      values: [interactiveRaster],
+    };
+    const segmentation = Segmentation.createInteractive(interactiveGeoRaster);
     for (const [aggregationKey, pixelCount] of aggregationPixelCounts) {
       const clusterId = aggregationToId.get(aggregationKey);
       let classificationPath;
@@ -314,10 +325,10 @@
     }
     segmentation.finalize();
     interactiveSegmentation = segmentation;
-    dataState.addSegmentation(SEGMENTATION_KEYS.COMPOSITE, segmentation);
+    dataState.addSegmentation(SEGMENTATION_KEYS.INTERACTIVE, segmentation);
     const compositeColorMapping = createCompositeColorMapping(segmentation);
     dataLoader.colorMappings.set(
-      SEGMENTATION_KEYS.COMPOSITE,
+      SEGMENTATION_KEYS.INTERACTIVE,
       compositeColorMapping
     );
     processedInteractiveRaster = interactiveRaster;
@@ -383,7 +394,7 @@
     }
     if (
       selectedCluster?.clusterId === clusterId &&
-      selectedCluster?.segmentationKey === SEGMENTATION_KEYS.COMPOSITE
+      selectedCluster?.segmentationKey === SEGMENTATION_KEYS.INTERACTIVE
     ) {
       return "rgba(0, 0, 0, 1)";
     }

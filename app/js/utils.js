@@ -48,7 +48,9 @@ export const STORAGE_KEYS = {
 };
 
 export const SEGMENTATION_KEYS = {
+  SYNTHETIC: "synthetic_seg",
   COMPOSITE: "composite_seg",
+  INTERACTIVE: "interactive_seg",
 };
 
 export const CLUSTER_ID_RANGES = {
