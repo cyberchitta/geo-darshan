@@ -8,7 +8,7 @@
   import { ClusterRegistry } from "../js/raster/cluster-registry.js";
   import { RasterTransform } from "../js/raster/raster-transform.js";
   import { RasterFactory } from "../js/raster/raster-factory.js";
-  import { PixelRenderer } from "../js/raster/pixel-renderer.js";
+  import { ClassificationRenderer } from "../js/raster/classification-renderer.js";
 
   let {
     compositeState,
@@ -284,7 +284,7 @@
       SEGMENTATION_KEYS.INTERACTIVE,
       { source: "interactive", created: new Date().toISOString() }
     );
-    pixelRenderer = new PixelRenderer(aggregated, {
+    pixelRenderer = new ClassificationRenderer(aggregated, {
       hierarchyLevel,
       interactionMode: mapState.interactionMode,
       selectedCluster,

@@ -1,31 +1,27 @@
-// app/js/raster/pixel-renderer.js
-import { convertToGrayscale, rgbStringToObject } from "../utils.js";
-import { ClassificationHierarchy } from "../classification.js";
 import { CLUSTER_ID_RANGES } from "../utils.js";
+import { rgbStringToObject, convertToGrayscale } from "../utils.js";
 
 /**
- * Immutable renderer for converting pixel values to colors.
- * Encapsulates color mapping logic including selection highlights,
- * grayscale conversion, and hierarchy-level colors.
+ * Immutable renderer for source segmentation clusters.
+ * Uses original cluster colors from color mapping, applying grayscale
+ * to labeled clusters when in labeling mode.
  */
-class PixelRenderer {
-  constructor(segmentedRaster, options = {}) {
+class ClusterRenderer {
+  constructor(segmentedRaster, segmentationKey, options = {}) {
     this._segmentedRaster = segmentedRaster;
-    this._hierarchyLevel = options.hierarchyLevel || 1;
+    this._segmentationKey = segmentationKey;
     this._interactionMode = options.interactionMode || "view";
     this._selectedCluster = options.selectedCluster || null;
     this._grayscaleLabeled = options.grayscaleLabeled || false;
-    this._colorCache = new Map();
     Object.freeze(this);
   }
 
   /**
    * Create new renderer with updated options.
-   * @returns {PixelRenderer}
+   * @returns {ClusterRenderer}
    */
   withOptions(options) {
-    return new PixelRenderer(this._segmentedRaster, {
-      hierarchyLevel: options.hierarchyLevel ?? this._hierarchyLevel,
+    return new ClusterRenderer(this._segmentedRaster, this._segmentationKey, {
       interactionMode: options.interactionMode ?? this._interactionMode,
       selectedCluster: options.selectedCluster ?? this._selectedCluster,
       grayscaleLabeled: options.grayscaleLabeled ?? this._grayscaleLabeled,
@@ -53,39 +49,25 @@ class PixelRenderer {
     if (!cluster) {
       return null;
     }
+    let color = cluster.color;
+    if (!color) {
+      return null;
+    }
     if (
-      !cluster.classificationPath ||
-      cluster.classificationPath === "unlabeled"
+      this._grayscaleLabeled &&
+      cluster.classificationPath &&
+      cluster.classificationPath !== "unlabeled"
     ) {
-      return cluster.color;
+      color = this._toGrayscale(color);
     }
-    if (this._grayscaleLabeled) {
-      const hierarchyColor = this._resolveHierarchyColor(
-        cluster.classificationPath
-      );
-      return this._toGrayscale(hierarchyColor);
-    }
-    return this._resolveHierarchyColor(cluster.classificationPath);
+    return color;
   }
 
   _isSelected(clusterId) {
     return (
       this._selectedCluster?.clusterId === clusterId &&
-      this._selectedCluster?.segmentationKey === this._segmentedRaster.key
+      this._selectedCluster?.segmentationKey === this._segmentationKey
     );
-  }
-
-  _resolveHierarchyColor(classificationPath) {
-    const cacheKey = `${classificationPath}:${this._hierarchyLevel}`;
-    if (this._colorCache.has(cacheKey)) {
-      return this._colorCache.get(cacheKey);
-    }
-    const color = ClassificationHierarchy.getColorForClassification(
-      classificationPath,
-      this._hierarchyLevel
-    );
-    this._colorCache.set(cacheKey, color);
-    return color;
   }
 
   _toGrayscale(rgbString) {
@@ -97,4 +79,4 @@ class PixelRenderer {
   }
 }
 
-export { PixelRenderer };
+export { ClusterRenderer };

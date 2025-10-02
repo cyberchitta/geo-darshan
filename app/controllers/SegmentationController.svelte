@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { convertToGrayscale } from "../js/utils.js";
+  import { ClusterRenderer } from "../js/raster/cluster-renderer";
 
   let { mapState, dataState } = $props();
 
@@ -19,6 +19,7 @@
   let layerGroup = $state(null);
   let isLayerVisible = $state(false);
   let geoRasterLayers = $state(new Map());
+  let pixelRenderers = $state(new Map());
   let overlays = $state([]);
   let layersReady = $state(false);
   let targetOpacity = $state(0.8);
@@ -112,6 +113,7 @@
       isPlaying = false;
       layersReady = false;
       geoRasterLayers.clear();
+      pixelRenderers.clear();
     },
     samplePixelAtCoordinate,
     selectClusterAt: async (latlng) => {
@@ -168,6 +170,7 @@
     }
     console.log("SegmentationController: Preprocessing georaster layers...");
     geoRasterLayers.clear();
+    pixelRenderers.clear();
     if (!layerGroup) {
       layerGroup = L.layerGroup();
       mapManager.addOverlayLayer("Segmentations", layerGroup, true);
@@ -187,11 +190,12 @@
         console.log(
           `Loading ${overlayData.filename} (${overlayData.segmentationKey})...`
         );
-        const geoRasterLayer = await createGeoRasterLayer(overlayData);
-        geoRasterLayer.addTo(mapManager.map);
-        layerGroup.addLayer(geoRasterLayer);
-        geoRasterLayer.setOpacity(0);
-        geoRasterLayers.set(i, geoRasterLayer);
+        const { layer, renderer } = await createGeoRasterLayer(overlayData);
+        layer.addTo(mapManager.map);
+        layerGroup.addLayer(layer);
+        layer.setOpacity(0);
+        geoRasterLayers.set(i, layer);
+        pixelRenderers.set(i, renderer);
         console.log(
           `✅ Preprocessed and added layer ${i + 1}/${overlays.length}`
         );
@@ -209,92 +213,29 @@
   }
 
   async function createGeoRasterLayer(overlayData) {
-    const { georaster } = overlayData;
-    const segmentationKey = overlayData.segmentationKey;
+    const { georaster, segmentationKey } = overlayData;
+    const segmentation = dataState.segmentations?.get(segmentationKey);
+    if (!segmentation) {
+      throw new Error(`Segmentation not found: ${segmentationKey}`);
+    }
+    const segRaster = segmentation.toSegmentedRaster();
+    const interactionMode = mapState?.interactionMode || "view";
+    const grayscaleLabeled =
+      interactionMode === "cluster" || interactionMode === "composite";
+    const renderer = new ClusterRenderer(segRaster, segmentationKey, {
+      interactionMode,
+      selectedCluster,
+      grayscaleLabeled,
+    });
     const layer = mapManager.rasterHandler.createMapLayer(georaster, {
       opacity: 0,
       resolution: getOptimalResolution(georaster),
-      pixelValuesToColorFn: (values) =>
-        convertPixelsToColor(
-          values,
-          overlayData,
-          mapManager.interactionMode,
-          segmentationKey
-        ),
+      pixelValuesToColorFn: (values) => renderer.render(values),
       zIndex: 1000,
     });
     layer._segmentationKey = segmentationKey;
     layer._bounds = georaster.bounds;
-    return layer;
-  }
-
-  function convertPixelsToColor(
-    values,
-    overlayData,
-    interactionMode,
-    segmentationKey
-  ) {
-    if (!values || values.some((v) => v === null || v === undefined)) {
-      return null;
-    }
-    if (values.length === 1) {
-      const pixelValue = values[0];
-      const colorMapping =
-        overlayData.colorMapping ||
-        mapManager.dataLoader?.getColorMappingForSegmentation(segmentationKey);
-      if (!colorMapping) {
-        throw new Error(
-          `Color mapping not found for segmentation: ${segmentationKey}`
-        );
-      }
-      const baseColor = mapClusterValueToColor(pixelValue, colorMapping);
-      if (
-        selectedCluster?.clusterId === pixelValue &&
-        selectedCluster?.segmentationKey === segmentationKey
-      ) {
-        return "rgba(0, 0, 0, 1)";
-      }
-      const segmentation = dataState.segmentations?.get(segmentationKey);
-      const cluster = segmentation?.getCluster(pixelValue);
-      if (
-        (interactionMode === "cluster" || interactionMode === "composite") &&
-        cluster?.classificationPath &&
-        cluster.classificationPath !== "unlabeled"
-      ) {
-        const grayColor = convertToGrayscale(baseColor);
-        return `rgba(${grayColor.r},${grayColor.g},${grayColor.b},${grayColor.a / 255})`;
-      }
-      return `rgba(${baseColor.r},${baseColor.g},${baseColor.b},${baseColor.a / 255})`;
-    }
-    if (values.length >= 3) {
-      return `rgb(${Math.round(values[0])},${Math.round(values[1])},${Math.round(values[2])})`;
-    }
-    return null;
-  }
-
-  function mapClusterValueToColor(clusterValue, colorMapping) {
-    if (!colorMapping || !colorMapping.colors_rgb) {
-      throw new Error(
-        "Color mapping is required but missing - check data pipeline"
-      );
-    }
-    const colors = colorMapping.colors_rgb;
-    if (clusterValue === colorMapping.nodata_value) {
-      return { r: 0, g: 0, b: 0, a: 0 };
-    }
-    const color = colors[clusterValue];
-    if (color === null) {
-      return { r: 0, g: 0, b: 0, a: 0 };
-    }
-    if (color && color.length >= 3) {
-      return {
-        r: Math.round(color[0] * 255),
-        g: Math.round(color[1] * 255),
-        b: Math.round(color[2] * 255),
-        a: 255,
-      };
-    }
-    throw new Error(`No color defined for cluster ${clusterValue} in mapping`);
+    return { layer, renderer };
   }
 
   function getOptimalResolution(georaster) {
@@ -335,6 +276,20 @@
     }
   }
 
+  function updateAllRenderers(options) {
+    pixelRenderers.forEach((renderer, index) => {
+      const updated = renderer.withOptions(options);
+      pixelRenderers.set(index, updated);
+    });
+    geoRasterLayers.forEach((layer, index) => {
+      if (index === currentFrame) {
+        const currentOpacity = layer.options.opacity;
+        layer.setOpacity(0);
+        setTimeout(() => layer.setOpacity(currentOpacity), 0);
+      }
+    });
+  }
+
   function startAnimation() {
     if (animationTimer) {
       clearInterval(animationTimer);
@@ -355,6 +310,20 @@
   export function getState() {
     return stateObject;
   }
+
+  $effect(() => {
+    if (pixelRenderers.size > 0 && selectedCluster !== undefined) {
+      updateAllRenderers({ selectedCluster });
+    }
+  });
+  $effect(() => {
+    const interactionMode = mapState?.interactionMode;
+    if (pixelRenderers.size > 0 && interactionMode) {
+      const grayscaleLabeled =
+        interactionMode === "cluster" || interactionMode === "composite";
+      updateAllRenderers({ interactionMode, grayscaleLabeled });
+    }
+  });
 
   onMount(() => {
     return () => {
