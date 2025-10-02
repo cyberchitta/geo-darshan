@@ -1,5 +1,8 @@
-import { CLUSTER_ID_RANGES, hexToRgb, SEGMENTATION_KEYS } from "./utils.js";
+import { SEGMENTATION_KEYS } from "./utils.js";
 import { Segmentation } from "./segmentation.js";
+import { TensorRaster } from "./raster/tensor-raster.js";
+import { Raster } from "./raster/raster.js";
+
 export class Cluster {
   static async extractSegmentations(overlays, manifest, dataLoader) {
     const segmentations = new Map();
@@ -42,89 +45,14 @@ export class Cluster {
     return "rgb(128,128,128)";
   }
 
-  static updateSyntheticClusters(clusterData, allLabels, compositeGeoRaster) {
-    const syntheticLabels = allLabels.get(SEGMENTATION_KEYS.COMPOSITE);
-    if (!syntheticLabels || syntheticLabels.size === 0) {
-      clusterData[SEGMENTATION_KEYS.COMPOSITE] = {
-        clusters: [],
-        colors: new Map(),
-      };
-      return;
-    }
-    const pixelCounts = {};
-    const rasterData = compositeGeoRaster.values[0];
-    const height = compositeGeoRaster.height;
-    const width = compositeGeoRaster.width;
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const clusterId = rasterData[y][x];
-        if (CLUSTER_ID_RANGES.isSynthetic(clusterId)) {
-          pixelCounts[clusterId] = (pixelCounts[clusterId] || 0) + 1;
-        }
-      }
-    }
-    const clusters = [];
-    const colors = new Map();
-    for (const [clusterId, classificationPath] of syntheticLabels) {
-      const pixelCount = pixelCounts[clusterId] || 0;
-      clusters.push({
-        id: clusterId,
-        pixelCount,
-        segmentationKey: SEGMENTATION_KEYS.COMPOSITE,
-        area_ha: (pixelCount * 0.01).toFixed(2),
-      });
-      colors.set(clusterId, this.getSyntheticClusterColor(classificationPath));
-    }
-    clusterData[SEGMENTATION_KEYS.COMPOSITE] = { clusters, colors };
-  }
-
-  static getSyntheticClusterColor(classificationPath) {
-    if (!classificationPath || classificationPath === "unlabeled") {
-      return "rgb(255, 255, 0)";
-    }
-    if (
-      !window.ClassificationHierarchy ||
-      !window.ClassificationHierarchy.isLoaded()
-    ) {
-      throw new Error(
-        "ClassificationHierarchy not loaded - cannot generate synthetic cluster colors"
-      );
-    }
-    const hierarchy = window.ClassificationHierarchy.getInstance();
-    const color = hierarchy.getColorForPath(classificationPath);
-    if (!color) {
-      throw new Error(
-        `No color mapping found for land use path: ${classificationPath}`
-      );
-    }
-    return `rgb(${hexToRgb(color)})`;
-  }
-
   static async countPixelsPerCluster(georaster, colorMapping) {
-    const rasterData = georaster.values[0];
-    const height = georaster.height;
-    const width = georaster.width;
-    const flatData = [];
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        flatData.push(rasterData[y][x]);
-      }
-    }
-    const tensor = tf.tensor1d(flatData, "int32");
+    const raster = Raster.fromGeoRaster(georaster);
     const nodataValue = colorMapping?.nodata_value || -1;
-    const validMask = tf.notEqual(tensor, nodataValue);
-    const validPixels = tf.where(validMask, tensor, tf.scalar(-999, "int32"));
-    const pixelData = await validPixels.data();
+    const counts = await TensorRaster.countPixels(raster, nodataValue);
     const pixelCounts = {};
-    for (let i = 0; i < pixelData.length; i++) {
-      const clusterId = pixelData[i];
-      if (clusterId !== -999 && clusterId !== nodataValue) {
-        pixelCounts[clusterId] = (pixelCounts[clusterId] || 0) + 1;
-      }
-    }
-    tensor.dispose();
-    validMask.dispose();
-    validPixels.dispose();
+    counts.forEach((count, clusterId) => {
+      pixelCounts[clusterId] = count;
+    });
     return pixelCounts;
   }
 }
