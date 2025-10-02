@@ -147,20 +147,9 @@
     if (!currentLayer?.georasters?.[0]) {
       return null;
     }
-    const georaster = currentLayer.georasters[0];
-    const x = (latlng.lng - georaster.xmin) / georaster.pixelWidth;
-    const y = (georaster.ymax - latlng.lat) / georaster.pixelHeight;
-    if (x < 0 || x >= georaster.width || y < 0 || y >= georaster.height) {
-      return null;
-    }
-    const pixelX = Math.floor(x);
-    const pixelY = Math.floor(y);
-    try {
-      return georaster.values[0][pixelY][pixelX];
-    } catch (error) {
-      console.error("Error accessing pixel value:", error);
-      return null;
-    }
+    const pixel = currentLayer.georasters[0].latlngToPixel(latlng);
+    if (!pixel) return null;
+    return currentLayer.georasters[0].get(pixel.x, pixel.y);
   }
 
   async function preprocessOverlays() {

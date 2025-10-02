@@ -90,17 +90,12 @@
         return;
       }
       const georaster = interactiveSegmentation.georaster;
-      const x = Math.floor(
-        (latlng.lng - georaster.xmin) / georaster.pixelWidth
-      );
-      const y = Math.floor(
-        (georaster.ymax - latlng.lat) / georaster.pixelHeight
-      );
-      if (x < 0 || x >= georaster.width || y < 0 || y >= georaster.height) {
+      const pixel = processedInteractiveRaster.latlngToPixel(latlng);
+      if (!pixel) {
         stateObject.emit("clusterSelected", null, null);
         return;
       }
-      const clusterId = processedInteractiveRaster[y][x];
+      const clusterId = processedInteractiveRaster.get(pixel.x, pixel.y);
       if (clusterId === CLUSTER_ID_RANGES.NODATA) {
         stateObject.emit("clusterSelected", null, null);
         return;
