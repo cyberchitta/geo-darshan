@@ -20,18 +20,14 @@ class ColorResolver {
     if (!classificationPath || classificationPath === "unlabeled") {
       return null;
     }
-
     const cacheKey = `${classificationPath}:${this._hierarchyLevel}`;
-
     if (this._cache.has(cacheKey)) {
       return this._cache.get(cacheKey);
     }
-
     const color = ClassificationHierarchy.getColorForClassification(
       classificationPath,
       this._hierarchyLevel
     );
-
     this._cache.set(cacheKey, color);
     return color;
   }
@@ -44,7 +40,6 @@ class ColorResolver {
   getHexColor(classificationPath) {
     const rgbColor = this.getColor(classificationPath);
     if (!rgbColor) return null;
-
     return rgbToHex(rgbColor);
   }
 
@@ -56,10 +51,8 @@ class ColorResolver {
   getRgbArray(classificationPath) {
     const rgbColor = this.getColor(classificationPath);
     if (!rgbColor) return null;
-
     const match = rgbColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
     if (!match) return null;
-
     return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
   }
 

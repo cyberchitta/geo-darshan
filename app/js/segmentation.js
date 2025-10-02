@@ -46,13 +46,11 @@ class Segmentation {
     const syntheticRasterData = Array(height)
       .fill(null)
       .map(() => Array(width).fill(CLUSTER_ID_RANGES.NODATA));
-
     const syntheticGeoRaster = {
       ...refGeoRaster,
       values: [syntheticRasterData],
       numberOfRasters: 1,
     };
-
     return new Segmentation(
       SEGMENTATION_KEYS.SYNTHETIC,
       syntheticGeoRaster,
@@ -147,15 +145,12 @@ class Segmentation {
   static fromSegmentedRaster(key, segRaster, metadata = {}) {
     const georaster = segRaster.raster.toGeoRaster();
     const colorMapping = segRaster.registry.toColorMapping();
-
     const segmentation = new Segmentation(
       key,
       georaster,
       colorMapping,
       metadata
     );
-
-    // Populate clusters Map from registry
     const clusters = segRaster.registry.getAllClusters();
     clusters.forEach((cluster) => {
       segmentation.clusters.set(cluster.id, {
@@ -167,7 +162,6 @@ class Segmentation {
         segmentationKey: key,
       });
     });
-
     return segmentation;
   }
 }
