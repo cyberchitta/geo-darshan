@@ -240,7 +240,6 @@
 
   function createInteractiveSegmentation() {
     if (!compositeState?.georaster) return;
-    console.log("=== Creating Interactive Segmentation with RasterFactory ===");
     const compositeSegmentation = dataState.segmentations?.get(
       SEGMENTATION_KEYS.COMPOSITE
     );
@@ -248,7 +247,6 @@
       currentSegmentationKey
     );
     if (!compositeSegmentation || !currentSegmentation) {
-      console.error("Missing segmentations");
       return;
     }
     const compositeSegRaster = compositeSegmentation.toSegmentedRaster();
@@ -257,10 +255,6 @@
       compositeSegRaster,
       currentSegRaster
     );
-    console.log("Factory created interactive raster:", {
-      clusters: aggregated.getAllClusters().length,
-      sampleCluster: aggregated.getClusterById(1),
-    });
     aggregated = aggregated.buildRegistry((clusterId) => {
       const cluster = aggregated.getClusterById(clusterId);
       const color =
@@ -286,7 +280,6 @@
       selectedCluster,
       grayscaleLabeled: false,
     });
-    console.log("=== Interactive Segmentation Complete ===");
   }
 
   function createInteractiveLayer() {
