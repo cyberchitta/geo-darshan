@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { ClusterRenderer } from "../js/raster/cluster-renderer";
+  import { ClusterRenderer } from "../js/raster/color-renderers.js";
 
   let { mapState, dataState } = $props();
 

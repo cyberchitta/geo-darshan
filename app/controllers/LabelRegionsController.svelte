@@ -4,7 +4,7 @@
   import { ClassificationHierarchy } from "../js/classification.js";
   import { RegionLabeler } from "../js/region-labeler.js";
   import { RasterFactory } from "../js/raster/raster-factory.js";
-  import { ClassificationRenderer } from "../js/raster/classification-renderer.js";
+  import { ClassificationRenderer } from "../js/raster/color-renderers.js";
 
   let {
     compositeState,
