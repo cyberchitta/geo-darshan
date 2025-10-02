@@ -112,24 +112,6 @@ class RasterTransform {
   }
 
   /**
-   * Compare two rasters by priority rule.
-   * @private
-   */
-  static _comparePriority(rasterA, rasterB, priority) {
-    // For now, simple comparison - can be extended based on metadata
-    switch (priority) {
-      case "highest_k":
-        return -1; // Maintain order
-      case "lowest_k":
-        return 1; // Reverse order
-      case "most_specific":
-        return -1; // Maintain order (assumes sorted by specificity)
-      default:
-        return -1;
-    }
-  }
-
-  /**
    * Merge two rasters using decision function.
    * @param {Raster} rasterA
    * @param {Raster} rasterB
@@ -140,9 +122,7 @@ class RasterTransform {
     if (rasterA.width !== rasterB.width || rasterA.height !== rasterB.height) {
       throw new Error("Cannot merge rasters with different dimensions");
     }
-
     const mergedValues = Array(rasterA.height);
-
     for (let y = 0; y < rasterA.height; y++) {
       mergedValues[y] = Array(rasterA.width);
       for (let x = 0; x < rasterA.width; x++) {
@@ -151,8 +131,7 @@ class RasterTransform {
         mergedValues[y][x] = decideFn(valueA, valueB, { x, y });
       }
     }
-
-    return new Raster(mergedValues, rasterA.georeferencing);
+    return new Raster(mergedValues, rasterA.georeferencing, rasterA.metadata);
   }
 
   /**
@@ -177,20 +156,15 @@ class RasterTransform {
     const region = [];
     const queue = [{ x, y }];
     const seedValue = raster.get(x, y);
-
     if (seedValue === null) {
       return [];
     }
-
     while (queue.length > 0 && region.length < maxPixels) {
       const pixel = queue.shift();
       const key = `${pixel.x},${pixel.y}`;
-
       if (visited.has(key)) continue;
       visited.add(key);
-
       const pixelValue = raster.get(pixel.x, pixel.y);
-
       if (matchFn(seedValue, pixelValue)) {
         region.push(pixel);
         const neighbors = raster.getNeighbors(
@@ -201,7 +175,6 @@ class RasterTransform {
         neighbors.forEach((neighbor) => queue.push(neighbor));
       }
     }
-
     return region;
   }
 
@@ -212,44 +185,35 @@ class RasterTransform {
    * @returns {SegmentedRaster}
    */
   static aggregateByKey(segmentedRaster, keyFn) {
+    console.log("aggregateByKey START", {
+      width: segmentedRaster.width,
+      height: segmentedRaster.height,
+      totalPixels: segmentedRaster.width * segmentedRaster.height,
+    });
     const keyToId = new Map();
     const pixelCounts = new Map();
     let nextId = 1;
-
-    // First pass: build key mapping
     const values = segmentedRaster.cloneValues();
-
     for (let y = 0; y < values.length; y++) {
       for (let x = 0; x < values[y].length; x++) {
         const clusterId = values[y][x];
-
         if (clusterId === CLUSTER_ID_RANGES.NODATA) continue;
-
         const cluster = segmentedRaster.getClusterById(clusterId);
         const key = keyFn(clusterId, cluster);
-
         if (!keyToId.has(key)) {
           keyToId.set(key, nextId++);
         }
-
         const newId = keyToId.get(key);
         values[y][x] = newId;
-
         pixelCounts.set(newId, (pixelCounts.get(newId) || 0) + 1);
       }
     }
-
-    // Second pass: build registry for aggregated clusters
     const newRegistry = new ClusterRegistry();
     const keyMetadata = new Map();
-
-    // Collect metadata for each key
     segmentedRaster.raster.forEach((coord, clusterId) => {
       if (clusterId === CLUSTER_ID_RANGES.NODATA) return;
-
       const cluster = segmentedRaster.getClusterById(clusterId);
       const key = keyFn(clusterId, cluster);
-
       if (!keyMetadata.has(key) && cluster) {
         keyMetadata.set(key, {
           classificationPath: cluster.classificationPath,
@@ -257,12 +221,9 @@ class RasterTransform {
         });
       }
     });
-
-    // Add aggregated clusters to registry
     keyToId.forEach((newId, key) => {
       const metadata = keyMetadata.get(key);
       const count = pixelCounts.get(newId) || 0;
-
       newRegistry.add(
         newId,
         count,
@@ -270,8 +231,11 @@ class RasterTransform {
         metadata?.color || null
       );
     });
-
-    const newRaster = new Raster(values, segmentedRaster.georeferencing);
+    const newRaster = new Raster(
+      values,
+      segmentedRaster.georeferencing,
+      segmentedRaster.raster.metadata
+    );
     return new SegmentedRaster(newRaster, newRegistry);
   }
 

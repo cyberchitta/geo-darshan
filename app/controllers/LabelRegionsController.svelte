@@ -4,6 +4,11 @@
   import { Segmentation } from "../js/segmentation.js";
   import { ClassificationHierarchy } from "../js/classification.js";
   import { RegionLabeler } from "../js/region-labeler.js";
+  import { SegmentedRaster } from "../js/raster/segmented-raster.js";
+  import { ClusterRegistry } from "../js/raster/cluster-registry.js";
+  import { RasterTransform } from "../js/raster/raster-transform.js";
+  import { RasterFactory } from "../js/raster/raster-factory.js";
+  import { PixelRenderer } from "../js/raster/pixel-renderer.js";
 
   let {
     compositeState,
@@ -15,6 +20,7 @@
     hierarchyLevel,
   } = $props();
   let interactiveLayer = $state(null);
+  let pixelRenderer = $state(null);
   let layerGroup = $state(null);
   let regionLabeler = $state(null);
   let interactiveSegmentation = $state(null);
@@ -184,12 +190,13 @@
   $effect(() => {
     if (
       interactiveSegmentation &&
+      pixelRenderer &&
       hierarchyLevel !== lastProcessedHierarchyLevel
     ) {
       console.log(
-        `Hierarchy level changed to ${hierarchyLevel}, regenerating layer...`
+        `Hierarchy level changed to ${hierarchyLevel}, updating renderer...`
       );
-      createInteractiveSegmentation();
+      pixelRenderer = pixelRenderer.withOptions({ hierarchyLevel });
       createInteractiveLayer();
       lastProcessedHierarchyLevel = hierarchyLevel;
     }
@@ -204,6 +211,12 @@
         interactiveSegmentation,
         syntheticSegmentation
       );
+    }
+  });
+  $effect(() => {
+    if (pixelRenderer && selectedCluster !== pixelRenderer._selectedCluster) {
+      pixelRenderer = pixelRenderer.withOptions({ selectedCluster });
+      createInteractiveLayer();
     }
   });
 
@@ -231,202 +244,70 @@
 
   function createInteractiveSegmentation() {
     if (!compositeState?.georaster) return;
+    console.log("=== Creating Interactive Segmentation with RasterFactory ===");
     const compositeSegmentation = dataState.segmentations?.get(
       SEGMENTATION_KEYS.COMPOSITE
     );
-    if (!compositeSegmentation) {
-      console.error("Composite segmentation not found");
-      return;
-    }
-    const compositeData = compositeState.georaster.values[0];
-    const interactiveRaster = createInteractiveRaster(compositeData);
-    const aggregationPixelCounts = new Map();
-    const aggregationToId = new Map();
-    let nextLabeledId = 1;
-    for (let y = 0; y < interactiveRaster.length; y++) {
-      for (let x = 0; x < interactiveRaster[y].length; x++) {
-        const originalClusterId = interactiveRaster[y][x];
-        if (originalClusterId === CLUSTER_ID_RANGES.NODATA) continue;
-        let classificationPath = "unlabeled";
-        if (CLUSTER_ID_RANGES.isFineGrain(originalClusterId)) {
-          classificationPath = "unlabeled";
-        } else {
-          const cluster = compositeSegmentation.getCluster(originalClusterId);
-          classificationPath = cluster?.classificationPath || "unlabeled";
-        }
-        let aggregationKey, clusterId;
-        if (classificationPath !== "unlabeled") {
-          aggregationKey = classificationPath;
-          if (!aggregationToId.has(aggregationKey)) {
-            aggregationToId.set(aggregationKey, nextLabeledId++);
-          }
-          clusterId = aggregationToId.get(aggregationKey);
-        } else {
-          aggregationKey = `unlabeled_${originalClusterId}`;
-          clusterId = originalClusterId;
-          if (!aggregationToId.has(aggregationKey)) {
-            aggregationToId.set(aggregationKey, clusterId);
-          }
-        }
-        aggregationPixelCounts.set(
-          aggregationKey,
-          (aggregationPixelCounts.get(aggregationKey) || 0) + 1
-        );
-      }
-    }
-    for (let y = 0; y < interactiveRaster.length; y++) {
-      for (let x = 0; x < interactiveRaster[y].length; x++) {
-        const originalClusterId = interactiveRaster[y][x];
-        if (originalClusterId === CLUSTER_ID_RANGES.NODATA) continue;
-        let classificationPath = "unlabeled";
-        if (CLUSTER_ID_RANGES.isFineGrain(originalClusterId)) {
-          classificationPath = "unlabeled";
-        } else {
-          const cluster = compositeSegmentation.getCluster(originalClusterId);
-          classificationPath = cluster?.classificationPath || "unlabeled";
-        }
-        let aggregationKey, clusterId;
-        if (classificationPath !== "unlabeled") {
-          aggregationKey = classificationPath;
-          clusterId = aggregationToId.get(aggregationKey);
-        } else {
-          aggregationKey = `unlabeled_${originalClusterId}`;
-          clusterId = originalClusterId;
-        }
-        interactiveRaster[y][x] = clusterId;
-      }
-    }
-    const interactiveGeoRaster = {
-      ...compositeState.georaster,
-      values: [interactiveRaster],
-    };
-    const segmentation = Segmentation.createInteractive(interactiveGeoRaster);
-    for (const [aggregationKey, pixelCount] of aggregationPixelCounts) {
-      const clusterId = aggregationToId.get(aggregationKey);
-      let classificationPath;
-      if (aggregationKey.startsWith("unlabeled_")) {
-        classificationPath = "unlabeled";
-      } else {
-        classificationPath = aggregationKey;
-      }
-      const color =
-        classificationPath === "unlabeled"
-          ? null
-          : ClassificationHierarchy.getColorForClassification(
-              classificationPath,
-              hierarchyLevel
-            );
-      segmentation.addCluster(clusterId, pixelCount, classificationPath, color);
-    }
-    segmentation.finalize();
-    interactiveSegmentation = segmentation;
-    dataState.addSegmentation(SEGMENTATION_KEYS.INTERACTIVE, segmentation);
-    const compositeColorMapping = createCompositeColorMapping(segmentation);
-    dataLoader.colorMappings.set(
-      SEGMENTATION_KEYS.INTERACTIVE,
-      compositeColorMapping
-    );
-    processedInteractiveRaster = interactiveRaster;
-  }
-
-  function createInteractiveRaster(compositeData) {
-    if (
-      !currentSegmentationKey ||
-      !dataState.segmentations?.has(currentSegmentationKey)
-    ) {
-      return compositeData;
-    }
     const currentSegmentation = dataState.segmentations.get(
       currentSegmentationKey
     );
-    const currentRaster = currentSegmentation.georaster.values[0];
-    const height = compositeData.length;
-    const width = compositeData[0].length;
-    const interactiveRaster = new Array(height);
-    for (let y = 0; y < height; y++) {
-      interactiveRaster[y] = new Array(width);
-      for (let x = 0; x < width; x++) {
-        const compositeValue = compositeData[y][x];
-        if (compositeValue === CLUSTER_ID_RANGES.UNLABELED) {
-          const fineGrainValue =
-            currentRaster[y][x] + CLUSTER_ID_RANGES.FINE_GRAIN_START;
-          interactiveRaster[y][x] = fineGrainValue;
-        } else {
-          interactiveRaster[y][x] = compositeValue;
-        }
-      }
+    if (!compositeSegmentation || !currentSegmentation) {
+      console.error("Missing segmentations");
+      return;
     }
-    return interactiveRaster;
+    const compositeSegRaster = compositeSegmentation.toSegmentedRaster();
+    const currentSegRaster = currentSegmentation.toSegmentedRaster();
+    let aggregated = RasterFactory.createInteractive(
+      compositeSegRaster,
+      currentSegRaster
+    );
+    console.log("Factory created interactive raster:", {
+      clusters: aggregated.getAllClusters().length,
+      sampleCluster: aggregated.getClusterById(1),
+    });
+    aggregated = aggregated.buildRegistry((clusterId) => {
+      const cluster = aggregated.getClusterById(clusterId);
+      const color =
+        cluster.classificationPath === "unlabeled"
+          ? null
+          : ClassificationHierarchy.getColorForClassification(
+              cluster.classificationPath,
+              hierarchyLevel
+            );
+      return {
+        classificationPath: cluster.classificationPath,
+        color,
+      };
+    });
+    processedInteractiveRaster = aggregated.raster.toGeoRaster().values[0];
+    interactiveSegmentation = aggregated.toSegmentation(
+      SEGMENTATION_KEYS.INTERACTIVE,
+      { source: "interactive", created: new Date().toISOString() }
+    );
+    pixelRenderer = new PixelRenderer(aggregated, {
+      hierarchyLevel,
+      interactionMode: mapState.interactionMode,
+      selectedCluster,
+      grayscaleLabeled: false,
+    });
+    console.log("=== Interactive Segmentation Complete ===");
   }
 
   function createInteractiveLayer() {
-    if (!compositeState?.georaster || !interactiveSegmentation) return;
+    if (!interactiveSegmentation || !pixelRenderer) return;
     if (interactiveLayer) {
       layerGroup.removeLayer(interactiveLayer);
     }
-    const interactiveGeoRaster = {
-      ...compositeState.georaster,
-      values: [processedInteractiveRaster],
-    };
+    const interactiveGeoRaster = interactiveSegmentation.georaster;
     interactiveLayer = mapManager.rasterHandler.createMapLayer(
       interactiveGeoRaster,
       {
-        pixelValuesToColorFn: convertInteractivePixelToColor,
+        pixelValuesToColorFn: (values) => pixelRenderer.render(values),
         zIndex: 3000,
       }
     );
     layerGroup.addLayer(interactiveLayer);
     interactiveLayer.setOpacity(mapManager.currentOpacity);
-  }
-
-  function convertInteractivePixelToColor(values) {
-    if (!values || values.length === 0 || values[0] === 0) {
-      return null;
-    }
-    const clusterId = values[0];
-    if (CLUSTER_ID_RANGES.isSelected(clusterId)) {
-      return "rgba(0, 0, 0, 1)";
-    }
-    if (
-      selectedCluster?.clusterId === clusterId &&
-      selectedCluster?.segmentationKey === SEGMENTATION_KEYS.INTERACTIVE
-    ) {
-      return "rgba(0, 0, 0, 1)";
-    }
-    if (!interactiveSegmentation) return null;
-    const cluster = interactiveSegmentation.getCluster(clusterId);
-    if (!cluster) return null;
-    return ClassificationHierarchy.getColorForClassification(
-      cluster.classificationPath,
-      hierarchyLevel
-    );
-  }
-
-  function createCompositeColorMapping(segmentation) {
-    const clusters = segmentation.getAllClusters();
-    const colors_rgb = [];
-    clusters.forEach((cluster) => {
-      if (cluster.color === null) {
-        colors_rgb[cluster.id] = null;
-      } else {
-        const rgbArray = convertColorStringToArray(cluster.color);
-        colors_rgb[cluster.id] = rgbArray;
-      }
-    });
-    return {
-      method: "cluster_specific",
-      colors_rgb,
-      nodata_value: CLUSTER_ID_RANGES.NODATA,
-    };
-  }
-
-  function convertColorStringToArray(colorString) {
-    const match = colorString.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-    return [
-      parseInt(match[1]) / 255,
-      parseInt(match[2]) / 255,
-      parseInt(match[3]) / 255,
-    ];
   }
 
   function showBriefMessage(message) {
