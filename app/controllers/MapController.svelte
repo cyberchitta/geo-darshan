@@ -179,14 +179,7 @@
         console.log("No label regions controller available for interaction");
         return;
       }
-      const allLabelsMap = Segmentation.extractAllLabels(
-        dataState.segmentations
-      );
-      const result = await labelRegionsState.handleCompositeClick(
-        latlng,
-        allLabelsMap,
-        dataState.segmentations
-      );
+      const result = await labelRegionsState.handleCompositeClick(latlng);
       if (result?.action === "create_new") {
         selectedRegion = {
           region: result.region,

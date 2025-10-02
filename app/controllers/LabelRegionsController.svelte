@@ -44,7 +44,7 @@
       return interactiveLayer && isLayerVisible;
     },
     handleCompositeClick: async (latlng, allLabels, segmentations) => {
-      if (!compositeState?.georaster || !regionLabeler) return null;
+      if (!interactiveSegmentation || !regionLabeler) return null;
       const pixelCoord = regionLabeler.latlngToPixelCoord(latlng);
       if (!pixelCoord) return null;
       const isUnlabeled = regionLabeler.isPixelUnlabeled(pixelCoord);
@@ -196,18 +196,13 @@
   });
   $effect(() => {
     if (compositeState?.georaster && regionLabeler && interactiveSegmentation) {
-      const allLabelsMap = Segmentation.extractAllLabels(
-        dataState.segmentations
+      const syntheticSegmentation = dataState.segmentations?.get(
+        SEGMENTATION_KEYS.SYNTHETIC
       );
-      const compositeSegmentation = dataState.segmentations?.get(
-        SEGMENTATION_KEYS.COMPOSITE
-      );
-      regionLabeler.updateCompositeData(
-        compositeState.georaster,
-        compositeSegmentation,
-        allLabelsMap,
-        dataState.segmentations,
-        processedInteractiveRaster
+      regionLabeler.updateInteractiveData(
+        interactiveSegmentation.georaster,
+        interactiveSegmentation,
+        syntheticSegmentation
       );
     }
   });

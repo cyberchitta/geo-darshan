@@ -156,35 +156,31 @@
     if (!values || values.length === 0 || values[0] === 0) {
       return null;
     }
-    const clusterId = values[0];
-
-    // Look up directly in composite segmentation instead of clusterIdMapping
+    const uniqueId = values[0];
+    if (
+      CLUSTER_ID_RANGES.isNoData(uniqueId) ||
+      CLUSTER_ID_RANGES.isUnlabeled(uniqueId)
+    ) {
+      return null;
+    }
     const compositeSegmentation = dataState.segmentations?.get(
       SEGMENTATION_KEYS.COMPOSITE
     );
-
     if (!compositeSegmentation) {
-      console.warn("Composite segmentation not found");
+      console.warn("Composite segmentation not available");
       return null;
     }
-
-    const cluster = compositeSegmentation.getCluster(clusterId);
-
+    const cluster = compositeSegmentation.getCluster(uniqueId);
     if (!cluster) {
-      // UNLABELED pixels (9999) won't have a cluster entry - this is expected
-      if (clusterId !== CLUSTER_ID_RANGES.UNLABELED) {
-        console.warn("Unexpected: cluster not found:", clusterId);
-      }
+      console.warn(`Unexpected: cluster not found: ${uniqueId}`);
       return null;
     }
-
     if (
       !cluster.classificationPath ||
       cluster.classificationPath === "unlabeled"
     ) {
       return null;
     }
-
     return resolveClassificationColor(cluster.classificationPath);
   }
 
