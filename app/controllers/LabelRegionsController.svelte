@@ -1,12 +1,8 @@
 <script>
   import { onMount } from "svelte";
   import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "../js/utils.js";
-  import { Segmentation } from "../js/segmentation.js";
   import { ClassificationHierarchy } from "../js/classification.js";
   import { RegionLabeler } from "../js/region-labeler.js";
-  import { SegmentedRaster } from "../js/raster/segmented-raster.js";
-  import { ClusterRegistry } from "../js/raster/cluster-registry.js";
-  import { RasterTransform } from "../js/raster/raster-transform.js";
   import { RasterFactory } from "../js/raster/raster-factory.js";
   import { ClassificationRenderer } from "../js/raster/classification-renderer.js";
 

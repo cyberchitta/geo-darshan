@@ -1,6 +1,5 @@
 <script>
   import { ClassificationHierarchy } from "../js/classification.js";
-  import { Compositor } from "../js/compositor.js";
   import { Segmentation } from "../js/segmentation.js";
   import { SEGMENTATION_KEYS, extractKValue } from "../js/utils.js";
   import { RasterTransform } from "../js/raster/raster-transform.js";

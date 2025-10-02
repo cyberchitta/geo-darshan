@@ -3,7 +3,6 @@
   import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "../js/utils.js";
   import { MapManager } from "../js/map-manager.js";
   import { ClassificationHierarchy } from "../js/classification.js";
-  import { Segmentation } from "../js/segmentation.js";
 
   let { dataState, segmentationController, labelRegionsController } = $props();
   let mapManager = $state(null);
