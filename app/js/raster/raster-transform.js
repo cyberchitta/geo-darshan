@@ -185,11 +185,6 @@ class RasterTransform {
    * @returns {SegmentedRaster}
    */
   static aggregateByKey(segmentedRaster, keyFn) {
-    console.log("aggregateByKey START", {
-      width: segmentedRaster.width,
-      height: segmentedRaster.height,
-      totalPixels: segmentedRaster.width * segmentedRaster.height,
-    });
     const keyToId = new Map();
     const pixelCounts = new Map();
     let nextId = 1;

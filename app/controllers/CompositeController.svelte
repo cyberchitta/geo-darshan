@@ -29,7 +29,6 @@
     if (!shouldRegenerateComposite) return;
     try {
       if (!ClassificationHierarchy.isLoaded()) {
-        console.log("Waiting for ClassificationHierarchy to load...");
         return;
       }
       const allLabelsMap = Segmentation.extractAllLabels(
@@ -41,7 +40,6 @@
       );
       compositeState = compositeResult;
       lastProcessedUserVersion = dataState.userLabelsVersion;
-      console.log("✅ Composite data generated, ready for other controllers");
     } catch (error) {
       console.error("Failed to generate composite:", error);
       lastProcessedUserVersion = dataState.userLabelsVersion;
@@ -50,7 +48,6 @@
   });
 
   async function generateComposite(segmentations, allLabels) {
-    console.log("Generating composite raster with RasterTransform...");
     const startTime = performance.now();
     const segmentedRastersWithKeys = [];
     const regularKeys = Array.from(segmentations.keys())
@@ -84,22 +81,8 @@
     if (segmentedRastersWithKeys.length === 0) {
       throw new Error("No segmentations available");
     }
-    console.log("Pre-aggregation state:", {
-      numSegmentations: segmentedRastersWithKeys.length,
-      totalLabelsInAllSegmentations: Array.from(allLabels.entries()).reduce(
-        (sum, [key, labels]) => sum + labels.size,
-        0
-      ),
-      labelsPerSegmentation: Array.from(allLabels.entries()).map(
-        ([key, labels]) => ({ key, labelCount: labels.size })
-      ),
-    });
     const aggregated = RasterTransform.aggregate(segmentedRastersWithKeys, {
       priority: "highest_k",
-    });
-    console.log("Post-aggregation state:", {
-      uniqueClusterIds: aggregated.registry.size(),
-      sampleClusters: aggregated.getAllClusters().slice(0, 5),
     });
     const compositeSegmentation = Segmentation.fromSegmentedRaster(
       SEGMENTATION_KEYS.COMPOSITE,

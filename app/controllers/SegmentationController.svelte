@@ -168,7 +168,6 @@
       console.warn("No overlays to preprocess");
       return;
     }
-    console.log("SegmentationController: Preprocessing georaster layers...");
     geoRasterLayers.clear();
     pixelRenderers.clear();
     if (!layerGroup) {
@@ -176,40 +175,30 @@
       mapManager.addOverlayLayer("Segmentations", layerGroup, true);
       layerGroup.on("add", () => {
         isLayerVisible = true;
-        console.log("Segmentations layer visible");
       });
       layerGroup.on("remove", () => {
         isLayerVisible = false;
-        console.log("Segmentations layer hidden");
       });
       isLayerVisible = mapManager.map.hasLayer(layerGroup);
     }
     for (let i = 0; i < overlays.length; i++) {
       const overlayData = overlays[i];
       try {
-        console.log(
-          `Loading ${overlayData.filename} (${overlayData.segmentationKey})...`
-        );
         const { layer, renderer } = await createGeoRasterLayer(overlayData);
         layer.addTo(mapManager.map);
         layerGroup.addLayer(layer);
         layer.setOpacity(0);
         geoRasterLayers.set(i, layer);
         pixelRenderers.set(i, renderer);
-        console.log(
-          `✅ Preprocessed and added layer ${i + 1}/${overlays.length}`
-        );
         if (i === 0) {
           layersReady = true;
           showFrame(0);
-          console.log("First segmentation layer ready");
         }
       } catch (error) {
         console.error(`Failed to preprocess layer ${i}:`, error);
         throw error;
       }
     }
-    console.log("✅ All segmentation layer preprocessing complete");
   }
 
   async function createGeoRasterLayer(overlayData) {
@@ -247,7 +236,6 @@
 
   function showFrame(frameIndex) {
     if (!overlays || overlays.length === 0) {
-      console.warn("No overlays loaded yet, cannot show frame");
       return;
     }
     if (frameIndex < 0 || frameIndex >= overlays.length) {
@@ -262,9 +250,6 @@
         layer.setOpacity(opacity);
       });
       updateCurrentFrame();
-      console.log(
-        `✅ Displayed frame ${frameIndex} (${overlays[frameIndex].segmentationKey})`
-      );
     } catch (error) {
       console.error(`Failed to show frame ${frameIndex}:`, error);
     }

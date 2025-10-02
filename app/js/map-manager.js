@@ -10,13 +10,6 @@ class MapManager {
     this.overlayLayers = {};
     this.interactionMode = "view";
     this.labeledLayer = null;
-    if (this.rasterHandler) {
-      console.log(`MapManager initialized with ${this.rasterHandler.name}`);
-    } else {
-      console.log(
-        "MapManager initialized (waiting for raster handler injection)"
-      );
-    }
   }
 
   async initialize() {
@@ -51,9 +44,7 @@ class MapManager {
         { position: "topright" }
       );
       this.layerControl.addTo(this.map);
-      console.log("✅ Map initialized with enhanced layer control");
       this.setupMapClickHandler();
-      console.log("✅ Map initialized with click handling");
     } catch (error) {
       console.error("Failed to initialize map:", error);
       throw error;
@@ -62,7 +53,6 @@ class MapManager {
 
   setDataLoader(dataLoader) {
     this.dataLoader = dataLoader;
-    console.log(`MapManager dataLoader set: ${!!dataLoader}`);
   }
 
   setBaseLayer(layerName) {
@@ -79,14 +69,12 @@ class MapManager {
           newBaseLayer.getContainer().style.zIndex = "1";
         }
       });
-      console.log(`Switched to base layer: ${layerName} with z-index 1`);
     }
   }
 
   setOverlayOpacity(opacity) {
     this.currentOpacity = Math.max(0, Math.min(1, opacity));
     this.emit("globalOpacityChanged", this.currentOpacity);
-    console.log(`Global layer opacity set to ${this.currentOpacity}`);
   }
 
   setLabeledLayer(labeledLayer) {
@@ -104,9 +92,6 @@ class MapManager {
         padding: [20, 20],
         maxZoom: 16,
       });
-      console.log(
-        `Map fitted to bounds: ${bounds.map((b) => b.toFixed(6)).join(", ")}`
-      );
     } catch (error) {
       console.error("Failed to fit bounds:", error);
     }
@@ -138,7 +123,6 @@ class MapManager {
       this.map.remove();
       this.map = null;
     }
-    console.log("MapManager destroyed");
   }
 
   getOverlayInfo() {
@@ -158,7 +142,6 @@ class MapManager {
 
   setInteractionMode(mode) {
     this.interactionMode = mode;
-    console.log(`Interaction mode set to: ${mode}`);
   }
 
   async handleMapClick(latlng) {
@@ -192,7 +175,6 @@ class MapManager {
     if (visible) {
       layer.addTo(this.map);
     }
-    console.log(`Added overlay layer: ${name} (visible: ${visible})`);
   }
 
   removeOverlayLayer(name) {
@@ -203,7 +185,6 @@ class MapManager {
         this.map.removeLayer(layer);
       }
       delete this.overlayLayers[name];
-      console.log(`Removed overlay layer: ${name}`);
     }
   }
 }

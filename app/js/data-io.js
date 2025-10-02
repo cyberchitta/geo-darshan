@@ -8,11 +8,6 @@ class DataIO {
     this.loadedOverlays = new Map();
     this.colorMapping = null;
     this.rasterHandler = rasterHandler;
-    if (this.rasterHandler) {
-      console.log(`DataIO initialized with ${this.rasterHandler.name}`);
-    } else {
-      console.log("DataIO initialized (waiting for raster handler injection)");
-    }
   }
 
   on(event, callback) {
@@ -210,10 +205,6 @@ class DataIO {
           ? Array.from(fileDirectory.ModelTiepoint)
           : null,
       };
-      console.log(
-        `✅ Preserved projection metadata for ${file.name}:`,
-        georaster._projectionMetadata
-      );
       return georaster;
     } catch (error) {
       console.error(`Error processing GeoTIFF ${file.name}:`, error);

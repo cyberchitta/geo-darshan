@@ -104,7 +104,6 @@
 
   async function handleLoadComplete(manifestData, overlayData) {
     try {
-      console.log("DataController: Processing loaded data...");
       overlayData.forEach((overlay) => {
         overlayMap.set(overlay.segmentationKey, overlay);
       });

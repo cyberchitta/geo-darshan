@@ -62,19 +62,16 @@
   });
 
   onMount(async () => {
-    console.log("AppContext mounted, loading saved labels...");
     window.addEventListener("clearData", clearData);
   });
 
   function coordinateDataLoading(manifest, overlays) {
-    console.log("=== COORDINATING DATA LOADING ===");
     const allSegmentationKeys = manifest.segmentation_keys;
     const allOverlays = overlays;
     mapState?.mapManager?.setDataLoader?.(dataState.dataIO);
     mapState?.mapManager?.fitBounds?.(manifest.metadata.bounds);
     segmentationState.setFrames?.(allSegmentationKeys, allOverlays);
     hideLoading();
-    console.log("✅ Data loading coordination complete");
   }
 
   function handleLabelChange(
@@ -83,12 +80,6 @@
     classificationPath,
     bulkLabels = null
   ) {
-    console.log("🔧 handleLabelChange called:", {
-      segmentationKey,
-      clusterId,
-      classificationPath,
-      bulkLabels,
-    });
     if (bulkLabels !== null) {
       dataState?.setBulkLabels?.(bulkLabels);
     } else if (segmentationKey && clusterId !== null) {
@@ -107,7 +98,6 @@
     }
     segmentationState.reset?.();
     mapState.clearSelectedCluster?.();
-    console.log("✅ Data cleared");
   }
 
   function hideLoading() {

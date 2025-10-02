@@ -110,7 +110,6 @@
         }
       };
       checkForLabelRegionsController();
-      console.log("✅ MapController initialized");
     } catch (error) {
       console.error("Failed to initialize MapController:", error);
       throw error;
@@ -131,7 +130,6 @@
   });
 
   function setupSegmentationListeners(segState) {
-    console.log("Setting up SegmentationController event listeners");
     segState.on("clusterSelected", (clusterValue, latlng) => {
       if (clusterValue === null) {
         selectedCluster = null;
@@ -146,7 +144,6 @@
   }
 
   function setupLabelRegionsListeners(labelRegionsState) {
-    console.log("Setting up LabelRegionsController event listeners");
     labelRegionsState.on("clusterSelected", (clusterValue, latlng) => {
       if (clusterValue === null) {
         selectedCluster = null;
@@ -175,7 +172,6 @@
     manager.on("compositeClick", async (latlng) => {
       const labelRegionsState = labelRegionsController?.getState();
       if (!labelRegionsState?.handleCompositeClick) {
-        console.log("No label regions controller available for interaction");
         return;
       }
       const result = await labelRegionsState.handleCompositeClick(latlng);

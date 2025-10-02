@@ -210,7 +210,6 @@
           const colorMappingText = await this.readFileAsText(colorMappingFile);
           this.pixelMapping = JSON.parse(pixelMappingText);
           this.colorMapping = JSON.parse(colorMappingText);
-          console.log("✅ Mapping files loaded from selected folder");
         } catch (error) {
           throw new Error(`Failed to load mapping files: ${error.message}`);
         }
@@ -225,7 +224,6 @@
           }
           const arrayBuffer = await this.readFileAsArrayBuffer(geotiffFile);
           this.georaster = await parseGeoraster(arrayBuffer);
-          console.log("✅ Geotiff loaded from selected folder");
         } catch (error) {
           throw new Error(`Failed to load geotiff: ${error.message}`);
         }
@@ -350,7 +348,6 @@
         const ctx = canvas.getContext('2d');
         const imageData = ctx.createImageData(outputWidth, outputHeight);
         const data = imageData.data;
-        console.log(`Generating ${outputWidth}x${outputHeight} image...`);
         for (let y = 0; y < sourceHeight; y++) {
           for (let x = 0; x < sourceWidth; x++) {
             const pixelValue = this.georaster.values[0][y][x];
@@ -390,7 +387,6 @@
           link.download = `land-cover-${outputWidth}x${outputHeight}.png`;
           link.click();
           URL.revokeObjectURL(link.href);
-          console.log(`✅ Exported ${outputWidth}x${outputHeight} image`);
         }, 'image/png');
       }
     }

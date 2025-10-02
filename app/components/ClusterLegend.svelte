@@ -183,7 +183,6 @@
   }
   function selectCluster(clusterId) {
     focusedClusterId = clusterId;
-    console.log("Cluster selected:", clusterId);
     announceChange(`Selected cluster ${clusterId}`);
   }
   function navigateToNextCluster(currentId, direction) {
@@ -315,7 +314,6 @@
       if (!file) return;
       try {
         await dataState?.importLabels?.(file);
-        console.log("📁 Labels loaded from file");
       } catch (error) {
         console.error("Failed to load labels file:", error);
         alert(`Failed to load labels: ${error.message}`);
@@ -326,7 +324,6 @@
   function clearAllLabels() {
     if (!confirm("Clear all cluster labels for ALL segmentations?")) return;
     dataState?.clearLabels?.();
-    console.log("✅ All labels cleared");
   }
 </script>
 

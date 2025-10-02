@@ -51,9 +51,6 @@
     },
     exportLandCoverFiles: async () => {
       try {
-        console.log(
-          "Starting land cover export from ClassificationController..."
-        );
         if (!window.ClassificationHierarchy?.isLoaded()) {
           throw new Error("Classification hierarchy not loaded");
         }
@@ -87,7 +84,6 @@
           geotiffBlob,
           dataState.aoiName
         );
-        console.log("✅ Land cover export complete");
       } catch (error) {
         console.error("Export failed:", error);
         throw error;
@@ -105,11 +101,9 @@
       mapManager.addOverlayLayer("Composite", layerGroup, false);
       layerGroup.on("add", () => {
         isLayerVisible = true;
-        console.log("Composite layer visible");
       });
       layerGroup.on("remove", () => {
         isLayerVisible = false;
-        console.log("Composite layer hidden");
       });
       isLayerVisible = mapManager.map.hasLayer(layerGroup);
     }
@@ -203,7 +197,6 @@
         "No composite layer available. Please ensure labeled regions are visible."
       );
     }
-    console.log("Extracting composite geotiff data...");
     const classificationRasterData = classifier.createClassificationRaster();
     const tiffArrayBuffer = await dataIO.createGeoTiffWithLibrary(
       classificationRasterData,
@@ -246,6 +239,5 @@
         URL.revokeObjectURL(link.href);
       }, index * 500);
     });
-    console.log("✅ Files downloaded individually");
   }
 </script>

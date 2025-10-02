@@ -1,7 +1,6 @@
 class GeoRasterAdapter {
   constructor() {
     this.name = "GeoRaster Adapter";
-    console.log("GeoRasterAdapter initialized");
   }
 
   async parseGeoTIFF(arrayBuffer) {
