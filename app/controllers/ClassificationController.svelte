@@ -78,12 +78,13 @@
           hierarchyLevel
         );
         const geotiffBlob = await generateCompositeGeotiff(classifier);
-        await downloadLandCoverFiles(
+        const { blob, filename } = await downloadLandCoverFiles(
           pixelMapping,
           colorMapping,
           geotiffBlob,
           dataState.aoiName
         );
+        return { blob, filename };
       } catch (error) {
         console.error("Export failed:", error);
         throw error;

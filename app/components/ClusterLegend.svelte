@@ -303,7 +303,17 @@
     return colorNames[color] || `color ${color}`;
   }
   function saveLabels() {
-    dataState?.exportLabels?.();
+    const serializedLabels = serializeLabelsFromSegmentations();
+    const { blob, filename } =
+      dataState?.dataIO?.exportLabelsToFile(serializedLabels);
+    if (blob) triggerDownload(blob, filename);
+  }
+  function triggerDownload(blob, filename) {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
   }
   async function loadLabelsFromFile() {
     const input = document.createElement("input");

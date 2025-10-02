@@ -42,7 +42,9 @@
     }
     try {
       isExporting = true;
-      await classificationController.exportLandCoverFiles();
+      const { blob, filename } =
+        await classificationController.exportLandCoverFiles();
+      if (blob) triggerDownload(blob, filename);
       alert("Land cover files exported successfully!");
     } catch (error) {
       console.error("Export failed:", error);
@@ -166,6 +168,14 @@
       1 +
       node.children.reduce((count, child) => count + countTreeNodes(child), 0)
     );
+  }
+
+  function triggerDownload(blob, filename) {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
   }
 
   let statsText = $derived(

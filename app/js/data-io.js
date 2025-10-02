@@ -266,11 +266,9 @@ class DataIO {
   exportLabelsToFile(labels) {
     const dataStr = JSON.stringify(labels, null, 2);
     const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(dataBlob);
-    link.download = `cluster-labels-${new Date().toISOString().split("T")[0]}.json`;
-    link.click();
-    console.log("✅ Labels exported to file:", labels);
+    const filename = `cluster-labels-${new Date().toISOString().split("T")[0]}.json`;
+    console.log("✅ Labels prepared for export:", labels);
+    return { blob: dataBlob, filename };
   }
 
   async importLabelsFromFile(file) {
@@ -328,12 +326,9 @@ class DataIO {
     );
     folder.file("land-cover_cog.tif", geotiffBlob);
     const zipBlob = await zip.generateAsync({ type: "blob" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(zipBlob);
-    link.download = `${folderName}.zip`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    console.log(`✅ Land cover export downloaded as ${folderName}.zip`);
+    const filename = `${folderName}.zip`;
+    console.log(`✅ Land cover export prepared as ${filename}`);
+    return { blob: zipBlob, filename };
   }
 }
 
