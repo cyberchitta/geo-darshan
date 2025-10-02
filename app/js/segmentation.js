@@ -1,4 +1,7 @@
 import { SEGMENTATION_KEYS, CLUSTER_ID_RANGES } from "./utils.js";
+import { Raster } from "./raster/raster.js";
+import { ClusterRegistry } from "./raster/cluster-registry.js";
+import { SegmentedRaster } from "./raster/segmented-raster.js";
 
 class Segmentation {
   constructor(key, georaster, colorMapping, metadata = {}) {
@@ -121,6 +124,51 @@ class Segmentation {
     if (this.metadata.source === "file") {
       this.isImmutable = true;
     }
+  }
+
+  /**
+   * Convert to new SegmentedRaster format for transformation operations.
+   * Does not modify this Segmentation instance.
+   * @returns {SegmentedRaster}
+   */
+  toSegmentedRaster() {
+    const raster = Raster.fromGeoRaster(this.georaster);
+    const registry = ClusterRegistry.fromClustersMap(this.clusters);
+    return new SegmentedRaster(raster, registry);
+  }
+
+  /**
+   * Create Segmentation from SegmentedRaster (for backward compatibility).
+   * @param {string} key - Segmentation key
+   * @param {SegmentedRaster} segRaster - SegmentedRaster instance
+   * @param {Object} metadata - Additional metadata
+   * @returns {Segmentation}
+   */
+  static fromSegmentedRaster(key, segRaster, metadata = {}) {
+    const georaster = segRaster.raster.toGeoRaster();
+    const colorMapping = segRaster.registry.toColorMapping();
+
+    const segmentation = new Segmentation(
+      key,
+      georaster,
+      colorMapping,
+      metadata
+    );
+
+    // Populate clusters Map from registry
+    const clusters = segRaster.registry.getAllClusters();
+    clusters.forEach((cluster) => {
+      segmentation.clusters.set(cluster.id, {
+        id: cluster.id,
+        pixelCount: cluster.pixelCount,
+        classificationPath: cluster.classificationPath,
+        color: cluster.color,
+        area_ha: cluster.area_ha,
+        segmentationKey: key,
+      });
+    });
+
+    return segmentation;
   }
 }
 

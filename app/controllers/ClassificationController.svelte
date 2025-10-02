@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { SEGMENTATION_KEYS } from "../js/utils.js";
+  import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "../js/utils.js";
   import {
     ClassificationHierarchy,
     PixelClassifier,
@@ -156,18 +156,36 @@
     if (!values || values.length === 0 || values[0] === 0) {
       return null;
     }
-    const uniqueId = values[0];
-    let mapping = null;
-    for (const [key, value] of compositeState.clusterIdMapping) {
-      if (value.uniqueId === uniqueId) {
-        mapping = value;
-        break;
-      }
-    }
-    if (!mapping || mapping.classificationPath === "unlabeled") {
+    const clusterId = values[0];
+
+    // Look up directly in composite segmentation instead of clusterIdMapping
+    const compositeSegmentation = dataState.segmentations?.get(
+      SEGMENTATION_KEYS.COMPOSITE
+    );
+
+    if (!compositeSegmentation) {
+      console.warn("Composite segmentation not found");
       return null;
     }
-    return resolveClassificationColor(mapping.classificationPath);
+
+    const cluster = compositeSegmentation.getCluster(clusterId);
+
+    if (!cluster) {
+      // UNLABELED pixels (9999) won't have a cluster entry - this is expected
+      if (clusterId !== CLUSTER_ID_RANGES.UNLABELED) {
+        console.warn("Unexpected: cluster not found:", clusterId);
+      }
+      return null;
+    }
+
+    if (
+      !cluster.classificationPath ||
+      cluster.classificationPath === "unlabeled"
+    ) {
+      return null;
+    }
+
+    return resolveClassificationColor(cluster.classificationPath);
   }
 
   function resolveClassificationColor(classificationPath) {
