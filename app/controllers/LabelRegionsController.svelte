@@ -1,10 +1,7 @@
 <script>
   import { onMount } from "svelte";
-  import {
-    CLUSTER_ID_RANGES,
-    SEGMENTATION_KEYS,
-    MapOverlayGroup,
-  } from "../js/utils.js";
+  import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "../js/utils.js";
+  import { MapOverlay } from "../js/map-overlay.js";
   import { ClassificationHierarchy } from "../js/classification.js";
   import { RegionLabeler } from "../js/region-labeler.js";
   import { RasterFactory } from "../js/raster/raster-factory.js";
@@ -136,14 +133,10 @@
   onMount(() => {
     if (mapManager && mapManager.map && mapManager.layerControl) {
       if (mapManager && mapManager.map && mapManager.layerControl) {
-        layerGroup = MapOverlayGroup.create(mapManager, "Labeled", false);
-        layerGroup.on("add", () => {
-          isLayerVisible = true;
+        layerGroup = MapOverlay.create(mapManager, "Labeled", {
+          visible: false,
+          onVisibilityChange: (val) => (isLayerVisible = val),
         });
-        layerGroup.on("remove", () => {
-          isLayerVisible = false;
-        });
-        isLayerVisible = layerGroup.isVisible;
       }
       regionLabeler = new RegionLabeler();
     }

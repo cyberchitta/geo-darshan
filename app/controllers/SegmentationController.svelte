@@ -1,7 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { ClusterRenderer } from "../js/raster/color-renderers.js";
-  import { MapOverlayGroup } from "../js/utils.js";
+  import { MapOverlay } from "../js/map-overlay.js";
 
   let { mapState, dataState } = $props();
 
@@ -161,14 +161,12 @@
     geoRasterLayers.clear();
     pixelRenderers.clear();
     if (!layerGroup) {
-      layerGroup = MapOverlayGroup.create(mapManager, "Segmentations", true);
-      layerGroup.on("add", () => {
-        isLayerVisible = true;
-      });
-      layerGroup.on("remove", () => {
-        isLayerVisible = false;
-      });
-      isLayerVisible = layerGroup.isVisible;
+      if (!layerGroup) {
+        layerGroup = MapOverlay.create(mapManager, "Segmentations", {
+          visible: true,
+          onVisibilityChange: (val) => (isLayerVisible = val),
+        });
+      }
     }
     for (let i = 0; i < overlays.length; i++) {
       const overlayData = overlays[i];
