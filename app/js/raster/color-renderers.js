@@ -5,46 +5,44 @@ import {
   convertToGrayscale,
 } from "../utils.js";
 
-const _createBaseRenderer = (options = {}) => {
-  const { selectedCluster, grayscaleLabeled = false } = options;
-  return Object.freeze({
-    isSelected(clusterId, segKey) {
-      return (
-        selectedCluster?.clusterId === clusterId &&
-        selectedCluster?.segmentationKey === segKey
-      );
-    },
-    toGrayscale(rgbString, alpha = 1) {
-      if (!rgbString) return null;
-      const colorObj = rgbStringToObject(rgbString);
-      if (!colorObj) return rgbString;
-      const gray = convertToGrayscale(colorObj);
-      return `rgba(${gray.r}, ${gray.g}, ${gray.b}, ${alpha})`;
-    },
-    shouldGrayscaleLabeled(classificationPath) {
-      return (
-        grayscaleLabeled &&
-        classificationPath &&
-        classificationPath !== "unlabeled"
-      );
-    },
-    getClusterColor(cluster) {
-      return cluster?.color;
-    },
-  });
-};
+const PixelRenderUtils = Object.freeze({
+  isSelected(clusterId, segmentationKey, selectedCluster) {
+    return (
+      selectedCluster?.clusterId === clusterId &&
+      selectedCluster?.segmentationKey === segmentationKey
+    );
+  },
+  toGrayscale(rgbString, alpha = 1) {
+    if (!rgbString) return null;
+    const colorObj = rgbStringToObject(rgbString);
+    if (!colorObj) return rgbString;
+    const gray = convertToGrayscale(colorObj);
+    return `rgba(${gray.r}, ${gray.g}, ${gray.b}, ${alpha})`;
+  },
+  shouldGrayscaleLabeled(classificationPath, grayscaleLabeled) {
+    return (
+      grayscaleLabeled &&
+      classificationPath &&
+      classificationPath !== "unlabeled"
+    );
+  },
+});
 
 class ClusterRenderer {
   constructor(segmentedRaster, segmentationKey, options = {}) {
     this._segmentedRaster = segmentedRaster;
     this._segmentationKey = segmentationKey;
-    this._base = _createBaseRenderer(options);
+    this._interactionMode = options.interactionMode || "view";
+    this._selectedCluster = options.selectedCluster || null;
+    this._grayscaleLabeled = options.grayscaleLabeled || false;
     Object.freeze(this);
   }
 
   withOptions(options) {
     return new ClusterRenderer(this._segmentedRaster, this._segmentationKey, {
-      ...options,
+      interactionMode: options.interactionMode ?? this._interactionMode,
+      selectedCluster: options.selectedCluster ?? this._selectedCluster,
+      grayscaleLabeled: options.grayscaleLabeled ?? this._grayscaleLabeled,
     });
   }
 
@@ -52,15 +50,26 @@ class ClusterRenderer {
     if (!values || values.length === 0 || values[0] === 0) return null;
     const clusterId = values[0];
     if (CLUSTER_ID_RANGES.isNoData(clusterId)) return null;
-    if (this._base.isSelected(clusterId, this._segmentationKey)) {
+    if (
+      PixelRenderUtils.isSelected(
+        clusterId,
+        this._segmentationKey,
+        this._selectedCluster
+      )
+    ) {
       return "rgba(0, 0, 0, 1)";
     }
     const cluster = this._segmentedRaster.getClusterById(clusterId);
     if (!cluster) return null;
-    let color = this._base.getClusterColor(cluster);
+    let color = cluster.color;
     if (!color) return null;
-    if (this._base.shouldGrayscaleLabeled(cluster.classificationPath)) {
-      color = this._base.toGrayscale(color);
+    if (
+      PixelRenderUtils.shouldGrayscaleLabeled(
+        cluster.classificationPath,
+        this._grayscaleLabeled
+      )
+    ) {
+      color = PixelRenderUtils.toGrayscale(color);
     }
     return color;
   }
@@ -69,16 +78,20 @@ class ClusterRenderer {
 class ClassificationRenderer {
   constructor(segmentedRaster, options = {}) {
     this._segmentedRaster = segmentedRaster;
-    this._base = _createBaseRenderer(options);
     this._hierarchyLevel = options.hierarchyLevel || 1;
+    this._interactionMode = options.interactionMode || "view";
+    this._selectedCluster = options.selectedCluster || null;
+    this._grayscaleLabeled = options.grayscaleLabeled || false;
     this._colorCache = new Map();
     Object.freeze(this);
   }
 
   withOptions(options) {
     return new ClassificationRenderer(this._segmentedRaster, {
-      ...options,
       hierarchyLevel: options.hierarchyLevel ?? this._hierarchyLevel,
+      interactionMode: options.interactionMode ?? this._interactionMode,
+      selectedCluster: options.selectedCluster ?? this._selectedCluster,
+      grayscaleLabeled: options.grayscaleLabeled ?? this._grayscaleLabeled,
     });
   }
 
@@ -86,7 +99,9 @@ class ClassificationRenderer {
     if (!values || values.length === 0 || values[0] === 0) return null;
     const clusterId = values[0];
     if (CLUSTER_ID_RANGES.isNoData(clusterId)) return null;
-    if (this._base.isSelected(clusterId, "composite")) {
+    if (
+      PixelRenderUtils.isSelected(clusterId, "composite", this._selectedCluster)
+    ) {
       return "rgba(0, 0, 0, 1)";
     }
     const cluster = this._segmentedRaster.getClusterById(clusterId);
@@ -95,9 +110,13 @@ class ClassificationRenderer {
       !cluster.classificationPath ||
       cluster.classificationPath === "unlabeled"
     ) {
-      return this._base.getClusterColor(cluster);
+      return cluster.color;
     }
-    return this._resolveHierarchyColor(cluster.classificationPath);
+    const color = this._resolveHierarchyColor(cluster.classificationPath);
+    if (this._grayscaleLabeled) {
+      return PixelRenderUtils.toGrayscale(color);
+    }
+    return color;
   }
 
   _resolveHierarchyColor(classificationPath) {
