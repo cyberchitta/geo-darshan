@@ -1,6 +1,10 @@
 <script>
   import { onMount } from "svelte";
-  import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "../js/utils.js";
+  import {
+    CLUSTER_ID_RANGES,
+    SEGMENTATION_KEYS,
+    MapOverlayGroup,
+  } from "../js/utils.js";
   import {
     ClassificationHierarchy,
     PixelClassifier,
@@ -98,23 +102,21 @@
 
   onMount(() => {
     if (mapManager && mapManager.map && mapManager.layerControl) {
-      layerGroup = L.layerGroup();
-      mapManager.addOverlayLayer("Composite", layerGroup, false);
+      layerGroup = MapOverlayGroup.create(mapManager, "Composite", false);
       layerGroup.on("add", () => {
         isLayerVisible = true;
       });
       layerGroup.on("remove", () => {
         isLayerVisible = false;
       });
-      isLayerVisible = mapManager.map.hasLayer(layerGroup);
+      isLayerVisible = layerGroup.isVisible;
     }
     return () => {
       if (classificationLayer && layerGroup) {
         layerGroup.removeLayer(classificationLayer);
       }
       if (layerGroup && mapManager) {
-        mapManager.removeOverlayLayer("Composite");
-        mapManager.map.removeLayer(layerGroup);
+        layerGroup.destroy();
       }
     };
   });

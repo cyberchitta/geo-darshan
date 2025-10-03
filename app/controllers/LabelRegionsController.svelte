@@ -1,6 +1,10 @@
 <script>
   import { onMount } from "svelte";
-  import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "../js/utils.js";
+  import {
+    CLUSTER_ID_RANGES,
+    SEGMENTATION_KEYS,
+    MapOverlayGroup,
+  } from "../js/utils.js";
   import { ClassificationHierarchy } from "../js/classification.js";
   import { RegionLabeler } from "../js/region-labeler.js";
   import { RasterFactory } from "../js/raster/raster-factory.js";
@@ -131,26 +135,24 @@
 
   onMount(() => {
     if (mapManager && mapManager.map && mapManager.layerControl) {
-      layerGroup = L.layerGroup();
-      mapManager.addOverlayLayer("Labeled", layerGroup, false);
+      if (mapManager && mapManager.map && mapManager.layerControl) {
+        layerGroup = MapOverlayGroup.create(mapManager, "Labeled", false);
+        layerGroup.on("add", () => {
+          isLayerVisible = true;
+        });
+        layerGroup.on("remove", () => {
+          isLayerVisible = false;
+        });
+        isLayerVisible = layerGroup.isVisible;
+      }
       regionLabeler = new RegionLabeler();
-      layerGroup.on("add", () => {
-        isLayerVisible = true;
-        console.log("Labeled layer visible");
-      });
-      layerGroup.on("remove", () => {
-        isLayerVisible = false;
-        console.log("Labeled layer hidden");
-      });
-      isLayerVisible = mapManager.map.hasLayer(layerGroup);
     }
     return () => {
       if (interactiveLayer && layerGroup) {
         layerGroup.removeLayer(interactiveLayer);
       }
       if (layerGroup && mapManager) {
-        mapManager.removeOverlayLayer("Labeled");
-        mapManager.map.removeLayer(layerGroup);
+        layerGroup.destroy();
       }
     };
   });
