@@ -15,14 +15,10 @@ class TensorRaster {
   static async countPixels(raster, nodataValue = CLUSTER_ID_RANGES.NODATA) {
     const values = raster.cloneValues();
     const flatData = values.flat();
-
     const tensor = tf.tensor1d(flatData, "int32");
     const nodataMask = tf.notEqual(tensor, nodataValue);
     const validPixels = tf.where(nodataMask, tensor, tf.scalar(-999, "int32"));
-
     const pixelData = await validPixels.data();
-
-    // Count occurrences
     const counts = new Map();
     for (let i = 0; i < pixelData.length; i++) {
       const value = pixelData[i];
@@ -30,12 +26,9 @@ class TensorRaster {
         counts.set(value, (counts.get(value) || 0) + 1);
       }
     }
-
-    // Dispose tensors
     tensor.dispose();
     nodataMask.dispose();
     validPixels.dispose();
-
     return counts;
   }
 
@@ -49,10 +42,8 @@ class TensorRaster {
     const excludeSet = new Set(excludeValues);
     const values = raster.cloneValues();
     const flatData = values.flat();
-
     const tensor = tf.tensor1d(flatData, "int32");
     const pixelData = await tensor.data();
-
     const counts = new Map();
     for (let i = 0; i < pixelData.length; i++) {
       const value = pixelData[i];
@@ -60,9 +51,7 @@ class TensorRaster {
         counts.set(value, (counts.get(value) || 0) + 1);
       }
     }
-
     tensor.dispose();
-
     return counts;
   }
 
@@ -75,28 +64,22 @@ class TensorRaster {
   static async histogram(raster, bins = 256) {
     const values = raster.cloneValues();
     const flatData = values.flat();
-
     const tensor = tf.tensor1d(flatData, "int32");
     const min = (await tf.min(tensor).data())[0];
     const max = (await tf.max(tensor).data())[0];
-
     const binSize = (max - min) / bins;
     const binEdges = Array.from(
       { length: bins + 1 },
       (_, i) => min + i * binSize
     );
-
     const pixelData = await tensor.data();
     const binCounts = new Array(bins).fill(0);
-
     for (let i = 0; i < pixelData.length; i++) {
       const value = pixelData[i];
       const binIndex = Math.min(Math.floor((value - min) / binSize), bins - 1);
       binCounts[binIndex]++;
     }
-
     tensor.dispose();
-
     return {
       bins: binEdges.slice(0, -1),
       counts: binCounts,
