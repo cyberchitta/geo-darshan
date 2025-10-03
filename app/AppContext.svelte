@@ -163,7 +163,6 @@
     {dataState}
     {mapState}
     mapManager={mapState.mapManager}
-    dataLoader={dataState.dataIO}
     {segmentationController}
     hierarchyLevel={classificationState.hierarchyLevel}
   />

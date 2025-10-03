@@ -12,7 +12,6 @@
     dataState,
     mapState,
     mapManager,
-    dataLoader,
     segmentationController,
     hierarchyLevel,
   } = $props();
