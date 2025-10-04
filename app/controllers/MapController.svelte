@@ -4,24 +4,22 @@
   import { MapManager } from "../js/map-manager.js";
   import { ClassificationHierarchy } from "../js/classification.js";
 
-  let { dataState, segmentationController, labelRegionsController } = $props();
+  let { segmentationController, interactiveController } = $props();
   let mapManager = $state(null);
   let segmentationOpacity = $state(0.8);
-  let labelRegionsOpacity = $state(0.8);
+  let interactiveOpacity = $state(0.8);
   let classificationOpacity = $state(0.8);
   let interactionMode = $state("view");
   let selectedCluster = $state(null);
   let clusterSuggestions = $state([]);
   let selectedRegion = $state(null);
-  let manifest = $derived(dataState.manifest);
   let currentHoverLabel = $state("");
   let segmentationLayerVisible = $derived(
     segmentationController?.getState()?.hasActiveLayer &&
       segmentationOpacity > 0
   );
-  let labelRegionsLayerVisible = $derived(
-    labelRegionsController?.getState()?.hasActiveLayer &&
-      labelRegionsOpacity > 0
+  let interactiveLayerVisible = $derived(
+    interactiveController?.getState()?.hasActiveLayer && interactiveOpacity > 0
   );
   const stateObject = {
     get mapManager() {
@@ -45,12 +43,12 @@
     get segmentationLayerVisible() {
       return segmentationLayerVisible;
     },
-    get labelRegionsLayerVisible() {
-      return labelRegionsLayerVisible;
+    get interactiveLayerVisible() {
+      return interactiveLayerVisible;
     },
     setOpacity: (value) => {
       segmentationOpacity = value;
-      labelRegionsOpacity = value;
+      interactiveOpacity = value;
       classificationOpacity = value;
       if (mapManager) {
         mapManager.setOverlayOpacity(value);
@@ -60,17 +58,17 @@
     clearSelectedCluster: () => (selectedCluster = null),
     clearSelectedRegion: () => {
       selectedRegion = null;
-      const labelRegionsState = labelRegionsController?.getState();
-      if (labelRegionsState?.clearSelection) {
-        labelRegionsState.clearSelection();
+      const interactiveState = interactiveController?.getState();
+      if (interactiveState?.clearSelection) {
+        interactiveState.clearSelection();
       }
     },
     cancelSelection: () => {
       selectedCluster = null;
       selectedRegion = null;
-      const labelRegionsState = labelRegionsController?.getState();
-      if (labelRegionsState?.cancelSelection) {
-        labelRegionsState.cancelSelection();
+      const interactiveState = interactiveController?.getState();
+      if (interactiveState?.cancelSelection) {
+        interactiveState.cancelSelection();
       }
     },
   };
@@ -101,15 +99,15 @@
         }
       };
       checkForSegController();
-      const checkForLabelRegionsController = () => {
-        const labelRegionsState = labelRegionsController?.getState();
-        if (labelRegionsState?.on) {
-          setupLabelRegionsListeners(labelRegionsState);
+      const checkForInteractiveController = () => {
+        const interactiveState = interactiveController?.getState();
+        if (interactiveState?.on) {
+          setupInteractiveListeners(interactiveState);
         } else {
-          setTimeout(checkForLabelRegionsController, 10);
+          setTimeout(checkForInteractiveController, 10);
         }
       };
-      checkForLabelRegionsController();
+      checkForInteractiveController();
     } catch (error) {
       console.error("Failed to initialize MapController:", error);
       throw error;
@@ -143,8 +141,8 @@
     });
   }
 
-  function setupLabelRegionsListeners(labelRegionsState) {
-    labelRegionsState.on("clusterSelected", (clusterValue, latlng) => {
+  function setupInteractiveListeners(interactiveState) {
+    interactiveState.on("clusterSelected", (clusterValue, latlng) => {
       if (clusterValue === null) {
         selectedCluster = null;
       } else {
@@ -159,10 +157,10 @@
 
   function setupEventListeners(manager) {
     manager.on("clusterInteraction", async (latlng) => {
-      if (labelRegionsLayerVisible && !segmentationLayerVisible) {
-        const labelRegionsState = labelRegionsController?.getState();
-        await labelRegionsState?.selectClusterAt?.(latlng);
-      } else if (segmentationLayerVisible && !labelRegionsLayerVisible) {
+      if (interactiveLayerVisible && !segmentationLayerVisible) {
+        const interactiveState = interactiveController?.getState();
+        await interactiveState?.selectClusterAt?.(latlng);
+      } else if (segmentationLayerVisible && !interactiveLayerVisible) {
         const segState = segmentationController?.getState();
         await segState?.selectClusterAt?.(latlng);
       } else {
@@ -170,11 +168,11 @@
       }
     });
     manager.on("compositeClick", async (latlng) => {
-      const labelRegionsState = labelRegionsController?.getState();
-      if (!labelRegionsState?.handleCompositeClick) {
+      const interactiveState = interactiveController?.getState();
+      if (!interactiveState?.handleCompositeClick) {
         return;
       }
-      const result = await labelRegionsState.handleCompositeClick(latlng);
+      const result = await interactiveState.handleCompositeClick(latlng);
       if (result?.action === "create_new") {
         selectedRegion = {
           region: result.region,
@@ -230,9 +228,9 @@
   }
 
   async function getCurrentLabelAtPosition(latlng) {
-    const labelRegionsState = labelRegionsController?.getState();
-    const interactiveSegRaster = labelRegionsState?.interactiveSegmentation;
-    const raster = labelRegionsState?.processedInteractiveRaster;
+    const interactiveState = interactiveController?.getState();
+    const interactiveSegRaster = interactiveState?.interactiveSegmentation;
+    const raster = interactiveState?.processedInteractiveRaster;
     if (!interactiveSegRaster || !raster) {
       return "";
     }

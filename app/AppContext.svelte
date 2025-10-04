@@ -1,12 +1,11 @@
 <script>
   import { onMount } from "svelte";
-  import { SEGMENTATION_KEYS } from "./js/utils.js";
   import DataController from "./controllers/DataController.svelte";
   import SegmentationController from "./controllers/SegmentationController.svelte";
   import MapController from "./controllers/MapController.svelte";
   import CompositeController from "./controllers/CompositeController.svelte";
   import ClassificationController from "./controllers/ClassificationController.svelte";
-  import LabelRegionsController from "./controllers/LabelRegionsController.svelte";
+  import InteractiveController from "./controllers/InteractiveController.svelte";
   import LegendPanel from "./components/LegendPanel.svelte";
   import ControlsPanel from "./components/ControlsPanel.svelte";
   import MapInfoPanel from "./components/MapInfoPanel.svelte";
@@ -17,14 +16,14 @@
   let mapController = $state();
   let compositeController = $state();
   let classificationController = $state();
-  let labelRegionsController = $state();
+  let interactiveController = $state();
 
   let dataState = $derived(dataController?.getState());
   let segmentationState = $derived(segmentationController?.getState());
   let mapState = $derived(mapController?.getState());
   let compositeState = $derived(compositeController?.getState());
   let classificationState = $derived(classificationController?.getState());
-  let labelRegionsState = $derived(labelRegionsController?.getState());
+  let interactiveState = $derived(interactiveController?.getState());
 
   let hasCoordinated = $state(false);
 
@@ -34,7 +33,7 @@
     segmentation: segmentationState,
     composite: compositeState,
     classification: classificationState,
-    labelRegions: labelRegionsState,
+    interactive: interactiveState,
   });
 
   const callbacks = {
@@ -57,7 +56,7 @@
   $effect(() => {
     if (mapState?.interactionMode !== "cluster") {
       segmentationController?.getState()?.clearSelection?.();
-      labelRegionsController?.getState()?.clearSelection?.();
+      interactiveController?.getState()?.clearSelection?.();
     }
   });
 
@@ -112,8 +111,8 @@
   }
 
   function handleRegionCommit(classificationPath) {
-    if (mapState.selectedRegion && labelRegionsState) {
-      labelRegionsState.labelRegion(
+    if (mapState.selectedRegion && interactiveState) {
+      interactiveState.labelRegion(
         mapState.selectedRegion.region,
         classificationPath
       );
@@ -132,9 +131,8 @@
 {#if dataState?.dataIO}
   <MapController
     bind:this={mapController}
-    {dataState}
     {segmentationController}
-    {labelRegionsController}
+    {interactiveController}
   />
 {/if}
 
@@ -157,8 +155,8 @@
 {/if}
 
 {#if compositeState?.compositeState && mapState?.mapManager && classificationState?.hierarchyLevel}
-  <LabelRegionsController
-    bind:this={labelRegionsController}
+  <InteractiveController
+    bind:this={interactiveController}
     compositeState={compositeState.compositeState}
     {dataState}
     {mapState}
@@ -174,7 +172,7 @@
     {segmentationState}
     {mapState}
     classificationState={appState.classification}
-    labelRegionsState={appState.labelRegions}
+    interactiveState={appState.interactive}
   />
   <MapInfoPanel
     currentLabel={mapState.currentHoverLabel}

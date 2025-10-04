@@ -4,7 +4,7 @@
   import NavigationControls from "./NavigationControls.svelte";
   import OverlayControls from "./OverlayControls.svelte";
 
-  let { segmentationState, mapState, classificationState, labelRegionsState } =
+  let { segmentationState, mapState, classificationState, interactiveState } =
     $props();
 
   let totalFrames = $derived(segmentationState.totalFrames || 0);
@@ -34,7 +34,7 @@
         <div class="control-group overlay-group">
           <OverlayControls
             {classificationState}
-            {labelRegionsState}
+            {interactiveState}
             {segmentationState}
           />
         </div>
@@ -159,7 +159,6 @@
     color: #666;
   }
 
-  /* Responsive design for larger screens */
   @media (min-width: 768px) {
     .controls-row {
       flex-direction: row;
@@ -192,7 +191,6 @@
     }
   }
 
-  /* Extra large screens - more spacing */
   @media (min-width: 1200px) {
     .controls-panel {
       min-width: 600px;
@@ -204,7 +202,6 @@
     }
   }
 
-  /* Mobile optimizations */
   @media (max-width: 767px) {
     .controls-panel {
       bottom: 10px;
@@ -228,7 +225,6 @@
     }
   }
 
-  /* High contrast mode support */
   @media (prefers-contrast: high) {
     .controls-panel {
       background: white;
@@ -245,7 +241,6 @@
     }
   }
 
-  /* Reduced motion support */
   @media (prefers-reduced-motion: reduce) {
     .controls-panel,
     .controls-content,
@@ -255,7 +250,6 @@
     }
   }
 
-  /* Screen reader only content */
   .sr-only {
     position: absolute;
     width: 1px;

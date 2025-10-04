@@ -15,7 +15,7 @@
   } = callbacks;
   let segmentationState = $derived(appState.segmentation);
   let dataState = $derived(appState.data);
-  let labelRegionsState = $derived(appState.labelRegions);
+  let interactiveState = $derived(appState.interactive);
   let hierarchyLevel = $derived(appState.classification?.hierarchyLevel || 1);
   let selectedCluster = $derived(appState.map?.selectedCluster);
   let selectedRegion = $derived(appState.map?.selectedRegion);
@@ -39,10 +39,10 @@
   );
   let selectedSegmentationKey = $derived(currentSegmentationKey);
   let hasSyntheticClusters = $derived(
-    labelRegionsState?.interactiveSegmentation != null
+    interactiveState?.interactiveSegmentation != null
   );
   let interactiveSegRaster = $derived(
-    labelRegionsState?.interactiveSegmentation
+    interactiveState?.interactiveSegmentation
   );
   let syntheticClusters = $derived(
     interactiveSegRaster?.getAllClusters() || []
@@ -81,19 +81,19 @@
   let focusedClusterId = $state(null);
   let announcementText = $state("");
   let clusterAvailable = $derived(
-    segmentationState?.hasActiveLayer && !labelRegionsState?.hasActiveLayer
+    segmentationState?.hasActiveLayer && !interactiveState?.hasActiveLayer
   );
   let compositeAvailable = $derived(
-    labelRegionsState?.hasActiveLayer && !segmentationState?.hasActiveLayer
+    interactiveState?.hasActiveLayer && !segmentationState?.hasActiveLayer
   );
   let showClusterLegend = $derived(
     (interactionMode === "cluster" &&
       segmentationState?.hasActiveLayer &&
-      !labelRegionsState?.hasActiveLayer) ||
+      !interactiveState?.hasActiveLayer) ||
       (interactionMode === "view" && clusterAvailable)
   );
   let showCompositeLegend = $derived(
-    (interactionMode === "cluster" && labelRegionsState?.hasActiveLayer) ||
+    (interactionMode === "cluster" && interactiveState?.hasActiveLayer) ||
       interactionMode === "composite" ||
       (interactionMode === "view" && compositeAvailable)
   );
@@ -150,7 +150,7 @@
     focusedClusterId = clusterId;
     console.log("Synthetic cluster selected:", clusterId);
     announceChange(`Selected synthetic cluster ${clusterId}`);
-    if (labelRegionsState?.selectClusterAt) {
+    if (interactiveState?.selectClusterAt) {
       const interactiveSegRaster = dataState.segmentedRasters?.get(
         SEGMENTATION_KEYS.INTERACTIVE
       );
@@ -161,7 +161,7 @@
         for (let x = 0; x < raster.width; x++) {
           if (values[y][x] === clusterId) {
             const latlng = raster.pixelToLatlng(x, y);
-            labelRegionsState.selectClusterAt(latlng);
+            interactiveState.selectClusterAt(latlng);
             return;
           }
         }
@@ -873,7 +873,6 @@
     white-space: nowrap;
     border: 0;
   }
-  /* Responsive design */
   @media (max-width: 900px) {
     .segmentation-selector {
       padding: 8px 12px;
@@ -889,7 +888,6 @@
       width: 100%;
     }
   }
-  /* High contrast mode support */
   @media (prefers-contrast: high) {
     .legend-cluster-item {
       border: 2px solid #000;
@@ -901,7 +899,6 @@
       border: 2px solid;
     }
   }
-  /* Reduced motion support */
   @media (prefers-reduced-motion: reduce) {
     .legend-cluster-item,
     .segmentation-dropdown,

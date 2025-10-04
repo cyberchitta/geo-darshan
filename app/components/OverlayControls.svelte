@@ -1,5 +1,5 @@
 <script>
-  let { classificationState, labelRegionsState, segmentationState } = $props();
+  let { classificationState, interactiveState, segmentationState } = $props();
   let opacity = $state(0.8);
   $effect(() => {
     if (segmentationState?.setOpacity) {
@@ -8,8 +8,8 @@
     if (classificationState?.setOpacity) {
       classificationState.setOpacity(opacity);
     }
-    if (labelRegionsState?.setOpacity) {
-      labelRegionsState.setOpacity(opacity);
+    if (interactiveState?.setOpacity) {
+      interactiveState.setOpacity(opacity);
     }
   });
   let opacityPercent = $derived(Math.round(opacity * 100));
@@ -276,7 +276,6 @@
     background: #005a8b;
   }
 
-  /* Visual feedback for opacity changes */
   .opacity-control::after {
     content: "";
     position: absolute;
@@ -295,7 +294,6 @@
     transition: opacity 0.3s ease;
   }
 
-  /* Screen reader only content */
   .sr-only {
     position: absolute;
     width: 1px;

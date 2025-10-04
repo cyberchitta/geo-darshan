@@ -18,11 +18,11 @@
   let interactiveLayer = $state(null);
   let pixelRenderer = $state(null);
   let layerGroup = $state(null);
-  let regionLabeler = $state(null);
   let interactiveSegmentation = $state(null);
   let isLayerVisible = $state(false);
   let lastProcessedHierarchyLevel = $state(null);
   let lastProcessedSegmentationKey = $state(null);
+  let syntheticVersion = $state(0);
   let currentSegmentationKey = $derived(
     segmentationController?.getState()?.currentSegmentationKey
   );
@@ -154,12 +154,10 @@
 
   onMount(() => {
     if (mapManager && mapManager.map && mapManager.layerControl) {
-      if (mapManager && mapManager.map && mapManager.layerControl) {
-        layerGroup = MapOverlay.create(mapManager, "Labeled", {
-          visible: false,
-          onVisibilityChange: (val) => (isLayerVisible = val),
-        });
-      }
+      layerGroup = MapOverlay.create(mapManager, "Interactive", {
+        visible: false,
+        onVisibilityChange: (val) => (isLayerVisible = val),
+      });
     }
     return () => {
       if (interactiveLayer && layerGroup) {
@@ -192,6 +190,20 @@
       createInteractiveSegmentation();
       createInteractiveLayer();
       lastProcessedSegmentationKey = currentSegmentationKey;
+    }
+  });
+  $effect(() => {
+    const syntheticSegRaster = dataState.segmentedRasters?.get(
+      SEGMENTATION_KEYS.SYNTHETIC
+    );
+    if (syntheticSegRaster && interactiveSegmentation) {
+      const currentVersion = syntheticSegRaster.registry.size();
+      if (currentVersion !== syntheticVersion) {
+        syntheticVersion = currentVersion;
+        console.log("Synthetic clusters changed, regenerating interactive...");
+        createInteractiveSegmentation();
+        createInteractiveLayer();
+      }
     }
   });
   $effect(() => {
