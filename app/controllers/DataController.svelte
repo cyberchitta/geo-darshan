@@ -2,16 +2,19 @@
   import { onMount } from "svelte";
   import { SEGMENTATION_KEYS } from "../js/utils.js";
   import { DataIO } from "../js/data-io.js";
-  import { Cluster } from "../js/cluster.js";
-  import { Segmentation } from "../js/segmentation.js";
+  import { SegmentedRasterLoader } from "../js/raster/segmented-raster-loader.js";
+  import { RasterFactory } from "../js/raster/raster-factory.js";
+  import { Raster } from "../js/raster/raster.js";
+  import { ClassificationHierarchy } from "../js/classification.js";
 
   let {} = $props();
   let aoiName = $state("");
   let dataIO = $state(null);
+  let segmentedRasterLoader = $state(null);
   let isLoading = $state(false);
   let error = $state(null);
   let manifest = $state(null);
-  let segmentations = $state(new Map());
+  let segmentedRasters = $state(new Map());
   let userLabelsVersion = $state(0);
   let clusterLabels = $state({});
   let overlayMap = $state(new Map());
@@ -32,17 +35,17 @@
     get manifest() {
       return manifest;
     },
-    get segmentations() {
-      return segmentations;
+    get segmentedRasters() {
+      return segmentedRasters;
     },
     get userLabelsVersion() {
       return userLabelsVersion;
     },
-    addSegmentation: (key, segmentation) => {
-      segmentations.set(key, segmentation);
+    addSegmentedRaster: (key, segRaster) => {
+      segmentedRasters.set(key, segRaster);
     },
-    removeSegmentation: (key) => {
-      segmentations.delete(key);
+    removeSegmentedRaster: (key) => {
+      segmentedRasters.delete(key);
       removeOverlay(key);
     },
     addOverlay: (segmentationKey, overlay) => {
@@ -77,6 +80,7 @@
       return;
     }
     dataIO = new DataIO(rasterHandler);
+    segmentedRasterLoader = new SegmentedRasterLoader(dataIO);
     clusterLabels = dataIO.loadLabelsFromStorage();
     setupEventListeners();
   });
@@ -87,19 +91,20 @@
     dataIO.on("loadProgress", handleLoadProgress);
   }
 
-  function restoreLabelsToSegmentations() {
+  function restoreLabelsToSegmentedRasters() {
     Object.entries(clusterLabels).forEach(([segKey, labels]) => {
-      const segmentation = segmentations.get(segKey);
-      if (segmentation) {
+      const segRaster = segmentedRasters.get(segKey);
+      if (segRaster) {
         Object.entries(labels).forEach(([clusterId, classificationPath]) => {
-          const cluster = segmentation.getCluster(parseInt(clusterId));
+          const id = parseInt(clusterId);
+          const cluster = segRaster.registry.get(id);
           if (cluster) {
             cluster.classificationPath = classificationPath;
           }
         });
       }
     });
-    console.log("✅ Restored labels to cluster objects");
+    console.log("✅ Restored labels to cluster registries");
   }
 
   async function handleLoadComplete(manifestData, overlayData) {
@@ -107,16 +112,18 @@
       overlayData.forEach((overlay) => {
         overlayMap.set(overlay.segmentationKey, overlay);
       });
-      segmentations = await Cluster.extractSegmentations(
+      segmentedRasters = await segmentedRasterLoader.load(
         overlayData,
-        manifestData,
-        dataIO
+        manifestData
       );
-      const refGeoRaster = overlayData[0].georaster;
-      const syntheticSegmentation = Segmentation.createSynthetic(refGeoRaster);
-      segmentations.set(SEGMENTATION_KEYS.SYNTHETIC, syntheticSegmentation);
-      console.log("✅ Created synthetic segmentation for user labels");
-      restoreLabelsToSegmentations();
+      const refRaster = Raster.fromGeoRaster(overlayData[0].georaster);
+      const syntheticSegRaster = RasterFactory.createSynthetic(
+        SEGMENTATION_KEYS.SYNTHETIC,
+        refRaster
+      );
+      segmentedRasters.set(SEGMENTATION_KEYS.SYNTHETIC, syntheticSegRaster);
+      console.log("✅ Created synthetic segmented raster for user labels");
+      restoreLabelsToSegmentedRasters();
       isLoading = false;
       error = null;
       manifest = manifestData;
@@ -172,12 +179,15 @@
   }
 
   function setClusterLabel(segmentationKey, clusterId, classificationPath) {
-    const segmentation = segmentations.get(segmentationKey);
-    if (segmentation) {
-      const cluster = segmentation.getCluster(clusterId);
-      if (cluster) {
-        cluster.classificationPath = classificationPath;
-      }
+    const segRaster = segmentedRasters.get(segmentationKey);
+    if (segRaster) {
+      const color =
+        ClassificationHierarchy.getColorForClassification(classificationPath);
+      segRaster.registry.updateClassification(
+        clusterId,
+        classificationPath,
+        color
+      );
     }
     clusterLabels = {
       ...clusterLabels,
@@ -211,10 +221,10 @@
     }
   }
 
-  function serializeLabelsFromSegmentations() {
+  function serializeLabelsFromSegmentedRasters() {
     const serialized = {};
-    segmentations.forEach((segmentation, segKey) => {
-      const clusters = segmentation.getAllClusters();
+    segmentedRasters.forEach((segRaster, segKey) => {
+      const clusters = segRaster.getAllClusters();
       if (clusters.length > 0) {
         serialized[segKey] = {};
         clusters.forEach((cluster) => {
@@ -229,7 +239,7 @@
 
   function exportLabels() {
     if (dataIO) {
-      const serializedLabels = serializeLabelsFromSegmentations();
+      const serializedLabels = serializeLabelsFromSegmentedRasters();
       dataIO.exportLabelsToFile(serializedLabels);
     }
   }
@@ -247,7 +257,7 @@
     console.log("DataController: Clearing all data");
     manifest = null;
     overlayMap = new Map();
-    segmentations = new Map();
+    segmentedRasters = new Map();
     isLoading = false;
     error = null;
   }

@@ -231,12 +231,12 @@
 
   async function getCurrentLabelAtPosition(latlng) {
     const labelRegionsState = labelRegionsController?.getState();
-    const interactiveSegmentation = labelRegionsState?.interactiveSegmentation;
+    const interactiveSegRaster = labelRegionsState?.interactiveSegmentation;
     const raster = labelRegionsState?.processedInteractiveRaster;
-    if (!interactiveSegmentation?.georaster || !raster) {
+    if (!interactiveSegRaster || !raster) {
       return "";
     }
-    const georaster = interactiveSegmentation.georaster;
+    const georaster = interactiveSegRaster.raster.toGeoRaster();
     const x = Math.floor((latlng.lng - georaster.xmin) / georaster.pixelWidth);
     const y = Math.floor((georaster.ymax - latlng.lat) / georaster.pixelHeight);
     if (x < 0 || x >= georaster.width || y < 0 || y >= georaster.height) {
@@ -246,7 +246,7 @@
     if (clusterId === undefined || CLUSTER_ID_RANGES.isNoData(clusterId)) {
       return "";
     }
-    const cluster = interactiveSegmentation.getCluster(clusterId);
+    const cluster = interactiveSegRaster.getClusterById(clusterId);
     if (
       !cluster?.classificationPath ||
       cluster.classificationPath === "unlabeled"

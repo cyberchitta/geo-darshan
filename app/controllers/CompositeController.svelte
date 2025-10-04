@@ -1,14 +1,15 @@
 <script>
   import { ClassificationHierarchy } from "../js/classification.js";
-  import { Segmentation } from "../js/segmentation.js";
+  import { SegmentedRaster } from "../js/raster/segmented-raster.js";
   import { SEGMENTATION_KEYS, extractKValue } from "../js/utils.js";
   import { RasterTransform } from "../js/raster/raster-transform.js";
 
   let { dataState, segmentationController } = $props();
-  let hasSegmentations = $derived(dataState?.segmentations?.size > 0);
+  let hasSegmentedRasters = $derived(dataState?.segmentedRasters?.size > 0);
   let lastProcessedUserVersion = $state(-1);
   let shouldRegenerateComposite = $derived(
-    hasSegmentations && dataState.userLabelsVersion > lastProcessedUserVersion
+    hasSegmentedRasters &&
+      dataState.userLabelsVersion > lastProcessedUserVersion
   );
   let compositeState = $state(null);
   let currentSegmentationKey = $derived(
@@ -31,11 +32,11 @@
       if (!ClassificationHierarchy.isLoaded()) {
         return;
       }
-      const allLabelsMap = Segmentation.extractAllLabels(
-        dataState.segmentations
+      const allLabelsMap = SegmentedRaster.extractLabeledClusters(
+        dataState.segmentedRasters
       );
       const compositeResult = await generateComposite(
-        dataState.segmentations,
+        dataState.segmentedRasters,
         allLabelsMap
       );
       compositeState = compositeResult;
@@ -47,10 +48,10 @@
     }
   });
 
-  async function generateComposite(segmentations, allLabels) {
+  async function generateComposite(segmentedRasters, allLabels) {
     const startTime = performance.now();
     const segmentedRastersWithKeys = [];
-    const regularKeys = Array.from(segmentations.keys())
+    const regularKeys = Array.from(segmentedRasters.keys())
       .filter(
         (key) =>
           key !== SEGMENTATION_KEYS.COMPOSITE &&
@@ -63,50 +64,46 @@
         return kB - kA; // highest_k priority
       });
     for (const key of regularKeys) {
-      const seg = segmentations.get(key);
-      const segRaster = seg.toSegmentedRaster();
+      const segRaster = segmentedRasters.get(key);
       segmentedRastersWithKeys.push({ segRaster, key });
     }
-    const syntheticSeg = segmentations.get(SEGMENTATION_KEYS.SYNTHETIC);
-    if (syntheticSeg) {
+    const syntheticSegRaster = segmentedRasters.get(
+      SEGMENTATION_KEYS.SYNTHETIC
+    );
+    if (syntheticSegRaster) {
       const syntheticLabels = allLabels.get(SEGMENTATION_KEYS.SYNTHETIC);
       if (syntheticLabels && syntheticLabels.size > 0) {
-        const segRaster = syntheticSeg.toSegmentedRaster();
         segmentedRastersWithKeys.unshift({
-          segRaster,
+          segRaster: syntheticSegRaster,
           key: SEGMENTATION_KEYS.SYNTHETIC,
         });
       }
     }
     if (segmentedRastersWithKeys.length === 0) {
-      throw new Error("No segmentations available");
+      throw new Error("No segmented rasters available");
     }
     const aggregated = RasterTransform.aggregate(segmentedRastersWithKeys, {
       priority: "highest_k",
     });
-    const compositeSegmentation = Segmentation.fromSegmentedRaster(
-      SEGMENTATION_KEYS.COMPOSITE,
-      aggregated,
-      { source: "composite", created: new Date().toISOString() }
-    );
-    compositeSegmentation.clusters.forEach((cluster) => {
+    aggregated.getAllClusters().forEach((cluster) => {
       if (cluster.classificationPath !== "unlabeled") {
-        cluster.color = ClassificationHierarchy.getColorForClassification(
+        const color = ClassificationHierarchy.getColorForClassification(
           cluster.classificationPath
+        );
+        aggregated.registry.updateClassification(
+          cluster.id,
+          cluster.classificationPath,
+          color
         );
       }
     });
-    compositeSegmentation.finalize();
-    dataState.addSegmentation(
-      SEGMENTATION_KEYS.COMPOSITE,
-      compositeSegmentation
-    );
+    dataState.addSegmentedRaster(SEGMENTATION_KEYS.COMPOSITE, aggregated);
     const endTime = performance.now();
     console.log(
       `✅ Composite generated in ${(endTime - startTime).toFixed(2)}ms`
     );
     return {
-      georaster: compositeSegmentation.georaster,
+      georaster: aggregated.raster.toGeoRaster(),
       clusterIdMapping: new Map(),
       highestKKey: regularKeys[0],
     };

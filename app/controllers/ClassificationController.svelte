@@ -37,10 +37,10 @@
       if (!compositeState?.georaster)
         return { totalLabels: 0, isVisible: false };
       const isVisible = layerGroup && mapManager.map.hasLayer(layerGroup);
-      const compositeSegmentation = dataState.segmentations?.get(
+      const compositeSegRaster = dataState.segmentedRasters?.get(
         SEGMENTATION_KEYS.COMPOSITE
       );
-      const clusters = compositeSegmentation?.getAllClusters() || [];
+      const clusters = compositeSegRaster?.getAllClusters() || [];
       const labeledClusters = clusters.filter(
         (c) => c.classificationPath !== "unlabeled"
       );
@@ -59,17 +59,17 @@
           throw new Error("No composite data available for export");
         }
         const hierarchy = window.ClassificationHierarchy.getInstance();
-        const compositeSegmentation = dataState.segmentations?.get(
+        const compositeSegRaster = dataState.segmentedRasters?.get(
           SEGMENTATION_KEYS.COMPOSITE
         );
-        if (!compositeSegmentation) {
-          throw new Error("No composite segmentation available");
+        if (!compositeSegRaster) {
+          throw new Error("No composite segmented raster available");
         }
         const classifier = new PixelClassifier(
           hierarchy,
           compositeState.georaster,
           compositeState.clusterIdMapping,
-          dataState.segmentations,
+          dataState.segmentedRasters,
           hierarchyLevel
         );
         const pixelMapping = classifier.generatePixelMapping();
@@ -153,14 +153,14 @@
     ) {
       return null;
     }
-    const compositeSegmentation = dataState.segmentations?.get(
+    const compositeSegRaster = dataState.segmentedRasters?.get(
       SEGMENTATION_KEYS.COMPOSITE
     );
-    if (!compositeSegmentation) {
-      console.warn("Composite segmentation not available");
+    if (!compositeSegRaster) {
+      console.warn("Composite segmented raster not available");
       return null;
     }
-    const cluster = compositeSegmentation.getCluster(uniqueId);
+    const cluster = compositeSegRaster.getClusterById(uniqueId);
     if (!cluster) {
       console.warn(`Unexpected: cluster not found: ${uniqueId}`);
       return null;

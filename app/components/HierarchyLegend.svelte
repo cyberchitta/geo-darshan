@@ -15,7 +15,7 @@
   let hierarchyLabelText = $derived(
     hierarchyLabels[hierarchyLevel] || `Level ${hierarchyLevel}`
   );
-  let labeledPaths = $derived(extractLabeledPaths(dataState?.segmentations));
+  let labeledPaths = $derived(extractLabeledPaths(dataState?.segmentedRasters));
   let treeData = $derived(
     ClassificationHierarchy.isLoaded() && labeledPaths.size > 0
       ? buildHierarchyTree(labeledPaths, hierarchyLevel)
@@ -70,11 +70,11 @@
     expandedNodes = new Set(expandedNodes);
   }
 
-  function extractLabeledPaths(segmentations) {
+  function extractLabeledPaths(segmentedRasters) {
     const paths = new Set();
-    if (!segmentations) return paths;
-    segmentations.forEach((segmentation) => {
-      const clusters = segmentation.getAllClusters();
+    if (!segmentedRasters) return paths;
+    segmentedRasters.forEach((segRaster) => {
+      const clusters = segRaster.getAllClusters();
       clusters.forEach((cluster) => {
         if (
           cluster.classificationPath &&

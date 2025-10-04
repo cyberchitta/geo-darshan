@@ -190,11 +190,10 @@
 
   async function createGeoRasterLayer(overlayData) {
     const { georaster, segmentationKey } = overlayData;
-    const segmentation = dataState.segmentations?.get(segmentationKey);
-    if (!segmentation) {
-      throw new Error(`Segmentation not found: ${segmentationKey}`);
+    const segRaster = dataState.segmentedRasters?.get(segmentationKey);
+    if (!segRaster) {
+      throw new Error(`Segmented raster not found: ${segmentationKey}`);
     }
-    const segRaster = segmentation.toSegmentedRaster();
     const interactionMode = mapState?.interactionMode || "view";
     const grayscaleLabeled =
       interactionMode === "cluster" || interactionMode === "composite";

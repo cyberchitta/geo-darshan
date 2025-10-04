@@ -20,11 +20,11 @@
   let selectedCluster = $derived(appState.map?.selectedCluster);
   let selectedRegion = $derived(appState.map?.selectedRegion);
   let interactionMode = $derived(appState.map?.interactionMode || "view");
-  let currentSegmentation = $derived(
-    dataState.segmentations?.get(segmentationState.currentSegmentationKey)
+  let currentSegRaster = $derived(
+    dataState.segmentedRasters?.get(segmentationState.currentSegmentationKey)
   );
-  let clusters = $derived(currentSegmentation?.getAllClusters?.() || []);
-  let clusterColors = $derived(currentSegmentation?.getColors() || new Map());
+  let clusters = $derived(currentSegRaster?.getAllClusters() || []);
+  let clusterColors = $derived(currentSegRaster?.getColorMap() || new Map());
   let availableSegmentations = $derived(
     dataState.manifest ? dataState.manifest.segmentation_keys : []
   );
@@ -41,15 +41,15 @@
   let hasSyntheticClusters = $derived(
     labelRegionsState?.interactiveSegmentation != null
   );
-  let syntheticSegmentation = $derived(
+  let interactiveSegRaster = $derived(
     labelRegionsState?.interactiveSegmentation
   );
   let syntheticClusters = $derived(
-    syntheticSegmentation?.getAllClusters?.() || []
+    interactiveSegRaster?.getAllClusters() || []
   );
   let syntheticClusterColors = $derived(
-    syntheticSegmentation
-      ? calculateSyntheticColors(syntheticSegmentation, hierarchyLevel)
+    interactiveSegRaster
+      ? calculateSyntheticColors(interactiveSegRaster, hierarchyLevel)
       : new Map()
   );
   let syntheticLabels = $derived(
@@ -151,18 +151,17 @@
     console.log("Synthetic cluster selected:", clusterId);
     announceChange(`Selected synthetic cluster ${clusterId}`);
     if (labelRegionsState?.selectClusterAt) {
-      const compositeSegmentation = dataState.segmentations?.get(
+      const interactiveSegRaster = dataState.segmentedRasters?.get(
         SEGMENTATION_KEYS.INTERACTIVE
       );
-      if (!compositeSegmentation?.georaster) return;
-      const georaster = compositeSegmentation.georaster;
-      const rasterData = georaster.values[0];
-      for (let y = 0; y < georaster.height; y++) {
-        for (let x = 0; x < georaster.width; x++) {
-          if (rasterData[y][x] === clusterId) {
-            const lng = georaster.xmin + (x + 0.5) * georaster.pixelWidth;
-            const lat = georaster.ymax - (y + 0.5) * georaster.pixelHeight;
-            labelRegionsState.selectClusterAt({ lat, lng });
+      if (!interactiveSegRaster) return;
+      const raster = interactiveSegRaster.raster;
+      const values = raster.cloneValues();
+      for (let y = 0; y < raster.height; y++) {
+        for (let x = 0; x < raster.width; x++) {
+          if (values[y][x] === clusterId) {
+            const latlng = raster.pixelToLatlng(x, y);
+            labelRegionsState.selectClusterAt(latlng);
             return;
           }
         }
@@ -269,10 +268,10 @@
         : selectedOption.displayPath.split(" > ").pop();
     announceChange(`Synthetic cluster ${clusterId} labeled as ${labelText}`);
   }
-  function calculateSyntheticColors(segmentation, level) {
+  function calculateSyntheticColors(segRaster, level) {
     const colorMap = new Map();
     if (!ClassificationHierarchy.isLoaded()) return colorMap;
-    const clusters = segmentation.getAllClusters();
+    const clusters = segRaster.getAllClusters();
     clusters.forEach((cluster) => {
       const rgbColor = ClassificationHierarchy.getColorForClassification(
         cluster.classificationPath,
@@ -303,10 +302,25 @@
     return colorNames[color] || `color ${color}`;
   }
   function saveLabels() {
-    const serializedLabels = serializeLabelsFromSegmentations();
+    const serializedLabels = serializeLabelsFromSegmentedRasters();
     const { blob, filename } =
       dataState?.dataIO?.exportLabelsToFile(serializedLabels);
     if (blob) triggerDownload(blob, filename);
+  }
+  function serializeLabelsFromSegmentedRasters() {
+    const serialized = {};
+    dataState.segmentedRasters.forEach((segRaster, segKey) => {
+      const clusters = segRaster.getAllClusters();
+      if (clusters.length > 0) {
+        serialized[segKey] = {};
+        clusters.forEach((cluster) => {
+          if (cluster.classificationPath !== "unlabeled") {
+            serialized[segKey][cluster.id] = cluster.classificationPath;
+          }
+        });
+      }
+    });
+    return serialized;
   }
   function triggerDownload(blob, filename) {
     const link = document.createElement("a");

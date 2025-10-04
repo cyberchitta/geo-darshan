@@ -4,10 +4,6 @@ import { ClusterRegistry } from "./cluster-registry.js";
 import { RasterTransform } from "./raster-transform.js";
 import { CLUSTER_ID_RANGES } from "../utils.js";
 
-/**
- * Factory for creating specialized SegmentedRaster instances.
- * Each factory method encapsulates domain-specific raster construction logic.
- */
 class RasterFactory {
   /**
    * Create interactive raster for region labeling.
@@ -18,7 +14,6 @@ class RasterFactory {
    * @returns {SegmentedRaster} Interactive raster with merged clusters
    */
   static createInteractive(compositeSegRaster, currentSegRaster) {
-    // Merge rasters: composite clusters stay, current → fine-grain range
     const mergedRaster = RasterTransform.merge(
       compositeSegRaster.raster,
       currentSegRaster.raster,
@@ -27,17 +22,12 @@ class RasterFactory {
           return CLUSTER_ID_RANGES.NODATA;
         }
         if (!CLUSTER_ID_RANGES.isUnlabeled(compositeValue)) {
-          return compositeValue; // Keep labeled composite clusters
+          return compositeValue;
         }
-        // Map current segmentation to fine-grain range
         return currentValue + CLUSTER_ID_RANGES.FINE_GRAIN_START;
       }
     );
-
-    // Build registry from both sources
     const registry = new ClusterRegistry();
-
-    // Add composite clusters (keep their classifications)
     compositeSegRaster.getAllClusters().forEach((cluster) => {
       if (!CLUSTER_ID_RANGES.isUnlabeled(cluster.id)) {
         registry.add(
@@ -48,16 +38,11 @@ class RasterFactory {
         );
       }
     });
-
-    // Add current segmentation clusters as fine-grain unlabeled
     currentSegRaster.getAllClusters().forEach((cluster) => {
       const fineGrainId = cluster.id + CLUSTER_ID_RANGES.FINE_GRAIN_START;
       registry.add(fineGrainId, cluster.pixelCount, "unlabeled", null);
     });
-
     const merged = new SegmentedRaster(mergedRaster, registry);
-
-    // Aggregate by classification path to deduplicate
     return RasterTransform.aggregateByKey(
       merged,
       (clusterId, cluster) => cluster.classificationPath
@@ -80,16 +65,75 @@ class RasterFactory {
   }
 
   /**
-   * Create empty synthetic raster for user-created labels.
-   * All pixels initialized to NODATA.
-   *
-   * @param {Raster} referenceRaster - Reference raster for dimensions/georeferencing
-   * @returns {SegmentedRaster} Empty raster ready for synthetic cluster creation
+   * Create SegmentedRaster from file data.
+   * @param {string} key - Segmentation key
+   * @param {Object} georaster - Georaster object
+   * @param {Object} colorMapping - Color mapping
+   * @param {Object} stats - File statistics
+   * @returns {SegmentedRaster}
    */
-  static createSynthetic(referenceRaster) {
+  static fromFile(key, georaster, colorMapping, stats) {
+    const raster = Raster.fromGeoRaster(georaster);
+    const registry = new ClusterRegistry();
+    const metadata = {
+      key,
+      source: "file",
+      filename: stats?.filename,
+      fileSize: stats?.file_size_mb,
+    };
+    const rasterWithMetadata = new Raster(
+      raster.cloneValues(),
+      raster.georeferencing,
+      { ...raster.metadata, segmentation: metadata }
+    );
+    return new SegmentedRaster(rasterWithMetadata, registry);
+  }
+
+  /**
+   * Create empty synthetic raster for user-created labels.
+   * Replaces existing createSynthetic to include key metadata.
+   * @param {string} key - Segmentation key
+   * @param {Raster} referenceRaster - Reference raster for dimensions
+   * @returns {SegmentedRaster}
+   */
+  static createSynthetic(key, referenceRaster) {
     const emptyRaster = referenceRaster.createEmpty(CLUSTER_ID_RANGES.NODATA);
     const registry = new ClusterRegistry();
-    return new SegmentedRaster(emptyRaster, registry);
+    const metadata = {
+      key,
+      source: "user_labels",
+      created: new Date().toISOString(),
+    };
+    const rasterWithMetadata = new Raster(
+      emptyRaster.cloneValues(),
+      emptyRaster.georeferencing,
+      { ...emptyRaster.metadata, segmentation: metadata }
+    );
+    return new SegmentedRaster(rasterWithMetadata, registry);
+  }
+
+  /**
+   * Create empty composite placeholder.
+   * @param {string} key - Segmentation key
+   * @param {Raster} referenceRaster - Reference raster for dimensions
+   * @returns {SegmentedRaster}
+   */
+  static createCompositePlaceholder(key, referenceRaster) {
+    const emptyRaster = referenceRaster.createEmpty(
+      CLUSTER_ID_RANGES.UNLABELED
+    );
+    const registry = new ClusterRegistry();
+    const metadata = {
+      key,
+      source: "composite_placeholder",
+      created: new Date().toISOString(),
+    };
+    const rasterWithMetadata = new Raster(
+      emptyRaster.cloneValues(),
+      emptyRaster.georeferencing,
+      { ...emptyRaster.metadata, segmentation: metadata }
+    );
+    return new SegmentedRaster(rasterWithMetadata, registry);
   }
 }
 

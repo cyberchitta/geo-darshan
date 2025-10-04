@@ -40,6 +40,35 @@ class SegmentedRaster {
     const registry = new ClusterRegistry();
     return new SegmentedRaster(raster, registry);
   }
+  /**
+   * Extract labeled clusters from multiple segmented rasters.
+   * @param {Map<string, SegmentedRaster>} segmentedRasters
+   * @returns {Map<string, Map<number, string>>} Map of key to (clusterId -> classificationPath)
+   */
+  static extractLabeledClusters(segmentedRasters) {
+    const allLabels = new Map();
+    segmentedRasters.forEach((segRaster, key) => {
+      const labelMap = new Map();
+      const clusters = segRaster.getAllClusters();
+      clusters.forEach((cluster) => {
+        if (cluster.classificationPath !== "unlabeled") {
+          labelMap.set(cluster.id, cluster.classificationPath);
+        }
+      });
+      if (labelMap.size > 0) {
+        allLabels.set(key, labelMap);
+      }
+    });
+    return allLabels;
+  }
+
+  get key() {
+    return this._raster.metadata?.segmentation?.key || null;
+  }
+
+  get metadata() {
+    return this._raster.metadata?.segmentation || {};
+  }
 
   get raster() {
     return this._raster;

@@ -45,15 +45,27 @@
     get hasActiveLayer() {
       return interactiveLayer && isLayerVisible;
     },
-    handleCompositeClick: async (latlng, allLabels, segmentations) => {
-      if (!interactiveSegmentation || !regionLabeler) return null;
-      const pixelCoord = regionLabeler.latlngToPixelCoord(latlng);
+    handleCompositeClick: async (latlng) => {
+      if (!interactiveSegmentation) return null;
+      const pixelCoord = RegionLabeler.latlngToPixelCoord(
+        latlng,
+        interactiveSegmentation
+      );
       if (!pixelCoord) return null;
-      const isUnlabeled = regionLabeler.isPixelUnlabeled(pixelCoord);
+      const isUnlabeled = RegionLabeler.isPixelUnlabeled(
+        pixelCoord,
+        interactiveSegmentation
+      );
       if (!isUnlabeled) return null;
-      const contiguousRegion = regionLabeler.findContiguousRegion(pixelCoord);
+      const contiguousRegion = RegionLabeler.findContiguousRegion(
+        pixelCoord,
+        interactiveSegmentation
+      );
       if (contiguousRegion.length === 0) return null;
-      const suggestions = regionLabeler.analyzeNeighborhood(contiguousRegion);
+      const suggestions = RegionLabeler.analyzeNeighborhood(
+        contiguousRegion,
+        interactiveSegmentation
+      );
       markRegionAsSelected(contiguousRegion);
       return {
         action: "create_new",
@@ -63,12 +75,24 @@
       };
     },
     labelRegion: (region, classificationPath) => {
-      if (!regionLabeler) return null;
       restoreOriginalValues();
-      const syntheticId = regionLabeler.labelRegion(
-        region,
-        classificationPath,
-        hierarchyLevel
+      const syntheticSegRaster = dataState.segmentedRasters?.get(
+        SEGMENTATION_KEYS.SYNTHETIC
+      );
+      if (!syntheticSegRaster) {
+        console.error("Synthetic segmented raster not found");
+        return null;
+      }
+      const { syntheticSegRaster: updatedSynthetic, syntheticId } =
+        RegionLabeler.labelRegion(
+          region,
+          classificationPath,
+          syntheticSegRaster,
+          hierarchyLevel
+        );
+      dataState.addSegmentedRaster(
+        SEGMENTATION_KEYS.SYNTHETIC,
+        updatedSynthetic
       );
       dataState.setClusterLabel(
         SEGMENTATION_KEYS.SYNTHETIC,
@@ -86,16 +110,15 @@
       }
     },
     selectClusterAt: async (latlng) => {
-      if (!processedInteractiveRaster || !interactiveSegmentation?.georaster) {
+      if (!processedInteractiveRaster || !interactiveSegmentation?.raster) {
         return;
       }
-      const georaster = interactiveSegmentation.georaster;
-      const pixel = processedInteractiveRaster.latlngToPixel(latlng);
+      const pixel = interactiveSegmentation.raster.latlngToPixel(latlng);
       if (!pixel) {
         stateObject.emit("clusterSelected", null, null);
         return;
       }
-      const clusterId = processedInteractiveRaster.get(pixel.x, pixel.y);
+      const clusterId = processedInteractiveRaster[pixel.y][pixel.x];
       if (clusterId === CLUSTER_ID_RANGES.NODATA) {
         stateObject.emit("clusterSelected", null, null);
         return;
@@ -137,7 +160,6 @@
           onVisibilityChange: (val) => (isLayerVisible = val),
         });
       }
-      regionLabeler = new RegionLabeler();
     }
     return () => {
       if (interactiveLayer && layerGroup) {
@@ -155,7 +177,7 @@
       layerGroup &&
       !interactiveSegmentation &&
       currentSegmentationKey &&
-      dataState.segmentations?.has(currentSegmentationKey)
+      dataState.segmentedRasters?.has(currentSegmentationKey)
     ) {
       createInteractiveSegmentation();
       createInteractiveLayer();
@@ -184,18 +206,6 @@
       pixelRenderer = pixelRenderer.withOptions({ hierarchyLevel });
       createInteractiveLayer();
       lastProcessedHierarchyLevel = hierarchyLevel;
-    }
-  });
-  $effect(() => {
-    if (compositeState?.georaster && regionLabeler && interactiveSegmentation) {
-      const syntheticSegmentation = dataState.segmentations?.get(
-        SEGMENTATION_KEYS.SYNTHETIC
-      );
-      regionLabeler.updateInteractiveData(
-        interactiveSegmentation.georaster,
-        interactiveSegmentation,
-        syntheticSegmentation
-      );
     }
   });
   $effect(() => {
@@ -229,17 +239,15 @@
 
   function createInteractiveSegmentation() {
     if (!compositeState?.georaster) return;
-    const compositeSegmentation = dataState.segmentations?.get(
+    const compositeSegRaster = dataState.segmentedRasters?.get(
       SEGMENTATION_KEYS.COMPOSITE
     );
-    const currentSegmentation = dataState.segmentations.get(
+    const currentSegRaster = dataState.segmentedRasters.get(
       currentSegmentationKey
     );
-    if (!compositeSegmentation || !currentSegmentation) {
+    if (!compositeSegRaster || !currentSegRaster) {
       return;
     }
-    const compositeSegRaster = compositeSegmentation.toSegmentedRaster();
-    const currentSegRaster = currentSegmentation.toSegmentedRaster();
     let aggregated = RasterFactory.createInteractive(
       compositeSegRaster,
       currentSegRaster
@@ -259,10 +267,7 @@
       };
     });
     processedInteractiveRaster = aggregated.raster.toGeoRaster().values[0];
-    interactiveSegmentation = aggregated.toSegmentation(
-      SEGMENTATION_KEYS.INTERACTIVE,
-      { source: "interactive", created: new Date().toISOString() }
-    );
+    interactiveSegmentation = aggregated;
     pixelRenderer = new ClassificationRenderer(aggregated, {
       hierarchyLevel,
       interactionMode: mapState.interactionMode,
@@ -276,7 +281,7 @@
     if (interactiveLayer) {
       layerGroup.removeLayer(interactiveLayer);
     }
-    const interactiveGeoRaster = interactiveSegmentation.georaster;
+    const interactiveGeoRaster = interactiveSegmentation.raster.toGeoRaster();
     interactiveLayer = mapManager.rasterHandler.createMapLayer(
       interactiveGeoRaster,
       {

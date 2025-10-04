@@ -1,66 +1,63 @@
+// app/js/region-labeler.js
 import { Raster } from "./raster/raster.js";
+import { SegmentedRaster } from "./raster/segmented-raster.js";
 import { RasterTransform } from "./raster/raster-transform.js";
 import { ClassificationHierarchy } from "./classification.js";
-import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "./utils.js";
+import { CLUSTER_ID_RANGES } from "./utils.js";
 
+/**
+ * Pure functional service for region labeling operations.
+ * All methods are static - no mutable state.
+ */
 class RegionLabeler {
-  constructor() {
-    this.interactiveRaster = null;
-    this.interactiveSegmentation = null;
-    this.syntheticSegmentation = null;
-    this.nextSyntheticId = CLUSTER_ID_RANGES.SYNTHETIC_START;
+  /**
+   * Convert lat/lng to pixel coordinates.
+   * @param {{lat: number, lng: number}} latlng
+   * @param {SegmentedRaster} interactiveSegRaster
+   * @returns {{x: number, y: number}|null}
+   */
+  static latlngToPixelCoord(latlng, interactiveSegRaster) {
+    return interactiveSegRaster.raster.latlngToPixel(latlng);
   }
 
-  updateInteractiveData(
-    interactiveGeoRaster,
-    interactiveSegmentation,
-    syntheticSegmentation
-  ) {
-    this.interactiveRaster = Raster.fromGeoRaster(interactiveGeoRaster);
-    this.interactiveSegmentation = interactiveSegmentation;
-    this.syntheticSegmentation = syntheticSegmentation;
-    this.initializeSyntheticTracking();
-  }
-
-  initializeSyntheticTracking() {
-    let maxId = CLUSTER_ID_RANGES.SYNTHETIC_START - 1;
-    if (this.syntheticSegmentation) {
-      const clusters = this.syntheticSegmentation.getAllClusters();
-      const existingIds = clusters.map((c) => c.id);
-      maxId = Math.max(
-        maxId,
-        ...existingIds.filter((id) => CLUSTER_ID_RANGES.isSynthetic(id))
-      );
-    }
-    this.nextSyntheticId = maxId + 1;
-  }
-
-  latlngToPixelCoord(latlng) {
-    return this.interactiveRaster?.latlngToPixel(latlng);
-  }
-
-  isPixelUnlabeled(pixelCoord) {
-    if (!this.interactiveSegmentation) return true;
-    const clusterId = this.interactiveRaster.get(pixelCoord.x, pixelCoord.y);
-    const cluster = this.interactiveSegmentation.getCluster(clusterId);
+  /**
+   * Check if pixel is unlabeled.
+   * @param {{x: number, y: number}} pixelCoord
+   * @param {SegmentedRaster} interactiveSegRaster
+   * @returns {boolean}
+   */
+  static isPixelUnlabeled(pixelCoord, interactiveSegRaster) {
+    const clusterId = interactiveSegRaster.getClusterId(
+      pixelCoord.x,
+      pixelCoord.y
+    );
+    const cluster = interactiveSegRaster.getClusterById(clusterId);
     if (!cluster) return true;
     return (
       !cluster.classificationPath || cluster.classificationPath === "unlabeled"
     );
   }
 
-  findContiguousRegion(
+  /**
+   * Find contiguous region starting from seed pixel.
+   * @param {{x: number, y: number}} startPixel
+   * @param {SegmentedRaster} interactiveSegRaster
+   * @param {number} maxPixels
+   * @param {boolean} diagonalConnections
+   * @returns {{x: number, y: number}[]}
+   */
+  static findContiguousRegion(
     startPixel,
+    interactiveSegRaster,
     maxPixels = CLUSTER_ID_RANGES.SYNTHETIC_START,
     diagonalConnections = true
   ) {
-    if (!this.interactiveRaster) return [];
-    const startClusterId = this.interactiveRaster.get(
+    const startClusterId = interactiveSegRaster.raster.get(
       startPixel.x,
       startPixel.y
     );
     return RasterTransform.findRegion(
-      this.interactiveRaster,
+      interactiveSegRaster.raster,
       startPixel.x,
       startPixel.y,
       (seedValue, pixelValue) => pixelValue === seedValue,
@@ -69,76 +66,139 @@ class RegionLabeler {
     );
   }
 
-  labelRegion(region, classificationPath, hierarchyLevel = null) {
-    if (!this.syntheticSegmentation) {
-      throw new Error("Synthetic segmentation not initialized");
+  /**
+   * Label a region by creating/updating synthetic cluster.
+   * Returns new synthetic SegmentedRaster and synthetic ID.
+   * @param {{x: number, y: number}[]} region - Pixels to label
+   * @param {string} classificationPath
+   * @param {SegmentedRaster} syntheticSegRaster - Current synthetic raster
+   * @param {number} hierarchyLevel
+   * @returns {{syntheticSegRaster: SegmentedRaster, syntheticId: number}}
+   */
+  static labelRegion(
+    region,
+    classificationPath,
+    syntheticSegRaster,
+    hierarchyLevel = null
+  ) {
+    if (!syntheticSegRaster) {
+      throw new Error("Synthetic segmented raster not provided");
     }
-    const syntheticId = this.getOrCreateSyntheticId(classificationPath);
-    const syntheticRaster = this.syntheticSegmentation.georaster.values[0];
+    const syntheticId = this.getOrCreateSyntheticId(
+      classificationPath,
+      syntheticSegRaster
+    );
+    const syntheticValues = syntheticSegRaster.cloneValues();
     region.forEach((pixel) => {
-      syntheticRaster[pixel.y][pixel.x] = syntheticId;
+      syntheticValues[pixel.y][pixel.x] = syntheticId;
     });
+    const updatedRaster = new Raster(
+      syntheticValues,
+      syntheticSegRaster.georeferencing,
+      syntheticSegRaster.raster.metadata
+    );
     const color = ClassificationHierarchy.getColorForClassification(
       classificationPath,
       hierarchyLevel
     );
-    this.syntheticSegmentation.addCluster(
-      syntheticId,
-      region.length,
-      classificationPath,
-      color
+    const newRegistry = syntheticSegRaster.registry.clone();
+    if (newRegistry.has(syntheticId)) {
+      const existingCluster = newRegistry.get(syntheticId);
+      newRegistry.updatePixelCount(
+        syntheticId,
+        existingCluster.pixelCount + region.length
+      );
+    } else {
+      newRegistry.add(syntheticId, region.length, classificationPath, color);
+    }
+    const newSyntheticSegRaster = new SegmentedRaster(
+      updatedRaster,
+      newRegistry
     );
     console.log(
       `Labeled ${region.length} pixels as synthetic cluster ${syntheticId} (${classificationPath})`
     );
-    return syntheticId;
+    return {
+      syntheticSegRaster: newSyntheticSegRaster,
+      syntheticId,
+    };
   }
 
-  analyzeNeighborhood(region) {
+  /**
+   * Analyze neighboring pixels to suggest classifications.
+   * @param {{x: number, y: number}[]} region
+   * @param {SegmentedRaster} interactiveSegRaster
+   * @returns {{classificationPath: string, count: number}[]}
+   */
+  static analyzeNeighborhood(region, interactiveSegRaster) {
     const adjacentLabels = new Map();
     for (const pixel of region) {
-      const neighbors = this.interactiveRaster.getNeighbors(
+      const neighbors = interactiveSegRaster.raster.getNeighbors(
         pixel.x,
         pixel.y,
         true
       );
       for (const neighbor of neighbors) {
-        const clusterId = this.interactiveRaster.get(neighbor.x, neighbor.y);
-        const cluster = this.interactiveSegmentation.getCluster(clusterId);
+        const clusterId = interactiveSegRaster.raster.get(
+          neighbor.x,
+          neighbor.y
+        );
+        const cluster = interactiveSegRaster.getClusterById(clusterId);
         if (
           cluster?.classificationPath &&
           cluster.classificationPath !== "unlabeled"
         ) {
-          adjacentLabels.set(
-            cluster.classificationPath,
-            (adjacentLabels.get(cluster.classificationPath) || 0) + 1
-          );
+          const currentCount =
+            adjacentLabels.get(cluster.classificationPath) || 0;
+          adjacentLabels.set(cluster.classificationPath, currentCount + 1);
         }
       }
     }
-    return this.formatSuggestions(adjacentLabels);
-  }
-
-  pixelToLatLng(pixel) {
-    return this.interactiveRaster?.pixelToLatlng(pixel.x, pixel.y);
-  }
-
-  getOrCreateSyntheticId(classificationPath) {
-    const syntheticLabels = this.syntheticSegmentation?.clusters;
-    if (syntheticLabels) {
-      for (const [clusterId, cluster] of syntheticLabels) {
-        if (cluster.classificationPath === classificationPath) {
-          return clusterId;
-        }
-      }
-    }
-    return this.nextSyntheticId++;
-  }
-
-  formatSuggestions(adjacentLabels) {
     return Array.from(adjacentLabels.entries())
       .map(([classificationPath, count]) => ({ classificationPath, count }))
       .sort((a, b) => b.count - a.count);
+  }
+
+  /**
+   * Convert pixel coordinates to lat/lng.
+   * @param {{x: number, y: number}} pixel
+   * @param {SegmentedRaster} interactiveSegRaster
+   * @returns {{lat: number, lng: number}}
+   */
+  static pixelToLatLng(pixel, interactiveSegRaster) {
+    return interactiveSegRaster.raster.pixelToLatlng(pixel.x, pixel.y);
+  }
+
+  /**
+   * Get existing synthetic ID for classification or generate new one.
+   * @param {string} classificationPath
+   * @param {SegmentedRaster} syntheticSegRaster
+   * @returns {number}
+   */
+  static getOrCreateSyntheticId(classificationPath, syntheticSegRaster) {
+    const clusters = syntheticSegRaster.getAllClusters();
+    for (const cluster of clusters) {
+      if (cluster.classificationPath === classificationPath) {
+        return cluster.id;
+      }
+    }
+    return this.getNextSyntheticId(syntheticSegRaster);
+  }
+
+  /**
+   * Calculate next available synthetic ID.
+   * @param {SegmentedRaster} syntheticSegRaster
+   * @returns {number}
+   */
+  static getNextSyntheticId(syntheticSegRaster) {
+    const clusters = syntheticSegRaster.getAllClusters();
+    const existingIds = clusters
+      .map((c) => c.id)
+      .filter((id) => CLUSTER_ID_RANGES.isSynthetic(id));
+    if (existingIds.length === 0) {
+      return CLUSTER_ID_RANGES.SYNTHETIC_START;
+    }
+    return Math.max(...existingIds) + 1;
   }
 }
 
