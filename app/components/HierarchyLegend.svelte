@@ -6,6 +6,7 @@
   let hierarchyLevel = $derived(classificationController?.hierarchyLevel || 1);
   let isExporting = $state(false);
   let expandedNodes = $state(new Set());
+  let lastAutoExpandedLevel = $state(null);
   const hierarchyLabels = {
     1: "Broad Categories",
     2: "General Types",
@@ -21,6 +22,15 @@
       ? buildHierarchyTree(labeledPaths, hierarchyLevel)
       : []
   );
+
+  $effect(() => {
+    if (treeData.length > 0 && hierarchyLevel !== lastAutoExpandedLevel) {
+      const newExpanded = new Set();
+      collectExpandedPaths(treeData, hierarchyLevel, newExpanded);
+      expandedNodes = newExpanded;
+      lastAutoExpandedLevel = hierarchyLevel;
+    }
+  });
 
   async function handleExport() {
     if (!classificationController) {
@@ -57,8 +67,6 @@
   function handleHierarchyLevelChange(event) {
     const level = parseInt(event.target.value);
     classificationController?.setHierarchyLevel(level);
-    expandedNodes.clear();
-    expandedNodes = new Set();
   }
 
   function handleNodeToggle(nodePath) {
@@ -68,6 +76,15 @@
       expandedNodes.add(nodePath);
     }
     expandedNodes = new Set(expandedNodes);
+  }
+
+  function collectExpandedPaths(nodes, maxLevel, expanded) {
+    for (const node of nodes) {
+      if (node.level < maxLevel && node.children.length > 0) {
+        expanded.add(node.path);
+        collectExpandedPaths(node.children, maxLevel, expanded);
+      }
+    }
   }
 
   function extractLabeledPaths(segmentedRasters) {
