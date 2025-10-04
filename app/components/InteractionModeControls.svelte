@@ -5,9 +5,7 @@
   let segmentationVisible = $derived(
     mapState?.segmentationLayerVisible ?? false
   );
-  let labelRegionsVisible = $derived(
-    mapState?.labelRegionsLayerVisible ?? false
-  );
+  let interactiveVisible = $derived(mapState?.interactiveLayerVisible ?? false);
 
   const modes = $derived([
     {
@@ -22,14 +20,14 @@
       label: "Label Clusters",
       icon: "🎯",
       desc: "Click to label clusters",
-      available: segmentationVisible !== labelRegionsVisible,
+      available: segmentationVisible !== interactiveVisible,
     },
     {
       id: "composite",
       label: "Label Regions",
       icon: "🏷️",
       desc: "Click to label contiguous regions",
-      available: labelRegionsVisible && !segmentationVisible,
+      available: interactiveVisible && !segmentationVisible,
     },
   ]);
   $effect(() => {
