@@ -169,61 +169,91 @@
     };
   });
 
+  // Track previous options to prevent unnecessary updates
+  let prevInteractiveOptions = {
+    hasInitialized: false,
+    currentSegmentationKey: undefined,
+    syntheticVersion: undefined,
+    hierarchyLevel: undefined,
+    selectedClusterId: undefined,
+    selectedSegKey: undefined,
+  };
+
   $effect(() => {
+    const currentKey = currentSegmentationKey;
+    const compositeExists = compositeState?.georaster;
+    const layerGroupExists = layerGroup;
+    const segRasterExists =
+      currentKey && dataState.segmentedRasters?.has(currentKey);
+    const synthVersion =
+      dataState.segmentedRasters
+        ?.get(SEGMENTATION_KEYS.SYNTHETIC)
+        ?.registry.size() || 0;
+    const hierLevel = hierarchyLevel;
+    const cluster = selectedCluster;
     if (
-      compositeState?.georaster &&
-      layerGroup &&
+      !prevInteractiveOptions.hasInitialized &&
+      compositeExists &&
+      layerGroupExists &&
       !interactiveSegmentation &&
-      currentSegmentationKey &&
-      dataState.segmentedRasters?.has(currentSegmentationKey)
+      segRasterExists
     ) {
+      console.log("Initial interactive setup");
       createInteractiveSegmentation();
       createInteractiveLayer();
-      lastProcessedSegmentationKey = currentSegmentationKey;
+      prevInteractiveOptions = {
+        hasInitialized: true,
+        currentSegmentationKey: currentKey,
+        syntheticVersion: synthVersion,
+        hierarchyLevel: hierLevel,
+        selectedClusterId: cluster?.clusterId,
+        selectedSegKey: cluster?.segmentationKey,
+      };
+      return;
     }
-  });
-  $effect(() => {
-    if (shouldRegenerateInteractive && interactiveSegmentation) {
-      console.log(
-        `Regenerating interactive segmentation for ${currentSegmentationKey}`
-      );
+    if (!interactiveSegmentation) return;
+    const segmentationChanged =
+      currentKey !== prevInteractiveOptions.currentSegmentationKey;
+    const syntheticChanged =
+      synthVersion !== prevInteractiveOptions.syntheticVersion;
+    const hierarchyChanged =
+      hierLevel !== prevInteractiveOptions.hierarchyLevel;
+    const clusterChanged =
+      cluster?.clusterId !== prevInteractiveOptions.selectedClusterId ||
+      cluster?.segmentationKey !== prevInteractiveOptions.selectedSegKey;
+    if (segmentationChanged || syntheticChanged) {
+      console.log("Regenerating interactive:", {
+        segmentationChanged,
+        syntheticChanged,
+      });
       createInteractiveSegmentation();
       createInteractiveLayer();
-      lastProcessedSegmentationKey = currentSegmentationKey;
+      prevInteractiveOptions = {
+        ...prevInteractiveOptions,
+        currentSegmentationKey: currentKey,
+        syntheticVersion: synthVersion,
+        hierarchyLevel: hierLevel,
+        selectedClusterId: cluster?.clusterId,
+        selectedSegKey: cluster?.segmentationKey,
+      };
+      return;
     }
-  });
-  $effect(() => {
-    const syntheticSegRaster = dataState.segmentedRasters?.get(
-      SEGMENTATION_KEYS.SYNTHETIC
-    );
-    if (syntheticSegRaster && interactiveSegmentation) {
-      const currentVersion = syntheticSegRaster.registry.size();
-      if (currentVersion !== syntheticVersion) {
-        syntheticVersion = currentVersion;
-        console.log("Synthetic clusters changed, regenerating interactive...");
-        createInteractiveSegmentation();
-        createInteractiveLayer();
-      }
-    }
-  });
-  $effect(() => {
-    if (
-      interactiveSegmentation &&
-      pixelRenderer &&
-      hierarchyLevel !== lastProcessedHierarchyLevel
-    ) {
-      console.log(
-        `Hierarchy level changed to ${hierarchyLevel}, updating renderer...`
-      );
-      pixelRenderer = pixelRenderer.update({ hierarchyLevel });
+    if ((hierarchyChanged || clusterChanged) && pixelRenderer) {
+      console.log("Updating interactive renderer:", {
+        hierarchyChanged,
+        clusterChanged,
+      });
+      pixelRenderer = pixelRenderer.update({
+        hierarchyLevel: hierLevel,
+        selectedCluster: cluster,
+      });
       createInteractiveLayer();
-      lastProcessedHierarchyLevel = hierarchyLevel;
-    }
-  });
-  $effect(() => {
-    if (pixelRenderer && selectedCluster !== pixelRenderer._selectedCluster) {
-      pixelRenderer = pixelRenderer.update({ selectedCluster });
-      createInteractiveLayer();
+      prevInteractiveOptions = {
+        ...prevInteractiveOptions,
+        hierarchyLevel: hierLevel,
+        selectedClusterId: cluster?.clusterId,
+        selectedSegKey: cluster?.segmentationKey,
+      };
     }
   });
 
