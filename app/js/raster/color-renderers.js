@@ -35,15 +35,13 @@ class ClusterRenderer {
     this._interactionMode = options.interactionMode || "view";
     this._selectedCluster = options.selectedCluster || null;
     this._grayscaleLabeled = options.grayscaleLabeled || false;
-    Object.freeze(this);
   }
 
-  withOptions(options) {
-    return new ClusterRenderer(this._segmentedRaster, this._segmentationKey, {
-      interactionMode: options.interactionMode ?? this._interactionMode,
-      selectedCluster: options.selectedCluster ?? this._selectedCluster,
-      grayscaleLabeled: options.grayscaleLabeled ?? this._grayscaleLabeled,
-    });
+  update(options) {
+    this._interactionMode = options.interactionMode ?? this._interactionMode;
+    this._selectedCluster = options.selectedCluster ?? this._selectedCluster;
+    this._grayscaleLabeled = options.grayscaleLabeled ?? this._grayscaleLabeled;
+    return this;
   }
 
   render(values) {
@@ -83,16 +81,14 @@ class ClassificationRenderer {
     this._selectedCluster = options.selectedCluster || null;
     this._grayscaleLabeled = options.grayscaleLabeled || false;
     this._colorCache = new Map();
-    Object.freeze(this);
   }
 
-  withOptions(options) {
-    return new ClassificationRenderer(this._segmentedRaster, {
-      hierarchyLevel: options.hierarchyLevel ?? this._hierarchyLevel,
-      interactionMode: options.interactionMode ?? this._interactionMode,
-      selectedCluster: options.selectedCluster ?? this._selectedCluster,
-      grayscaleLabeled: options.grayscaleLabeled ?? this._grayscaleLabeled,
-    });
+  update(options) {
+    this._hierarchyLevel = options.hierarchyLevel ?? this._hierarchyLevel;
+    this._interactionMode = options.interactionMode ?? this._interactionMode;
+    this._selectedCluster = options.selectedCluster ?? this._selectedCluster;
+    this._grayscaleLabeled = options.grayscaleLabeled ?? this._grayscaleLabeled;
+    return this;
   }
 
   render(values) {

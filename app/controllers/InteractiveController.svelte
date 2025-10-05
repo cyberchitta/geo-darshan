@@ -215,14 +215,14 @@
       console.log(
         `Hierarchy level changed to ${hierarchyLevel}, updating renderer...`
       );
-      pixelRenderer = pixelRenderer.withOptions({ hierarchyLevel });
+      pixelRenderer = pixelRenderer.update({ hierarchyLevel });
       createInteractiveLayer();
       lastProcessedHierarchyLevel = hierarchyLevel;
     }
   });
   $effect(() => {
     if (pixelRenderer && selectedCluster !== pixelRenderer._selectedCluster) {
-      pixelRenderer = pixelRenderer.withOptions({ selectedCluster });
+      pixelRenderer = pixelRenderer.update({ selectedCluster });
       createInteractiveLayer();
     }
   });

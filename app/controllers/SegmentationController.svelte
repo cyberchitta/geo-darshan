@@ -248,9 +248,8 @@
   }
 
   function updateAllRenderers(options) {
-    pixelRenderers.forEach((renderer, index) => {
-      const updated = renderer.withOptions(options);
-      pixelRenderers.set(index, updated);
+    pixelRenderers.forEach((renderer) => {
+      renderer.update(options);
     });
     geoRasterLayers.forEach((layer, index) => {
       if (index === currentFrame) {
@@ -292,6 +291,10 @@
     if (pixelRenderers.size > 0 && interactionMode) {
       const grayscaleLabeled =
         interactionMode === "cluster" || interactionMode === "composite";
+      console.log("🔄 Effect triggering updateAllRenderers:", {
+        interactionMode,
+        grayscaleLabeled,
+      });
       updateAllRenderers({ interactionMode, grayscaleLabeled });
     }
   });
