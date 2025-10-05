@@ -165,7 +165,7 @@
       interactionMode === "cluster" || interactionMode === "composite";
     const renderer = new ClusterRenderer(segRaster, segmentationKey, {
       interactionMode,
-      selectedCluster,
+      selectedCluster: $state.snapshot(selectedCluster),
       grayscaleLabeled,
     });
     const layer = mapManager.rasterHandler.createMapLayer(georaster, {
@@ -224,17 +224,42 @@
   export function getState() {
     return stateObject;
   }
+  let prevRenderOptions = {
+    selectedClusterId: undefined,
+    selectedSegKey: undefined,
+    interactionMode: undefined,
+    grayscaleLabeled: undefined,
+  };
+
   $effect(() => {
-    if (pixelRenderers.size > 0 && selectedCluster !== undefined) {
-      updateAllRenderers({ selectedCluster });
-    }
-  });
-  $effect(() => {
+    const renderersSize = pixelRenderers.size;
+    const currentCluster = selectedCluster;
+    if (pixelRenderers.size === 0) return;
     const interactionMode = mapState?.interactionMode;
-    if (pixelRenderers.size > 0 && interactionMode) {
-      const grayscaleLabeled =
-        interactionMode === "cluster" || interactionMode === "composite";
-      updateAllRenderers({ interactionMode, grayscaleLabeled });
+    const grayscaleLabeled =
+      interactionMode === "cluster" || interactionMode === "composite";
+    const selectedClusterId = selectedCluster?.clusterId;
+    const selectedSegKey = selectedCluster?.segmentationKey;
+    const optionsChanged =
+      selectedClusterId !== prevRenderOptions.selectedClusterId ||
+      selectedSegKey !== prevRenderOptions.selectedSegKey ||
+      interactionMode !== prevRenderOptions.interactionMode ||
+      grayscaleLabeled !== prevRenderOptions.grayscaleLabeled;
+
+    if (optionsChanged) {
+      prevRenderOptions = {
+        selectedClusterId,
+        selectedSegKey,
+        interactionMode,
+        grayscaleLabeled,
+      };
+      updateAllRenderers({
+        selectedCluster: $state.snapshot(selectedCluster),
+        interactionMode,
+        grayscaleLabeled,
+      });
+    } else {
+      console.log("⏭️ No changes, skipping update");
     }
   });
   onMount(() => {
