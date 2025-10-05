@@ -42,7 +42,13 @@ class RasterFactory {
       const fineGrainId = cluster.id + CLUSTER_ID_RANGES.FINE_GRAIN_START;
       registry.add(fineGrainId, cluster.pixelCount, "unlabeled", null);
     });
-    return new SegmentedRaster(mergedRaster, registry);
+    const merged = new SegmentedRaster(mergedRaster, registry);
+    return RasterTransform.aggregateByKey(merged, (clusterId, cluster) => {
+      if (cluster.classificationPath !== "unlabeled") {
+        return cluster.classificationPath;
+      }
+      return `unlabeled_${clusterId}`;
+    });
   }
 
   /**
