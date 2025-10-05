@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { ClusterRenderer } from "../js/raster/color-renderers.js";
   import { MapOverlay } from "../js/map-overlay.js";
+
   let { mapState, dataState } = $props();
   let mapManager = $derived(mapState?.mapManager);
   let selectedCluster = $derived(mapState?.selectedCluster);
@@ -9,6 +10,7 @@
   let totalFrames = $state(0);
   let segmentationKeys = $state([]);
   let currentSegmentationKey = $state(null);
+  let prevKey = $state(null);
   let layerGroup = $state(null);
   let isLayerVisible = $state(false);
   let geoRasterLayers = $state(new Map());
@@ -22,6 +24,7 @@
     total: totalFrames,
     segmentationKey: currentSegmentationKey,
   });
+
   const stateObject = {
     get currentFrame() {
       return currentFrame;
@@ -73,11 +76,9 @@
     },
     setOpacity: (opacity) => {
       targetOpacity = Math.max(0, Math.min(1, opacity));
-      if (layersReady && geoRasterLayers.size > 0) {
-        geoRasterLayers.forEach((layer, index) => {
-          const layerOpacity = index === currentFrame ? targetOpacity : 0;
-          layer.setOpacity(layerOpacity);
-        });
+      const currentLayer = geoRasterLayers.get(currentFrame);
+      if (currentLayer) {
+        currentLayer.setOpacity(targetOpacity);
       }
     },
     reset: () => {
@@ -109,6 +110,7 @@
       }
     },
   };
+
   async function samplePixelAtCoordinate(latlng) {
     if (!layersReady || !currentSegmentationKey) {
       return null;
@@ -121,6 +123,7 @@
     if (!pixel) return null;
     return segRaster.raster.get(pixel.x, pixel.y);
   }
+
   async function preprocessOverlays() {
     if (!overlays || overlays.length === 0) {
       layersReady = false;
@@ -139,9 +142,6 @@
       const overlayData = overlays[i];
       try {
         const { layer, renderer } = await createGeoRasterLayer(overlayData);
-        layer.addTo(mapManager.map);
-        layerGroup.addLayer(layer);
-        layer.setOpacity(0);
         geoRasterLayers.set(i, layer);
         pixelRenderers.set(i, renderer);
         if (i === 0) {
@@ -154,6 +154,7 @@
       }
     }
   }
+
   async function createGeoRasterLayer(overlayData) {
     const { georaster, segmentationKey } = overlayData;
     const segRaster = dataState.segmentedRasters?.get(segmentationKey);
@@ -178,12 +179,14 @@
     layer._bounds = georaster.bounds;
     return { layer, renderer };
   }
+
   function getOptimalResolution(georaster) {
     const totalPixels = georaster.width * georaster.height;
     if (totalPixels > 100_000_000) return 128;
     if (totalPixels > 25_000_000) return 256;
     return 512;
   }
+
   function showFrame(frameIndex) {
     if (!overlays || overlays.length === 0) {
       return;
@@ -195,35 +198,28 @@
       return;
     }
     try {
-      geoRasterLayers.forEach((layer, index) => {
-        const opacity = index === frameIndex ? targetOpacity : 0;
-        layer.setOpacity(opacity);
-      });
+      layerGroup._group.clearLayers();
+      const targetLayer = geoRasterLayers.get(frameIndex);
+      if (targetLayer) {
+        layerGroup._group.addLayer(targetLayer);
+        targetLayer.setOpacity(targetOpacity);
+      }
       updateCurrentFrame();
     } catch (error) {
       console.error(`Failed to show frame ${frameIndex}:`, error);
     }
   }
+
   function updateCurrentFrame() {
     if (segmentationKeys.length > 0 && currentFrame < segmentationKeys.length) {
       currentSegmentationKey = segmentationKeys[currentFrame];
     }
   }
-  function updateAllRenderers(options) {
-    pixelRenderers.forEach((renderer) => {
-      renderer.update(options);
-    });
-    geoRasterLayers.forEach((layer, index) => {
-      if (index === currentFrame) {
-        const currentOpacity = layer.options.opacity;
-        layer.setOpacity(0);
-        setTimeout(() => layer.setOpacity(currentOpacity), 0);
-      }
-    });
-  }
+
   export function getState() {
     return stateObject;
   }
+
   let prevRenderOptions = {
     selectedClusterId: undefined,
     selectedSegKey: undefined,
@@ -245,7 +241,6 @@
       selectedSegKey !== prevRenderOptions.selectedSegKey ||
       interactionMode !== prevRenderOptions.interactionMode ||
       grayscaleLabeled !== prevRenderOptions.grayscaleLabeled;
-
     if (optionsChanged) {
       prevRenderOptions = {
         selectedClusterId,
@@ -253,19 +248,39 @@
         interactionMode,
         grayscaleLabeled,
       };
-      updateAllRenderers({
-        selectedCluster: $state.snapshot(selectedCluster),
-        interactionMode,
-        grayscaleLabeled,
-      });
+      const currentRenderer = pixelRenderers.get(currentFrame);
+      if (currentRenderer) {
+        currentRenderer.update({
+          selectedCluster: $state.snapshot(selectedCluster),
+          interactionMode,
+          grayscaleLabeled,
+        });
+      }
+      const currentLayer = geoRasterLayers.get(currentFrame);
+      if (currentLayer) {
+        currentLayer.setOpacity(0);
+        setTimeout(() => currentLayer.setOpacity(targetOpacity), 0);
+      }
     } else {
       console.log("⏭️ No changes, skipping update");
     }
   });
+
+  $effect(() => {
+    if (
+      currentSegmentationKey !== prevKey &&
+      selectedCluster?.segmentationKey !== currentSegmentationKey
+    ) {
+      mapState.clearSelectedCluster();
+    }
+    prevKey = currentSegmentationKey;
+  });
+
   onMount(() => {
     return () => {
       if (layerGroup) {
-        geoRasterLayers.forEach((layer) => layerGroup.removeLayer(layer));
+        layerGroup._group.clearLayers();
+        geoRasterLayers.forEach((layer) => mapManager.map.removeLayer(layer));
         layerGroup.destroy();
       }
     };
