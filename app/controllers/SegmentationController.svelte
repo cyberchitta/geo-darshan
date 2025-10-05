@@ -141,16 +141,16 @@
   };
 
   async function samplePixelAtCoordinate(latlng) {
-    if (!layersReady || geoRasterLayers.size === 0) {
+    if (!layersReady || !currentSegmentationKey) {
       return null;
     }
-    const currentLayer = geoRasterLayers.get(currentFrame);
-    if (!currentLayer?.georasters?.[0]) {
+    const segRaster = dataState.segmentedRasters?.get(currentSegmentationKey);
+    if (!segRaster?.raster) {
       return null;
     }
-    const pixel = currentLayer.georasters[0].latlngToPixel(latlng);
+    const pixel = segRaster.raster.latlngToPixel(latlng);
     if (!pixel) return null;
-    return currentLayer.georasters[0].get(pixel.x, pixel.y);
+    return segRaster.raster.get(pixel.x, pixel.y);
   }
 
   async function preprocessOverlays() {
