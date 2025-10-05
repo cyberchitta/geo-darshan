@@ -1,6 +1,5 @@
 <script>
   import InteractionModeControls from "./InteractionModeControls.svelte";
-  import AnimationControls from "./AnimationControls.svelte";
   import NavigationControls from "./NavigationControls.svelte";
   import OverlayControls from "./OverlayControls.svelte";
 
@@ -32,20 +31,13 @@
     <div class="controls-content" class:collapsed={isCollapsed}>
       <div class="controls-row">
         <div class="control-group overlay-group">
-          <OverlayControls
-            {classificationState}
-            {interactiveState}
-            {segmentationState}
-          />
+          <OverlayControls {classificationState} {interactiveState} />
         </div>
         <div class="control-group interaction-group">
           <InteractionModeControls {mapState} />
         </div>
         <div class="control-group navigation-group">
           <NavigationControls {segmentationState} />
-        </div>
-        <div class="control-group animation-group">
-          <AnimationControls {segmentationState} />
         </div>
       </div>
     </div>

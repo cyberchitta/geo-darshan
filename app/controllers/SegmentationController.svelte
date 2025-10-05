@@ -2,21 +2,13 @@
   import { onMount } from "svelte";
   import { ClusterRenderer } from "../js/raster/color-renderers.js";
   import { MapOverlay } from "../js/map-overlay.js";
-
   let { mapState, dataState } = $props();
-
   let mapManager = $derived(mapState?.mapManager);
   let selectedCluster = $derived(mapState?.selectedCluster);
-
   let currentFrame = $state(0);
   let totalFrames = $state(0);
-  let isPlaying = $state(false);
   let segmentationKeys = $state([]);
   let currentSegmentationKey = $state(null);
-  let speed = $state(1.0);
-  let baseFrameDuration = $state(1000);
-  let animationTimer = $state(null);
-
   let layerGroup = $state(null);
   let isLayerVisible = $state(false);
   let geoRasterLayers = $state(new Map());
@@ -24,25 +16,18 @@
   let overlays = $state([]);
   let layersReady = $state(false);
   let targetOpacity = $state(0.8);
-
   let listeners = $state({});
-
   let frameInfo = $derived({
     index: currentFrame,
     total: totalFrames,
     segmentationKey: currentSegmentationKey,
-    progress: totalFrames > 0 ? (currentFrame / (totalFrames - 1)) * 100 : 0,
   });
-
   const stateObject = {
     get currentFrame() {
       return currentFrame;
     },
     get totalFrames() {
       return totalFrames;
-    },
-    get isPlaying() {
-      return isPlaying;
     },
     get currentSegmentationKey() {
       return currentSegmentationKey;
@@ -52,16 +37,6 @@
     },
     get hasActiveLayer() {
       return layerGroup && isLayerVisible && layersReady && totalFrames > 0;
-    },
-    togglePlayPause: () => {
-      if (totalFrames > 1) {
-        isPlaying = !isPlaying;
-        if (isPlaying) {
-          startAnimation();
-        } else {
-          stopAnimation();
-        }
-      }
     },
     stepForward: () => {
       if (totalFrames > 0) {
@@ -80,9 +55,6 @@
         currentFrame = frameIndex;
         showFrame(frameIndex);
       }
-    },
-    setSpeed: (newSpeed) => {
-      speed = Math.max(0.1, Math.min(5.0, newSpeed));
     },
     setFrames: (segKeys, overlayData) => {
       segmentationKeys = segKeys;
@@ -109,9 +81,7 @@
       }
     },
     reset: () => {
-      stopAnimation();
       currentFrame = 0;
-      isPlaying = false;
       layersReady = false;
       geoRasterLayers.clear();
       pixelRenderers.clear();
@@ -139,7 +109,6 @@
       }
     },
   };
-
   async function samplePixelAtCoordinate(latlng) {
     if (!layersReady || !currentSegmentationKey) {
       return null;
@@ -152,21 +121,19 @@
     if (!pixel) return null;
     return segRaster.raster.get(pixel.x, pixel.y);
   }
-
   async function preprocessOverlays() {
     if (!overlays || overlays.length === 0) {
+      layersReady = false;
       console.warn("No overlays to preprocess");
       return;
     }
     geoRasterLayers.clear();
     pixelRenderers.clear();
     if (!layerGroup) {
-      if (!layerGroup) {
-        layerGroup = MapOverlay.create(mapManager, "Segmentations", {
-          visible: true,
-          onVisibilityChange: (val) => (isLayerVisible = val),
-        });
-      }
+      layerGroup = MapOverlay.create(mapManager, "Segmentations", {
+        visible: true,
+        onVisibilityChange: (val) => (isLayerVisible = val),
+      });
     }
     for (let i = 0; i < overlays.length; i++) {
       const overlayData = overlays[i];
@@ -187,7 +154,6 @@
       }
     }
   }
-
   async function createGeoRasterLayer(overlayData) {
     const { georaster, segmentationKey } = overlayData;
     const segRaster = dataState.segmentedRasters?.get(segmentationKey);
@@ -212,14 +178,12 @@
     layer._bounds = georaster.bounds;
     return { layer, renderer };
   }
-
   function getOptimalResolution(georaster) {
     const totalPixels = georaster.width * georaster.height;
     if (totalPixels > 100_000_000) return 128;
     if (totalPixels > 25_000_000) return 256;
     return 512;
   }
-
   function showFrame(frameIndex) {
     if (!overlays || overlays.length === 0) {
       return;
@@ -240,13 +204,11 @@
       console.error(`Failed to show frame ${frameIndex}:`, error);
     }
   }
-
   function updateCurrentFrame() {
     if (segmentationKeys.length > 0 && currentFrame < segmentationKeys.length) {
       currentSegmentationKey = segmentationKeys[currentFrame];
     }
   }
-
   function updateAllRenderers(options) {
     pixelRenderers.forEach((renderer) => {
       renderer.update(options);
@@ -259,28 +221,9 @@
       }
     });
   }
-
-  function startAnimation() {
-    if (animationTimer) {
-      clearInterval(animationTimer);
-    }
-    const frameDuration = baseFrameDuration / speed;
-    animationTimer = setInterval(() => {
-      stateObject.stepForward();
-    }, frameDuration);
-  }
-
-  function stopAnimation() {
-    if (animationTimer) {
-      clearInterval(animationTimer);
-      animationTimer = null;
-    }
-  }
-
   export function getState() {
     return stateObject;
   }
-
   $effect(() => {
     if (pixelRenderers.size > 0 && selectedCluster !== undefined) {
       updateAllRenderers({ selectedCluster });
@@ -291,17 +234,11 @@
     if (pixelRenderers.size > 0 && interactionMode) {
       const grayscaleLabeled =
         interactionMode === "cluster" || interactionMode === "composite";
-      console.log("🔄 Effect triggering updateAllRenderers:", {
-        interactionMode,
-        grayscaleLabeled,
-      });
       updateAllRenderers({ interactionMode, grayscaleLabeled });
     }
   });
-
   onMount(() => {
     return () => {
-      stopAnimation();
       if (layerGroup) {
         geoRasterLayers.forEach((layer) => layerGroup.removeLayer(layer));
         layerGroup.destroy();
