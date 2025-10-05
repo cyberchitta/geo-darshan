@@ -101,6 +101,14 @@
     (syntheticClusters || [])
       .slice()
       .sort((a, b) => {
+        const aLabeled =
+          a.classificationPath && a.classificationPath !== "unlabeled";
+        const bLabeled =
+          b.classificationPath && b.classificationPath !== "unlabeled";
+        if (aLabeled !== bLabeled) return aLabeled ? -1 : 1;
+        if (aLabeled && bLabeled) {
+          return a.classificationPath.localeCompare(b.classificationPath);
+        }
         const aIsFine = CLUSTER_ID_RANGES.isFineGrain(a.id);
         const bIsFine = CLUSTER_ID_RANGES.isFineGrain(b.id);
         if (aIsFine !== bIsFine) return aIsFine ? 1 : -1;
