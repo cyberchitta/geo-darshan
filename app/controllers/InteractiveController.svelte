@@ -170,82 +170,80 @@
     };
   });
 
-  let prevInteractiveOptions = {
-    hasInitialized: false,
-    currentSegmentationKey: undefined,
-    syntheticVersion: undefined,
-    hierarchyLevel: undefined,
-    selectedClusterId: undefined,
-  };
-
+  let hasInitialized = $state(false);
   $effect(() => {
+    if (hasInitialized) return;
+    if (!compositeState?.georaster || !layerGroup || !currentSegmentationKey)
+      return;
+    if (!dataState.segmentedRasters?.has(currentSegmentationKey)) return;
+    createInteractiveSegmentation();
+    createInteractiveLayer();
+    hasInitialized = true;
+  });
+  let lastSegKey = $state(null);
+  let lastSynthVersion = $state(0);
+  $effect(() => {
+    if (!hasInitialized || !isLayerVisible) return;
     const currentKey = currentSegmentationKey;
-    const compositeExists = compositeState?.georaster;
-    const layerGroupExists = layerGroup;
-    const segRasterExists =
-      currentKey && dataState.segmentedRasters?.has(currentKey);
     const synthVersion =
       dataState.segmentedRasters
         ?.get(SEGMENTATION_KEYS.SYNTHETIC)
         ?.registry.size() || 0;
+    const needsRegeneration =
+      currentKey !== lastSegKey || synthVersion !== lastSynthVersion;
+    if (needsRegeneration) {
+      createInteractiveSegmentation();
+      createInteractiveLayer();
+      lastSegKey = currentKey;
+      lastSynthVersion = synthVersion;
+    }
+  });
+  // Effect 3: Update renderer when display properties change
+  let lastHierLevel = $state(null);
+  let lastCluster = $state(undefined);
+  let lastMode = $state(null);
+  $effect(() => {
+    if (!hasInitialized || !pixelRenderer || !isLayerVisible) return;
     const hierLevel = hierarchyLevel;
     const cluster = selectedCluster;
-    if (!isLayerVisible) {
-      return;
-    }
-    if (
-      !prevInteractiveOptions.hasInitialized &&
-      compositeExists &&
-      layerGroupExists &&
-      !interactiveSegmentation &&
-      segRasterExists
-    ) {
-      createInteractiveSegmentation();
-      createInteractiveLayer();
-      prevInteractiveOptions = {
-        hasInitialized: true,
-        currentSegmentationKey: currentKey,
-        syntheticVersion: synthVersion,
-        hierarchyLevel: hierLevel,
-        selectedClusterId: cluster,
-      };
-      return;
-    }
-    if (!interactiveSegmentation) return;
-    const segmentationChanged =
-      currentKey !== prevInteractiveOptions.currentSegmentationKey;
-    const syntheticChanged =
-      synthVersion !== prevInteractiveOptions.syntheticVersion;
-    const hierarchyChanged =
-      hierLevel !== prevInteractiveOptions.hierarchyLevel;
-    const clusterChanged = cluster !== prevInteractiveOptions.selectedClusterId;
-    if (segmentationChanged || syntheticChanged) {
-      createInteractiveSegmentation();
-      createInteractiveLayer();
-      prevInteractiveOptions = {
-        ...prevInteractiveOptions,
-        currentSegmentationKey: currentKey,
-        syntheticVersion: synthVersion,
-        hierarchyLevel: hierLevel,
-        selectedClusterId: cluster,
-      };
-      return;
-    }
-    if ((hierarchyChanged || clusterChanged) && pixelRenderer) {
+    const mode = interactionMode;
+    console.log("Effect 3:", {
+      hierLevel,
+      cluster,
+      mode,
+      lastHierLevel,
+      lastCluster,
+      lastMode,
+      isLayerVisible,
+    });
+    const needsUpdate =
+      hierLevel !== lastHierLevel ||
+      cluster !== lastCluster ||
+      mode !== lastMode;
+    console.log("Effect 3 needsUpdate:", needsUpdate);
+    if (needsUpdate) {
+      console.log("Effect 3 updating renderer and layer");
       pixelRenderer = pixelRenderer.update({
         hierarchyLevel: hierLevel,
         selectedCluster: cluster ? { clusterId: cluster } : null,
+        interactionMode: mode,
       });
       createInteractiveLayer();
-      prevInteractiveOptions = {
-        ...prevInteractiveOptions,
-        hierarchyLevel: hierLevel,
-        selectedClusterId: cluster,
-      };
+      lastHierLevel = hierLevel;
+      lastCluster = cluster;
+      lastMode = mode;
     }
   });
   $effect(() => {
-    if (!isLayerVisible) {
+    const shouldBeSelectable =
+      isLayerVisible &&
+      (interactionMode === "cluster" || interactionMode === "composite");
+    console.log("Selection effect:", {
+      shouldBeSelectable,
+      selectedCluster,
+      interactionMode,
+    });
+    if (!shouldBeSelectable) {
       selectedCluster = null;
       selectedRegion = null;
       if (selectedPixelData.size > 0) {

@@ -39,7 +39,10 @@ class ClusterRenderer {
 
   update(options) {
     this._interactionMode = options.interactionMode ?? this._interactionMode;
-    this._selectedCluster = options.selectedCluster ?? this._selectedCluster;
+    this._selectedCluster =
+      "selectedCluster" in options
+        ? options.selectedCluster
+        : this._selectedCluster;
     this._grayscaleLabeled = options.grayscaleLabeled ?? this._grayscaleLabeled;
     return this;
   }
@@ -80,7 +83,10 @@ class ClassificationRenderer {
   update(options) {
     this._hierarchyLevel = options.hierarchyLevel ?? this._hierarchyLevel;
     this._interactionMode = options.interactionMode ?? this._interactionMode;
-    this._selectedCluster = options.selectedCluster ?? this._selectedCluster;
+    this._selectedCluster =
+      "selectedCluster" in options
+        ? options.selectedCluster
+        : this._selectedCluster;
     this._grayscaleLabeled = options.grayscaleLabeled ?? this._grayscaleLabeled;
     return this;
   }
