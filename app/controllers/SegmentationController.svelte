@@ -213,47 +213,58 @@
     return stateObject;
   }
 
-  let prevRenderOptions = {
-    selectedClusterId: undefined,
-    interactionMode: undefined,
-    grayscaleLabeled: undefined,
-  };
+  let hasInitialized = $state(false);
   $effect(() => {
-    const renderersSize = pixelRenderers.size;
-    const layerVisible = isLayerVisible;
-    if (renderersSize === 0 || !layerVisible) return;
+    if (hasInitialized) return;
+    if (!overlays?.length || !mapManager || !layerGroup) return;
+    preprocessOverlays();
+    hasInitialized = true;
+  });
+  let lastFrame = $state(-1);
+  $effect(() => {
+    if (!hasInitialized || !layersReady) return;
+    const frame = currentFrame;
+    if (frame !== lastFrame) {
+      showFrame(frame);
+      lastFrame = frame;
+    }
+  });
+  let lastRenderState = $state({
+    clusterId: undefined,
+    mode: undefined,
+    grayscale: undefined,
+  });
+  $effect(() => {
+    if (!hasInitialized || !layersReady || !isLayerVisible) return;
     const grayscaleLabeled =
       interactionMode === "cluster" || interactionMode === "composite";
-    const selectedClusterId = selectedCluster;
-    const optionsChanged =
-      selectedClusterId !== prevRenderOptions.selectedClusterId ||
-      interactionMode !== prevRenderOptions.interactionMode ||
-      grayscaleLabeled !== prevRenderOptions.grayscaleLabeled;
-
-    if (optionsChanged) {
-      pixelRenderers.forEach((renderer) => {
+    const clusterId = selectedCluster;
+    const mode = interactionMode;
+    const needsUpdate =
+      clusterId !== lastRenderState.clusterId ||
+      mode !== lastRenderState.mode ||
+      grayscaleLabeled !== lastRenderState.grayscale;
+    if (needsUpdate) {
+      console.log("Effect 3 updating:", { clusterId, mode, grayscaleLabeled });
+      const renderer = pixelRenderers.get(currentFrame);
+      if (renderer) {
         renderer.update({
-          selectedCluster: selectedCluster
-            ? { clusterId: selectedCluster }
-            : null,
-          interactionMode,
+          selectedCluster: clusterId !== null ? { clusterId } : null,
+          interactionMode: mode,
           grayscaleLabeled,
         });
-      });
-      prevRenderOptions = {
-        selectedClusterId,
-        interactionMode,
-        grayscaleLabeled,
-      };
-      const currentLayer = geoRasterLayers.get(currentFrame);
-      if (currentLayer) {
-        currentLayer.setOpacity(0);
-        setTimeout(() => currentLayer.setOpacity(targetOpacity), 0);
+        const layer = geoRasterLayers.get(currentFrame);
+        if (layer) {
+          layer.setOpacity(0);
+          setTimeout(() => layer.setOpacity(targetOpacity), 0);
+        }
       }
+      lastRenderState = { clusterId, mode, grayscale: grayscaleLabeled };
     }
   });
   $effect(() => {
-    if (!isLayerVisible) {
+    const shouldBeSelectable = isLayerVisible && interactionMode === "cluster";
+    if (!shouldBeSelectable) {
       selectedCluster = null;
     }
   });
