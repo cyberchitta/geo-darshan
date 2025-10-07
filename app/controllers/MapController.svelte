@@ -156,12 +156,11 @@
     if (!interactiveSegRaster || !raster) {
       return "";
     }
-    const georaster = interactiveSegRaster.raster.toGeoRaster();
-    const x = Math.floor((latlng.lng - georaster.xmin) / georaster.pixelWidth);
-    const y = Math.floor((georaster.ymax - latlng.lat) / georaster.pixelHeight);
-    if (x < 0 || x >= georaster.width || y < 0 || y >= georaster.height) {
+    const pixel = interactiveSegRaster.raster.latlngToPixel(latlng);
+    if (!pixel) {
       return "";
     }
+    const { x, y } = pixel;
     const clusterId = raster[y][x];
     if (clusterId === undefined || CLUSTER_ID_RANGES.isNoData(clusterId)) {
       return "";

@@ -23,15 +23,9 @@
   let layerGroup = $state(null);
   let interactiveSegmentation = $state(null);
   let isLayerVisible = $state(false);
-  let lastProcessedHierarchyLevel = $state(null);
   let lastProcessedSegmentationKey = $state(null);
-  let syntheticVersion = $state(0);
   let currentSegmentationKey = $derived(
     segmentationController?.getState()?.currentSegmentationKey
-  );
-  let shouldRegenerateInteractive = $derived(
-    compositeState?.georaster &&
-      currentSegmentationKey !== lastProcessedSegmentationKey
   );
   let processedInteractiveRaster = $state(null);
   let selectedPixelData = $state(new Map());
@@ -173,7 +167,11 @@
   let hasInitialized = $state(false);
   $effect(() => {
     if (hasInitialized) return;
-    if (!compositeState?.georaster || !layerGroup || !currentSegmentationKey)
+    if (
+      !compositeState?.compositeSegRaster ||
+      !layerGroup ||
+      !currentSegmentationKey
+    )
       return;
     if (!dataState.segmentedRasters?.has(currentSegmentationKey)) return;
     createInteractiveSegmentation();
@@ -258,7 +256,7 @@
   }
 
   function createInteractiveSegmentation() {
-    if (!compositeState?.georaster) return;
+    if (!compositeState?.compositeSegRaster) return;
     const compositeSegRaster = dataState.segmentedRasters?.get(
       SEGMENTATION_KEYS.COMPOSITE
     );

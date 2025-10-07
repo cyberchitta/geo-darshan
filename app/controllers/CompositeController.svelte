@@ -103,7 +103,7 @@
       `✅ Composite generated in ${(endTime - startTime).toFixed(2)}ms`
     );
     return {
-      georaster: aggregated.raster.toGeoRaster(),
+      compositeSegRaster: aggregated,
       clusterIdMapping: new Map(),
       highestKKey: regularKeys[0],
     };

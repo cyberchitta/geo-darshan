@@ -250,29 +250,6 @@ class SegmentedRaster {
   }
 
   /**
-   * Export to legacy Segmentation-compatible object.
-   * @param {string} key - Segmentation key
-   * @param {Object} metadata - Additional metadata
-   * @returns {Object}
-   */
-  toSegmentation(key, metadata = {}) {
-    return {
-      key,
-      georaster: this._raster.toGeoRaster(),
-      clusters: this._registry.toClustersMap(),
-      colorMapping: this._registry.toColorMapping(),
-      metadata: {
-        source: "segmented_raster",
-        ...metadata,
-      },
-      // Legacy API methods
-      getCluster: (clusterId) => this._registry.get(clusterId),
-      getAllClusters: () => this._registry.getAllClusters(),
-      getColors: () => this._registry.toColorMap(),
-    };
-  }
-
-  /**
    * Export raster values as 2D array (for mutation operations).
    * Use sparingly - prefer immutable operations.
    * @returns {number[][]}

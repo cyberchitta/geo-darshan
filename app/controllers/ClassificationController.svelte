@@ -34,7 +34,7 @@
       }
     },
     getStats: () => {
-      if (!compositeState?.georaster)
+      if (!compositeState?.compositeSegRaster)
         return { totalLabels: 0, isVisible: false };
       const isVisible = layerGroup && mapManager.map.hasLayer(layerGroup);
       const compositeSegRaster = dataState.segmentedRasters?.get(
@@ -55,7 +55,7 @@
         if (!window.ClassificationHierarchy?.isLoaded()) {
           throw new Error("Classification hierarchy not loaded");
         }
-        if (!compositeState?.georaster) {
+        if (!compositeState?.compositeSegRaster) {
           throw new Error("No composite data available for export");
         }
         const hierarchy = window.ClassificationHierarchy.getInstance();
@@ -67,7 +67,7 @@
         }
         const classifier = new PixelClassifier(
           hierarchy,
-          compositeState.georaster,
+          compositeState.compositeSegRaster.raster.toGeoRaster(),
           compositeState.clusterIdMapping,
           dataState.segmentedRasters,
           hierarchyLevel
@@ -115,29 +115,31 @@
   });
 
   $effect(() => {
-    if (compositeState?.georaster && layerGroup && !classificationLayer) {
+    if (
+      compositeState?.compositeSegRaster &&
+      layerGroup &&
+      !classificationLayer
+    ) {
       createClassificationLayer();
     }
   });
 
   function createClassificationLayer() {
-    if (!compositeState?.georaster) return;
+    if (!compositeState?.compositeSegRaster) return;
     if (classificationLayer) {
       layerGroup.removeLayer(classificationLayer);
     }
-    classificationLayer = mapManager.rasterHandler.createMapLayer(
-      compositeState.georaster,
-      {
-        pixelValuesToColorFn: convertClassificationPixelToColor,
-        zIndex: 2000,
-      }
-    );
+    const georaster = compositeState.compositeSegRaster.raster.toGeoRaster();
+    classificationLayer = mapManager.rasterHandler.createMapLayer(georaster, {
+      pixelValuesToColorFn: convertClassificationPixelToColor,
+      zIndex: 2000,
+    });
     layerGroup.addLayer(classificationLayer);
     classificationLayer.setOpacity(mapManager.currentOpacity);
   }
 
   function refreshLayer() {
-    if (classificationLayer && compositeState?.georaster) {
+    if (classificationLayer && compositeState?.compositeSegRaster) {
       createClassificationLayer();
     }
   }
@@ -188,15 +190,16 @@
   }
 
   async function generateCompositeGeotiff(classifier) {
-    if (!classifier || !compositeState?.georaster) {
+    if (!classifier || !compositeState?.compositeSegRaster) {
       throw new Error(
         "No composite layer available. Please ensure labeled regions are visible."
       );
     }
     const classificationRasterData = classifier.createClassificationRaster();
+    const georaster = compositeState.compositeSegRaster.raster.toGeoRaster();
     const tiffArrayBuffer = await dataIO.createGeoTiffWithLibrary(
       classificationRasterData,
-      compositeState.georaster
+      georaster
     );
     return new Blob([tiffArrayBuffer], { type: "image/tiff" });
   }
