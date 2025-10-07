@@ -48,13 +48,7 @@ class ClusterRenderer {
     if (!values || values.length === 0) return null;
     const clusterId = values[0];
     if (CLUSTER_ID_RANGES.isNoData(clusterId)) return null;
-    if (
-      PixelRenderUtils.isSelected(
-        clusterId,
-        this._segmentationKey,
-        this._selectedCluster
-      )
-    ) {
+    if (this._selectedCluster?.clusterId === clusterId) {
       return "rgba(0, 0, 0, 1)";
     }
     const cluster = this._segmentedRaster.getClusterById(clusterId);
@@ -95,9 +89,7 @@ class ClassificationRenderer {
     if (!values || values.length === 0) return null;
     const clusterId = values[0];
     if (CLUSTER_ID_RANGES.isNoData(clusterId)) return null;
-    if (
-      PixelRenderUtils.isSelected(clusterId, "composite", this._selectedCluster)
-    ) {
+    if (this._selectedCluster?.clusterId === clusterId) {
       return "rgba(0, 0, 0, 1)";
     }
     const cluster = this._segmentedRaster.getClusterById(clusterId);
