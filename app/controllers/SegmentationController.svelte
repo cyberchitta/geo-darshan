@@ -231,16 +231,15 @@
   $effect(() => {
     const renderersSize = pixelRenderers.size;
     const currentCluster = selectedCluster;
-    if (pixelRenderers.size === 0) return;
     const interactionMode = mapState?.interactionMode;
+    const layerVisible = isLayerVisible;
+    if (renderersSize === 0) return;
+    if (!layerVisible) return;
     const grayscaleLabeled =
       interactionMode === "cluster" || interactionMode === "composite";
-    const selectedClusterId = selectedCluster?.clusterId;
-    const selectedSegKey = selectedCluster?.segmentationKey;
+    const selectedClusterId = currentCluster?.clusterId;
+    const selectedSegKey = currentCluster?.segmentationKey;
     if (selectedSegKey && selectedSegKey === SEGMENTATION_KEYS.INTERACTIVE) {
-      return;
-    }
-    if (!isLayerVisible) {
       return;
     }
     const optionsChanged =
@@ -248,22 +247,21 @@
       selectedSegKey !== prevRenderOptions.selectedSegKey ||
       interactionMode !== prevRenderOptions.interactionMode ||
       grayscaleLabeled !== prevRenderOptions.grayscaleLabeled;
+
     if (optionsChanged) {
+      pixelRenderers.forEach((renderer) => {
+        renderer.update({
+          selectedCluster: $state.snapshot(currentCluster),
+          interactionMode,
+          grayscaleLabeled,
+        });
+      });
       prevRenderOptions = {
         selectedClusterId,
         selectedSegKey,
         interactionMode,
         grayscaleLabeled,
       };
-      const currentRenderer = pixelRenderers.get(currentFrame);
-      if (currentRenderer) {
-        const snapshot = $state.snapshot(selectedCluster);
-        currentRenderer.update({
-          selectedCluster: snapshot,
-          interactionMode,
-          grayscaleLabeled,
-        });
-      }
       const currentLayer = geoRasterLayers.get(currentFrame);
       if (currentLayer) {
         currentLayer.setOpacity(0);
