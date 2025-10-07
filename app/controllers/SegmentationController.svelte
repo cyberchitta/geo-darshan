@@ -245,7 +245,6 @@
       mode !== lastRenderState.mode ||
       grayscaleLabeled !== lastRenderState.grayscale;
     if (needsUpdate) {
-      console.log("Effect 3 updating:", { clusterId, mode, grayscaleLabeled });
       const renderer = pixelRenderers.get(currentFrame);
       if (renderer) {
         renderer.update({

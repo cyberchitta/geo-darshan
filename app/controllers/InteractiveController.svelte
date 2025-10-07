@@ -198,7 +198,6 @@
       lastSynthVersion = synthVersion;
     }
   });
-  // Effect 3: Update renderer when display properties change
   let lastHierLevel = $state(null);
   let lastCluster = $state(undefined);
   let lastMode = $state(null);
@@ -207,22 +206,11 @@
     const hierLevel = hierarchyLevel;
     const cluster = selectedCluster;
     const mode = interactionMode;
-    console.log("Effect 3:", {
-      hierLevel,
-      cluster,
-      mode,
-      lastHierLevel,
-      lastCluster,
-      lastMode,
-      isLayerVisible,
-    });
     const needsUpdate =
       hierLevel !== lastHierLevel ||
       cluster !== lastCluster ||
       mode !== lastMode;
-    console.log("Effect 3 needsUpdate:", needsUpdate);
     if (needsUpdate) {
-      console.log("Effect 3 updating renderer and layer");
       pixelRenderer = pixelRenderer.update({
         hierarchyLevel: hierLevel,
         selectedCluster: cluster ? { clusterId: cluster } : null,
@@ -238,11 +226,6 @@
     const shouldBeSelectable =
       isLayerVisible &&
       (interactionMode === "cluster" || interactionMode === "composite");
-    console.log("Selection effect:", {
-      shouldBeSelectable,
-      selectedCluster,
-      interactionMode,
-    });
     if (!shouldBeSelectable) {
       selectedCluster = null;
       selectedRegion = null;
