@@ -9,6 +9,7 @@
   let segmentationOpacity = $state(0.8);
   let interactiveOpacity = $state(0.8);
   let classificationOpacity = $state(0.8);
+  let previousInteractionMode = $state(null);
   let interactionMode = $state("view");
   let selectedCluster = $state(null);
   let clusterSuggestions = $state([]);
@@ -125,6 +126,18 @@
     } else {
       clusterSuggestions = [];
     }
+  });
+  $effect(() => {
+    if (
+      previousInteractionMode &&
+      interactionMode !== previousInteractionMode
+    ) {
+      selectedCluster = null;
+      selectedRegion = null;
+      segmentationController?.getState()?.clearSelection?.();
+      interactiveController?.getState()?.clearSelection?.();
+    }
+    previousInteractionMode = interactionMode;
   });
 
   function setupSegmentationListeners(segState) {

@@ -53,12 +53,6 @@
       );
     }
   });
-  $effect(() => {
-    if (mapState?.interactionMode !== "cluster") {
-      segmentationController?.getState()?.clearSelection?.();
-      interactiveController?.getState()?.clearSelection?.();
-    }
-  });
 
   onMount(async () => {
     window.addEventListener("clearData", clearData);
