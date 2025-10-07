@@ -192,13 +192,21 @@
     const hierLevel = hierarchyLevel;
     const cluster = selectedCluster;
     if (
+      cluster?.segmentationKey &&
+      cluster.segmentationKey !== SEGMENTATION_KEYS.INTERACTIVE
+    ) {
+      return;
+    }
+    if (!isLayerVisible) {
+      return;
+    }
+    if (
       !prevInteractiveOptions.hasInitialized &&
       compositeExists &&
       layerGroupExists &&
       !interactiveSegmentation &&
       segRasterExists
     ) {
-      console.log("Initial interactive setup");
       createInteractiveSegmentation();
       createInteractiveLayer();
       prevInteractiveOptions = {
@@ -222,10 +230,6 @@
       cluster?.clusterId !== prevInteractiveOptions.selectedClusterId ||
       cluster?.segmentationKey !== prevInteractiveOptions.selectedSegKey;
     if (segmentationChanged || syntheticChanged) {
-      console.log("Regenerating interactive:", {
-        segmentationChanged,
-        syntheticChanged,
-      });
       createInteractiveSegmentation();
       createInteractiveLayer();
       prevInteractiveOptions = {
@@ -239,10 +243,6 @@
       return;
     }
     if ((hierarchyChanged || clusterChanged) && pixelRenderer) {
-      console.log("Updating interactive renderer:", {
-        hierarchyChanged,
-        clusterChanged,
-      });
       pixelRenderer = pixelRenderer.update({
         hierarchyLevel: hierLevel,
         selectedCluster: cluster,

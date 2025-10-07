@@ -1,5 +1,6 @@
 <script>
   import { onMount } from "svelte";
+  import { SEGMENTATION_KEYS } from "../js/utils.js";
   import { ClusterRenderer } from "../js/raster/color-renderers.js";
   import { MapOverlay } from "../js/map-overlay.js";
 
@@ -236,6 +237,12 @@
       interactionMode === "cluster" || interactionMode === "composite";
     const selectedClusterId = selectedCluster?.clusterId;
     const selectedSegKey = selectedCluster?.segmentationKey;
+    if (selectedSegKey && selectedSegKey === SEGMENTATION_KEYS.INTERACTIVE) {
+      return;
+    }
+    if (!isLayerVisible) {
+      return;
+    }
     const optionsChanged =
       selectedClusterId !== prevRenderOptions.selectedClusterId ||
       selectedSegKey !== prevRenderOptions.selectedSegKey ||
@@ -250,8 +257,9 @@
       };
       const currentRenderer = pixelRenderers.get(currentFrame);
       if (currentRenderer) {
+        const snapshot = $state.snapshot(selectedCluster);
         currentRenderer.update({
-          selectedCluster: $state.snapshot(selectedCluster),
+          selectedCluster: snapshot,
           interactionMode,
           grayscaleLabeled,
         });
@@ -261,8 +269,6 @@
         currentLayer.setOpacity(0);
         setTimeout(() => currentLayer.setOpacity(targetOpacity), 0);
       }
-    } else {
-      console.log("⏭️ No changes, skipping update");
     }
   });
 
