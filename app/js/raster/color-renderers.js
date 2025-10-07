@@ -89,6 +89,9 @@ class ClassificationRenderer {
     if (!values || values.length === 0) return null;
     const clusterId = values[0];
     if (CLUSTER_ID_RANGES.isNoData(clusterId)) return null;
+    if (CLUSTER_ID_RANGES.isSelected(clusterId)) {
+      return "rgba(0, 0, 0, 1)";
+    }
     if (this._selectedCluster?.clusterId === clusterId) {
       return "rgba(0, 0, 0, 1)";
     }
