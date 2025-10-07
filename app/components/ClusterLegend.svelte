@@ -17,8 +17,11 @@
   let dataState = $derived(appState.data);
   let interactiveState = $derived(appState.interactive);
   let hierarchyLevel = $derived(appState.classification?.hierarchyLevel || 1);
-  let selectedCluster = $derived(appState.map?.selectedCluster);
-  let selectedRegion = $derived(appState.map?.selectedRegion);
+  let segmentationSelectedCluster = $derived(
+    segmentationState?.selectedCluster
+  );
+  let interactiveSelectedCluster = $derived(interactiveState?.selectedCluster);
+  let selectedRegion = $derived(interactiveState?.selectedRegion);
   let interactionMode = $derived(appState.map?.interactionMode || "view");
   let currentSegRaster = $derived(
     dataState.segmentedRasters?.get(segmentationState.currentSegmentationKey)
@@ -125,19 +128,21 @@
       }))
   );
   $effect(() => {
-    if (!selectedCluster) return;
-    const isRegularCluster =
-      selectedCluster.segmentationKey === currentSegmentationKey;
-    const isCompositeCluster =
-      selectedCluster.segmentationKey === SEGMENTATION_KEYS.INTERACTIVE;
-    if (isRegularCluster) {
-      scrollToCluster(selectedCluster.clusterId, false);
-      highlightCluster(selectedCluster.clusterId, false);
-    } else if (isCompositeCluster) {
-      scrollToCluster(selectedCluster.clusterId, true);
-      highlightCluster(selectedCluster.clusterId, true);
+    if (
+      segmentationSelectedCluster !== undefined &&
+      segmentationSelectedCluster !== null
+    ) {
+      scrollToCluster(segmentationSelectedCluster, false);
+      highlightCluster(segmentationSelectedCluster, false);
+    } else if (
+      interactiveSelectedCluster !== undefined &&
+      interactiveSelectedCluster !== null
+    ) {
+      scrollToCluster(interactiveSelectedCluster, true);
+      highlightCluster(interactiveSelectedCluster, true);
     }
   });
+
   function handleRegionCommit(clusterId, selectedOption) {
     onRegionCommit?.(selectedOption.path);
   }
@@ -429,9 +434,7 @@
         </div>
       {:else}
         {#each clusters as cluster (cluster.id)}
-          {@const isSelected =
-            selectedCluster?.clusterId === cluster.id &&
-            selectedCluster?.segmentationKey === currentSegmentationKey}
+          {@const isSelected = segmentationSelectedCluster === cluster.id}
           {@const clusterSuggestions =
             isSelected && appState.map?.clusterSuggestions
               ? appState.map.clusterSuggestions
@@ -450,9 +453,7 @@
             <div class="cluster-info">
               <div
                 class="cluster-color-swatch"
-                style="background-color: {selectedCluster?.clusterId ===
-                  cluster.id &&
-                selectedCluster?.segmentationKey === currentSegmentationKey
+                style="background-color: {isSelected
                   ? '#000000'
                   : clusterColors.get(cluster.id) || '#ccc'}"
                 aria-hidden="true"

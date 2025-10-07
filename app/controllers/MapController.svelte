@@ -1,19 +1,14 @@
 <script>
   import { onMount } from "svelte";
-  import { CLUSTER_ID_RANGES, SEGMENTATION_KEYS } from "../js/utils.js";
-  import { MapManager } from "../js/map-manager.js";
   import { ClassificationHierarchy } from "../js/classification.js";
+  import { MapManager } from "../js/map-manager.js";
 
   let { segmentationController, interactiveController } = $props();
   let mapManager = $state(null);
   let segmentationOpacity = $state(0.8);
   let interactiveOpacity = $state(0.8);
   let classificationOpacity = $state(0.8);
-  let previousInteractionMode = $state(null);
   let interactionMode = $state("view");
-  let selectedCluster = $state(null);
-  let clusterSuggestions = $state([]);
-  let selectedRegion = $state(null);
   let currentHoverLabel = $state("");
   let segmentationLayerVisible = $derived(
     segmentationController?.getState()?.hasActiveLayer &&
@@ -22,21 +17,13 @@
   let interactiveLayerVisible = $derived(
     interactiveController?.getState()?.hasActiveLayer && interactiveOpacity > 0
   );
+
   const stateObject = {
     get mapManager() {
       return mapManager;
     },
     get interactionMode() {
       return interactionMode;
-    },
-    get selectedCluster() {
-      return selectedCluster;
-    },
-    get clusterSuggestions() {
-      return clusterSuggestions;
-    },
-    get selectedRegion() {
-      return selectedRegion;
     },
     get currentHoverLabel() {
       return currentHoverLabel;
@@ -56,22 +43,6 @@
       }
     },
     setInteractionMode: (mode) => (interactionMode = mode),
-    clearSelectedCluster: () => (selectedCluster = null),
-    clearSelectedRegion: () => {
-      selectedRegion = null;
-      const interactiveState = interactiveController?.getState();
-      if (interactiveState?.clearSelection) {
-        interactiveState.clearSelection();
-      }
-    },
-    cancelSelection: () => {
-      selectedCluster = null;
-      selectedRegion = null;
-      const interactiveState = interactiveController?.getState();
-      if (interactiveState?.cancelSelection) {
-        interactiveState.cancelSelection();
-      }
-    },
   };
 
   export function getState() {
@@ -91,24 +62,6 @@
       await mapManager.initialize();
       setupEventListeners(mapManager);
       setupKeyboardShortcuts();
-      const checkForSegController = () => {
-        const segState = segmentationController?.getState();
-        if (segState?.on) {
-          setupSegmentationListeners(segState);
-        } else {
-          setTimeout(checkForSegController, 10);
-        }
-      };
-      checkForSegController();
-      const checkForInteractiveController = () => {
-        const interactiveState = interactiveController?.getState();
-        if (interactiveState?.on) {
-          setupInteractiveListeners(interactiveState);
-        } else {
-          setTimeout(checkForInteractiveController, 10);
-        }
-      };
-      checkForInteractiveController();
     } catch (error) {
       console.error("Failed to initialize MapController:", error);
       throw error;
@@ -120,53 +73,17 @@
       mapManager.setInteractionMode(interactionMode);
     }
   });
-  $effect(() => {
-    if (selectedRegion?.suggestions) {
-      clusterSuggestions = selectedRegion.suggestions;
-    } else {
-      clusterSuggestions = [];
-    }
-  });
+  let previousInteractionMode = $state(null);
   $effect(() => {
     if (
       previousInteractionMode &&
       interactionMode !== previousInteractionMode
     ) {
-      selectedCluster = null;
-      selectedRegion = null;
       segmentationController?.getState()?.clearSelection?.();
       interactiveController?.getState()?.clearSelection?.();
     }
     previousInteractionMode = interactionMode;
   });
-
-  function setupSegmentationListeners(segState) {
-    segState.on("clusterSelected", (clusterValue, latlng) => {
-      if (clusterValue === null) {
-        selectedCluster = null;
-      } else {
-        selectedCluster = {
-          clusterId: clusterValue,
-          segmentationKey: segState.currentSegmentationKey,
-          latlng,
-        };
-      }
-    });
-  }
-
-  function setupInteractiveListeners(interactiveState) {
-    interactiveState.on("clusterSelected", (clusterValue, latlng) => {
-      if (clusterValue === null) {
-        selectedCluster = null;
-      } else {
-        selectedCluster = {
-          clusterId: clusterValue,
-          segmentationKey: SEGMENTATION_KEYS.INTERACTIVE,
-          latlng,
-        };
-      }
-    });
-  }
 
   function setupEventListeners(manager) {
     manager.on("clusterInteraction", async (latlng) => {
@@ -176,8 +93,6 @@
       } else if (segmentationLayerVisible && !interactiveLayerVisible) {
         const segState = segmentationController?.getState();
         await segState?.selectClusterAt?.(latlng);
-      } else {
-        console.log("→ No handler matched conditions");
       }
     });
     manager.on("compositeClick", async (latlng) => {
@@ -185,15 +100,7 @@
       if (!interactiveState?.handleCompositeClick) {
         return;
       }
-      const result = await interactiveState.handleCompositeClick(latlng);
-      if (result?.action === "create_new") {
-        selectedRegion = {
-          region: result.region,
-          latlng: result.latlng,
-          pixelCount: result.region.length,
-          suggestions: result.suggestions,
-        };
-      }
+      await interactiveState.handleCompositeClick(latlng);
     });
     manager.map.on("mousemove", async (e) => {
       if (interactionMode !== "composite") {
@@ -234,7 +141,8 @@
           break;
         case "Escape":
           e.preventDefault();
-          stateObject.cancelSelection();
+          segmentationController?.getState()?.clearSelection?.();
+          interactiveController?.getState()?.clearSelection?.();
           break;
       }
     });

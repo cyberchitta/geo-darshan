@@ -15,19 +15,26 @@
     segmentationController,
     hierarchyLevel,
   } = $props();
+  let interactionMode = $derived(mapState?.interactionMode);
+  let selectedCluster = $state(null);
+  let selectedRegion = $state(null);
   let interactiveLayer = $state(null);
   let pixelRenderer = $state(null);
   let layerGroup = $state(null);
   let interactiveSegmentation = $state(null);
   let isLayerVisible = $state(false);
+  let lastProcessedHierarchyLevel = $state(null);
   let lastProcessedSegmentationKey = $state(null);
+  let syntheticVersion = $state(0);
   let currentSegmentationKey = $derived(
     segmentationController?.getState()?.currentSegmentationKey
   );
+  let shouldRegenerateInteractive = $derived(
+    compositeState?.georaster &&
+      currentSegmentationKey !== lastProcessedSegmentationKey
+  );
   let processedInteractiveRaster = $state(null);
-  let selectedCluster = $derived(mapState?.selectedCluster);
   let selectedPixelData = $state(new Map());
-  let listeners = $state({});
 
   const stateObject = {
     get interactiveSegmentation() {
@@ -38,6 +45,12 @@
     },
     get hasActiveLayer() {
       return interactiveLayer && isLayerVisible;
+    },
+    get selectedCluster() {
+      return selectedCluster;
+    },
+    get selectedRegion() {
+      return selectedRegion;
     },
     handleCompositeClick: async (latlng) => {
       if (!interactiveSegmentation) return null;
@@ -61,12 +74,13 @@
         interactiveSegmentation
       );
       markRegionAsSelected(contiguousRegion);
-      return {
-        action: "create_new",
+      selectedRegion = {
         region: contiguousRegion,
         latlng,
+        pixelCount: contiguousRegion.length,
         suggestions,
       };
+      return selectedRegion;
     },
     labelRegion: (region, classificationPath) => {
       restoreOriginalValues();
@@ -96,6 +110,7 @@
       showBriefMessage(
         `Created synthetic cluster ${syntheticId} with classification: ${classificationPath}`
       );
+      selectedRegion = null;
       return syntheticId;
     },
     setOpacity: (opacity) => {
@@ -109,36 +124,28 @@
       }
       const pixel = interactiveSegmentation.raster.latlngToPixel(latlng);
       if (!pixel) {
-        stateObject.emit("clusterSelected", null, null);
+        selectedCluster = null;
         return;
       }
       const clusterId = processedInteractiveRaster[pixel.y][pixel.x];
       if (clusterId === CLUSTER_ID_RANGES.NODATA) {
-        stateObject.emit("clusterSelected", null, null);
+        selectedCluster = null;
         return;
       }
-      stateObject.emit("clusterSelected", clusterId, latlng);
+      selectedCluster = clusterId;
     },
     cancelSelection: () => {
       restoreOriginalValues();
       createInteractiveLayer();
+      selectedRegion = null;
     },
     clearSelection: () => {
       if (selectedPixelData.size > 0) {
         restoreOriginalValues();
         createInteractiveLayer();
       }
-      stateObject.emit("clusterSelected", null, null);
-    },
-    on: (event, callback) => {
-      if (!listeners) listeners = {};
-      if (!listeners[event]) listeners[event] = [];
-      listeners[event].push(callback);
-    },
-    emit: (event, ...args) => {
-      if (listeners?.[event]) {
-        listeners[event].forEach((callback) => callback(...args));
-      }
+      selectedCluster = null;
+      selectedRegion = null;
     },
   };
 
@@ -169,7 +176,6 @@
     syntheticVersion: undefined,
     hierarchyLevel: undefined,
     selectedClusterId: undefined,
-    selectedSegKey: undefined,
   };
 
   $effect(() => {
@@ -184,12 +190,6 @@
         ?.registry.size() || 0;
     const hierLevel = hierarchyLevel;
     const cluster = selectedCluster;
-    if (
-      cluster?.segmentationKey &&
-      cluster.segmentationKey !== SEGMENTATION_KEYS.INTERACTIVE
-    ) {
-      return;
-    }
     if (!isLayerVisible) {
       return;
     }
@@ -207,8 +207,7 @@
         currentSegmentationKey: currentKey,
         syntheticVersion: synthVersion,
         hierarchyLevel: hierLevel,
-        selectedClusterId: cluster?.clusterId,
-        selectedSegKey: cluster?.segmentationKey,
+        selectedClusterId: cluster,
       };
       return;
     }
@@ -219,9 +218,7 @@
       synthVersion !== prevInteractiveOptions.syntheticVersion;
     const hierarchyChanged =
       hierLevel !== prevInteractiveOptions.hierarchyLevel;
-    const clusterChanged =
-      cluster?.clusterId !== prevInteractiveOptions.selectedClusterId ||
-      cluster?.segmentationKey !== prevInteractiveOptions.selectedSegKey;
+    const clusterChanged = cluster !== prevInteractiveOptions.selectedClusterId;
     if (segmentationChanged || syntheticChanged) {
       createInteractiveSegmentation();
       createInteractiveLayer();
@@ -230,23 +227,30 @@
         currentSegmentationKey: currentKey,
         syntheticVersion: synthVersion,
         hierarchyLevel: hierLevel,
-        selectedClusterId: cluster?.clusterId,
-        selectedSegKey: cluster?.segmentationKey,
+        selectedClusterId: cluster,
       };
       return;
     }
     if ((hierarchyChanged || clusterChanged) && pixelRenderer) {
       pixelRenderer = pixelRenderer.update({
         hierarchyLevel: hierLevel,
-        selectedCluster: cluster,
+        selectedCluster: cluster ? { clusterId: cluster } : null,
       });
       createInteractiveLayer();
       prevInteractiveOptions = {
         ...prevInteractiveOptions,
         hierarchyLevel: hierLevel,
-        selectedClusterId: cluster?.clusterId,
-        selectedSegKey: cluster?.segmentationKey,
+        selectedClusterId: cluster,
       };
+    }
+  });
+  $effect(() => {
+    if (!isLayerVisible) {
+      selectedCluster = null;
+      selectedRegion = null;
+      if (selectedPixelData.size > 0) {
+        restoreOriginalValues();
+      }
     }
   });
 
@@ -305,8 +309,8 @@
     interactiveSegmentation = aggregated;
     pixelRenderer = new ClassificationRenderer(aggregated, {
       hierarchyLevel,
-      interactionMode: mapState.interactionMode,
-      selectedCluster,
+      interactionMode,
+      selectedCluster: selectedCluster ? { clusterId: selectedCluster } : null,
       grayscaleLabeled: false,
     });
   }

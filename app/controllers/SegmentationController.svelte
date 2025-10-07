@@ -1,12 +1,12 @@
 <script>
   import { onMount } from "svelte";
-  import { SEGMENTATION_KEYS } from "../js/utils.js";
   import { ClusterRenderer } from "../js/raster/color-renderers.js";
   import { MapOverlay } from "../js/map-overlay.js";
 
   let { mapState, dataState } = $props();
   let mapManager = $derived(mapState?.mapManager);
-  let selectedCluster = $derived(mapState?.selectedCluster);
+  let interactionMode = $derived(mapState?.interactionMode);
+  let selectedCluster = $state(null);
   let currentFrame = $state(0);
   let totalFrames = $state(0);
   let segmentationKeys = $state([]);
@@ -19,7 +19,6 @@
   let overlays = $state([]);
   let layersReady = $state(false);
   let targetOpacity = $state(0.8);
-  let listeners = $state({});
   let frameInfo = $derived({
     index: currentFrame,
     total: totalFrames,
@@ -41,6 +40,9 @@
     },
     get hasActiveLayer() {
       return layerGroup && isLayerVisible && layersReady && totalFrames > 0;
+    },
+    get selectedCluster() {
+      return selectedCluster;
     },
     stepForward: () => {
       if (totalFrames > 0) {
@@ -87,28 +89,19 @@
       layersReady = false;
       geoRasterLayers.clear();
       pixelRenderers.clear();
+      selectedCluster = null;
     },
     samplePixelAtCoordinate,
     selectClusterAt: async (latlng) => {
-      const clusterValue = await samplePixelAtCoordinate(latlng);
-      if (clusterValue !== null && clusterValue >= 0) {
-        stateObject.emit("clusterSelected", clusterValue, latlng);
+      const clusterId = await samplePixelAtCoordinate(latlng);
+      if (clusterId !== null && clusterId >= 0) {
+        selectedCluster = clusterId;
       } else {
-        stateObject.emit("clusterSelected", null, null);
+        selectedCluster = null;
       }
     },
     clearSelection: () => {
-      stateObject.emit("clusterSelected", null, null);
-    },
-    on: (event, callback) => {
-      if (!listeners) listeners = {};
-      if (!listeners[event]) listeners[event] = [];
-      listeners[event].push(callback);
-    },
-    emit: (event, ...args) => {
-      if (listeners?.[event]) {
-        listeners[event].forEach((callback) => callback(...args));
-      }
+      selectedCluster = null;
     },
   };
 
@@ -162,12 +155,11 @@
     if (!segRaster) {
       throw new Error(`Segmented raster not found: ${segmentationKey}`);
     }
-    const interactionMode = mapState?.interactionMode || "view";
     const grayscaleLabeled =
       interactionMode === "cluster" || interactionMode === "composite";
     const renderer = new ClusterRenderer(segRaster, segmentationKey, {
       interactionMode,
-      selectedCluster: $state.snapshot(selectedCluster),
+      selectedCluster: selectedCluster ? { clusterId: selectedCluster } : null,
       grayscaleLabeled,
     });
     const layer = mapManager.rasterHandler.createMapLayer(georaster, {
@@ -223,42 +215,33 @@
 
   let prevRenderOptions = {
     selectedClusterId: undefined,
-    selectedSegKey: undefined,
     interactionMode: undefined,
     grayscaleLabeled: undefined,
   };
-
   $effect(() => {
     const renderersSize = pixelRenderers.size;
-    const currentCluster = selectedCluster;
-    const interactionMode = mapState?.interactionMode;
     const layerVisible = isLayerVisible;
-    if (renderersSize === 0) return;
-    if (!layerVisible) return;
+    if (renderersSize === 0 || !layerVisible) return;
     const grayscaleLabeled =
       interactionMode === "cluster" || interactionMode === "composite";
-    const selectedClusterId = currentCluster?.clusterId;
-    const selectedSegKey = currentCluster?.segmentationKey;
-    if (selectedSegKey && selectedSegKey === SEGMENTATION_KEYS.INTERACTIVE) {
-      return;
-    }
+    const selectedClusterId = selectedCluster;
     const optionsChanged =
       selectedClusterId !== prevRenderOptions.selectedClusterId ||
-      selectedSegKey !== prevRenderOptions.selectedSegKey ||
       interactionMode !== prevRenderOptions.interactionMode ||
       grayscaleLabeled !== prevRenderOptions.grayscaleLabeled;
 
     if (optionsChanged) {
       pixelRenderers.forEach((renderer) => {
         renderer.update({
-          selectedCluster: $state.snapshot(currentCluster),
+          selectedCluster: selectedCluster
+            ? { clusterId: selectedCluster }
+            : null,
           interactionMode,
           grayscaleLabeled,
         });
       });
       prevRenderOptions = {
         selectedClusterId,
-        selectedSegKey,
         interactionMode,
         grayscaleLabeled,
       };
@@ -269,13 +252,14 @@
       }
     }
   });
-
   $effect(() => {
-    if (
-      currentSegmentationKey !== prevKey &&
-      selectedCluster?.segmentationKey !== currentSegmentationKey
-    ) {
-      mapState.clearSelectedCluster();
+    if (!isLayerVisible) {
+      selectedCluster = null;
+    }
+  });
+  $effect(() => {
+    if (currentSegmentationKey !== prevKey) {
+      selectedCluster = null;
     }
     prevKey = currentSegmentationKey;
   });
