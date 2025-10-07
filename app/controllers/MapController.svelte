@@ -1,6 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { ClassificationHierarchy } from "../js/classification.js";
+  import { CLUSTER_ID_RANGES } from "../js/utils.js";
   import { MapManager } from "../js/map-manager.js";
 
   let { segmentationController, interactiveController } = $props();
