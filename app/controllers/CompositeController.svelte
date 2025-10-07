@@ -12,9 +12,6 @@
       dataState.userLabelsVersion > lastProcessedUserVersion
   );
   let compositeState = $state(null);
-  let currentSegmentationKey = $derived(
-    segmentationController?.getState()?.currentSegmentationKey
-  );
 
   const stateObject = {
     get compositeState() {

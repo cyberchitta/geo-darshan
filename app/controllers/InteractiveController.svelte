@@ -23,7 +23,6 @@
   let layerGroup = $state(null);
   let interactiveSegmentation = $state(null);
   let isLayerVisible = $state(false);
-  let lastProcessedSegmentationKey = $state(null);
   let currentSegmentationKey = $derived(
     segmentationController?.getState()?.currentSegmentationKey
   );
