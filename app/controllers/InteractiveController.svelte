@@ -20,15 +20,9 @@
   let layerGroup = $state(null);
   let interactiveSegmentation = $state(null);
   let isLayerVisible = $state(false);
-  let lastProcessedHierarchyLevel = $state(null);
   let lastProcessedSegmentationKey = $state(null);
-  let syntheticVersion = $state(0);
   let currentSegmentationKey = $derived(
     segmentationController?.getState()?.currentSegmentationKey
-  );
-  let shouldRegenerateInteractive = $derived(
-    compositeState?.georaster &&
-      currentSegmentationKey !== lastProcessedSegmentationKey
   );
   let processedInteractiveRaster = $state(null);
   let selectedCluster = $derived(mapState?.selectedCluster);
@@ -169,7 +163,6 @@
     };
   });
 
-  // Track previous options to prevent unnecessary updates
   let prevInteractiveOptions = {
     hasInitialized: false,
     currentSegmentationKey: undefined,
