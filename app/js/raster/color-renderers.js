@@ -45,7 +45,7 @@ class ClusterRenderer {
   }
 
   render(values) {
-    if (!values || values.length === 0 || values[0] === 0) return null;
+    if (!values || values.length === 0) return null;
     const clusterId = values[0];
     if (CLUSTER_ID_RANGES.isNoData(clusterId)) return null;
     if (
@@ -92,7 +92,7 @@ class ClassificationRenderer {
   }
 
   render(values) {
-    if (!values || values.length === 0 || values[0] === 0) return null;
+    if (!values || values.length === 0) return null;
     const clusterId = values[0];
     if (CLUSTER_ID_RANGES.isNoData(clusterId)) return null;
     if (
