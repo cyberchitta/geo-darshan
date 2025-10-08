@@ -210,21 +210,16 @@ class SegmentedRaster {
    */
   buildRegistry(colorFn) {
     const pixelCounts = new Map();
-
-    // Count pixels per cluster
     this._raster.forEach((coord, value) => {
       if (value !== CLUSTER_ID_RANGES.NODATA) {
         pixelCounts.set(value, (pixelCounts.get(value) || 0) + 1);
       }
     });
-
-    // Build new registry
     const newRegistry = new ClusterRegistry();
     pixelCounts.forEach((count, clusterId) => {
       const { classificationPath, color } = colorFn(clusterId);
       newRegistry.add(clusterId, count, classificationPath, color);
     });
-
     return new SegmentedRaster(this._raster, newRegistry);
   }
 

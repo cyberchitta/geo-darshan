@@ -92,7 +92,6 @@ class ClusterRegistry {
     if (!cluster) {
       return false;
     }
-
     cluster.classificationPath = classificationPath;
     cluster.color = color;
     return true;
@@ -109,7 +108,6 @@ class ClusterRegistry {
     if (!cluster) {
       return false;
     }
-
     cluster.pixelCount = pixelCount;
     cluster.area_ha = (pixelCount * 0.01).toFixed(2);
     return true;
@@ -166,7 +164,6 @@ class ClusterRegistry {
    */
   toColorMapping() {
     const colorsRgb = [];
-
     this._clusters.forEach((cluster, id) => {
       if (cluster.color === null) {
         colorsRgb[id] = null;
@@ -174,7 +171,6 @@ class ClusterRegistry {
         colorsRgb[id] = this._parseRgbColor(cluster.color);
       }
     });
-
     return {
       method: "cluster_specific",
       colors_rgb: colorsRgb,
