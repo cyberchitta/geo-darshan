@@ -99,17 +99,32 @@ class RasterFactory {
    * @returns {SegmentedRaster}
    */
   static createSynthetic(key, referenceRaster) {
-    const emptyRaster = referenceRaster.createEmpty(CLUSTER_ID_RANGES.NODATA);
+    const values = referenceRaster.cloneValues();
+    let unlabeledPixelCount = 0;
+    for (let y = 0; y < referenceRaster.height; y++) {
+      for (let x = 0; x < referenceRaster.width; x++) {
+        if (values[y][x] !== CLUSTER_ID_RANGES.NODATA) {
+          values[y][x] = CLUSTER_ID_RANGES.UNLABELED;
+          unlabeledPixelCount++;
+        }
+      }
+    }
     const registry = new ClusterRegistry();
+    registry.add(
+      CLUSTER_ID_RANGES.UNLABELED,
+      unlabeledPixelCount,
+      "unlabeled",
+      null
+    );
     const metadata = {
       key,
       source: "user_labels",
       created: new Date().toISOString(),
     };
     const rasterWithMetadata = new Raster(
-      emptyRaster.cloneValues(),
-      emptyRaster.georeferencing,
-      { ...emptyRaster.metadata, segmentation: metadata }
+      values,
+      referenceRaster.georeferencing,
+      { ...referenceRaster.metadata, segmentation: metadata }
     );
     return new SegmentedRaster(rasterWithMetadata, registry);
   }

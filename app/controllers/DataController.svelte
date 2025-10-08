@@ -18,6 +18,7 @@
   let userLabelsVersion = $state(0);
   let clusterLabels = $state({});
   let overlayMap = $state(new Map());
+  let segmentedRastersVersion = $state(0);
 
   const stateObject = {
     get aoiName() {
@@ -38,11 +39,32 @@
     get segmentedRasters() {
       return segmentedRasters;
     },
+    get segmentedRastersVersion() {
+      return segmentedRastersVersion;
+    },
     get userLabelsVersion() {
       return userLabelsVersion;
     },
     addSegmentedRaster: (key, segRaster) => {
       segmentedRasters.set(key, segRaster);
+    },
+    updateSegmentedRaster: (key, segRaster) => {
+      segmentedRasters.set(key, segRaster);
+      segmentedRastersVersion++;
+      const clusters = segRaster.getAllClusters();
+      const labels = {};
+      clusters.forEach((cluster) => {
+        if (cluster.classificationPath !== "unlabeled") {
+          labels[cluster.id] = cluster.classificationPath;
+        }
+      });
+      clusterLabels = {
+        ...clusterLabels,
+        [key]: labels,
+      };
+      if (dataIO) {
+        dataIO.saveLabelsToStorage(clusterLabels);
+      }
     },
     removeSegmentedRaster: (key) => {
       segmentedRasters.delete(key);
@@ -183,11 +205,13 @@
     if (segRaster) {
       const color =
         ClassificationHierarchy.getColorForClassification(classificationPath);
-      segRaster.registry.updateClassification(
+      const updated = segRaster.setClassification(
         clusterId,
         classificationPath,
         color
       );
+      segmentedRasters.set(segmentationKey, updated);
+      segmentedRastersVersion++;
     }
     clusterLabels = {
       ...clusterLabels,
@@ -196,12 +220,6 @@
         [clusterId]: classificationPath,
       },
     };
-    if (
-      segmentationKey !== SEGMENTATION_KEYS.COMPOSITE &&
-      segmentationKey !== SEGMENTATION_KEYS.INTERACTIVE
-    ) {
-      userLabelsVersion++;
-    }
     if (dataIO) {
       dataIO.saveLabelsToStorage(clusterLabels);
     }

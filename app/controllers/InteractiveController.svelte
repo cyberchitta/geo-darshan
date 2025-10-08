@@ -91,14 +91,9 @@
           syntheticSegRaster,
           hierarchyLevel
         );
-      dataState.addSegmentedRaster(
+      dataState.updateSegmentedRaster(
         SEGMENTATION_KEYS.SYNTHETIC,
         updatedSynthetic
-      );
-      dataState.setClusterLabel(
-        SEGMENTATION_KEYS.SYNTHETIC,
-        syntheticId,
-        classificationPath
       );
       showBriefMessage(
         `Created synthetic cluster ${syntheticId} with classification: ${classificationPath}`
