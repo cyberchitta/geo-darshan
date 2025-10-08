@@ -38,8 +38,6 @@
 
   const callbacks = {
     onLabelChange: handleLabelChange,
-    onRegionCancel: handleRegionCancel,
-    onRegionCommit: handleRegionCommit,
     onSegmentationChange: (frameIndex) =>
       appState.segmentation.goToFrame?.(frameIndex),
   };
@@ -97,20 +95,6 @@
     const overlay = document.getElementById("loading-overlay");
     if (overlay) {
       overlay.classList.add("hidden");
-    }
-  }
-
-  function handleRegionCancel() {
-    mapState.cancelSelection?.();
-  }
-
-  function handleRegionCommit(classificationPath) {
-    if (mapState.selectedRegion && interactiveState) {
-      interactiveState.labelRegion(
-        mapState.selectedRegion.region,
-        classificationPath
-      );
-      mapState.clearSelectedRegion?.();
     }
   }
 </script>

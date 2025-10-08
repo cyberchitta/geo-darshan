@@ -7,12 +7,7 @@
   import HierarchySelector from "./HierarchySelector.svelte";
   import { ClassificationHierarchy } from "../js/classification.js";
   let { appState, callbacks } = $props();
-  const {
-    onLabelChange,
-    onRegionCancel,
-    onRegionCommit,
-    onSegmentationChange,
-  } = callbacks;
+  const { onLabelChange, onSegmentationChange } = callbacks;
   let segmentationState = $derived(appState.segmentation);
   let dataState = $derived(appState.data);
   let interactiveState = $derived(appState.interactive);
@@ -144,10 +139,13 @@
   });
 
   function handleRegionCommit(clusterId, selectedOption) {
-    onRegionCommit?.(selectedOption.path);
+    const region = interactiveState?.selectedRegion?.region;
+    if (region) {
+      interactiveState.labelRegion(region, selectedOption.path);
+    }
   }
   function handleRegionCancel() {
-    onRegionCancel?.();
+    interactiveState?.cancelSelection?.();
   }
   function handleSegmentationChange(event) {
     const newSegmentationKey = event.target.value;
