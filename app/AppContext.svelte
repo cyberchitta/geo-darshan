@@ -1,5 +1,5 @@
 <script>
-  import { mount, onMount } from "svelte";
+  import { onMount } from "svelte";
   import DataController from "./controllers/DataController.svelte";
   import SegmentationController from "./controllers/SegmentationController.svelte";
   import MapController from "./controllers/MapController.svelte";
@@ -54,18 +54,6 @@
 
   onMount(async () => {
     window.addEventListener("clearData", clearData);
-    const controlsTarget = document.getElementById("svelte-controls-panel");
-    if (controlsTarget) {
-      mount(ControlsPanel, {
-        target: controlsTarget,
-        props: {
-          segmentationState,
-          mapState,
-          classificationState: appState.classification,
-          interactiveState: appState.interactive,
-        },
-      });
-    }
   });
 
   function coordinateDataLoading(manifest, overlays) {
@@ -156,10 +144,29 @@
   />
 {/if}
 
-{#if dataState?.dataIO && mapState?.mapManager && segmentationController}
-  <LegendPanel {appState} {callbacks} />
-  <MapInfoPanel
-    currentLabel={mapState.currentHoverLabel}
-    isVisible={mapState.interactionMode === "composite"}
-  />
-{/if}
+<div class="viewer-container">
+  <div class="main-content">
+    <div id="map" class="map-container"></div>
+    {#if dataState?.dataIO && mapState?.mapManager && segmentationController}
+      <div class="controls-container">
+        <ControlsPanel
+          {segmentationState}
+          {mapState}
+          classificationState={appState.classification}
+          interactiveState={appState.interactive}
+        />
+      </div>
+      <MapInfoPanel
+        currentLabel={mapState.currentHoverLabel}
+        isVisible={mapState.interactionMode === "composite"}
+      />
+    {/if}
+  </div>
+  <div class="right-panel">
+    <div class="legend-panel-container">
+      {#if dataState?.dataIO && mapState?.mapManager && segmentationController}
+        <LegendPanel {appState} {callbacks} />
+      {/if}
+    </div>
+  </div>
+</div>

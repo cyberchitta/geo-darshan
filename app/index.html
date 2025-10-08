@@ -16,16 +16,7 @@
 </head>
 
 <body>
-  <div class="viewer-container">
-    <div class="main-content">
-      <div id="map" class="map-container">
-        <div id="svelte-controls-panel"></div>
-      </div>
-    </div>
-    <div class="right-panel">
-      <div id="svelte-legend-panel" class="legend-panel-container"></div>
-    </div>
-  </div>
+  <div id="app"></div>
   <div id="loading-overlay" class="loading-overlay hidden">
     <div class="loading-spinner"></div>
     <div class="loading-text">Loading cluster data...</div>
@@ -42,11 +33,10 @@
     window.rasterHandler = rasterHandler;
     window.GeoRasterAdapter = GeoRasterAdapter;
     document.addEventListener("DOMContentLoaded", async () => {
-      const svelteLegend = mount(AppContext, {
-        target: document.getElementById("svelte-legend-panel"),
+      mount(AppContext, {
+        target: document.getElementById("app"),
         props: {}
       });
-      window.svelteLegend = svelteLegend;
     });
   </script>
 </body>

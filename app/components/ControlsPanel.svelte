@@ -46,10 +46,8 @@
 
 <style>
   .controls-panel {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
+    position: static;
+    pointer-events: auto;
     background: rgba(255, 255, 255, 0.95);
     border-radius: 8px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
