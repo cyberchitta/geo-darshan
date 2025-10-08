@@ -28,7 +28,8 @@
   );
   let displayRasterValues = $state(null);
   let selectedPixelData = $state(new Map());
-
+  let lastCompositeGen = $state(0);
+  let lastSegKey = $state(null);
   const stateObject = {
     get interactiveSegmentation() {
       return baseInteractiveSegmentation;
@@ -172,22 +173,16 @@
     updateDisplayLayer();
     hasInitialized = true;
   });
-  let lastSegKey = $state(null);
-  let lastSynthVersion = $state(0);
   $effect(() => {
     if (!hasInitialized || !isLayerVisible) return;
-    const currentKey = currentSegmentationKey;
-    const synthVersion =
-      dataState.segmentedRasters
-        ?.get(SEGMENTATION_KEYS.SYNTHETIC)
-        ?.registry.size() || 0;
+    const currentGen = compositeState?.generation || 0;
     const needsRegeneration =
-      currentKey !== lastSegKey || synthVersion !== lastSynthVersion;
+      currentSegmentationKey !== lastSegKey || currentGen !== lastCompositeGen;
     if (needsRegeneration) {
       createInteractiveSegmentation();
       updateDisplayLayer();
-      lastSegKey = currentKey;
-      lastSynthVersion = synthVersion;
+      lastSegKey = currentSegmentationKey;
+      lastCompositeGen = currentGen;
     }
   });
   let lastHierLevel = $state(null);

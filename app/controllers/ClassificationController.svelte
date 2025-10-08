@@ -13,7 +13,7 @@
   let hierarchyLevel = $state(1);
   let classificationColorCache = $state(new Map());
   let isLayerVisible = $state(false);
-
+  let lastGen = $state(0);
   const stateObject = {
     get hierarchyLevel() {
       return hierarchyLevel;
@@ -121,6 +121,17 @@
       !classificationLayer
     ) {
       createClassificationLayer();
+    }
+  });
+  $effect(() => {
+    const currentGen = compositeState?.generation || 0;
+    if (
+      currentGen !== lastGen &&
+      compositeState?.compositeSegRaster &&
+      layerGroup
+    ) {
+      refreshLayer();
+      lastGen = currentGen;
     }
   });
 

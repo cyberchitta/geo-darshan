@@ -7,11 +7,15 @@
   let { dataState } = $props();
   let hasSegmentedRasters = $derived(dataState?.segmentedRasters?.size > 0);
   let compositeState = $state(null);
+  let compositeGeneration = $state(0);
   let lastSegmentedRastersVersion = $state(-1);
 
   const stateObject = {
     get compositeState() {
       return compositeState;
+    },
+    get compositeGeneration() {
+      return compositeGeneration;
     },
   };
 
@@ -34,7 +38,11 @@
           dataState.segmentedRasters,
           allLabelsMap
         );
-        compositeState = compositeResult;
+        compositeGeneration++;
+        compositeState = {
+          ...compositeResult,
+          generation: compositeGeneration,
+        };
         lastSegmentedRastersVersion = currentVersion;
       } catch (error) {
         console.error("Failed to generate composite:", error);
