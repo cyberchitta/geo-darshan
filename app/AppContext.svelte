@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from "svelte";
+  import { mount, onMount } from "svelte";
   import DataController from "./controllers/DataController.svelte";
   import SegmentationController from "./controllers/SegmentationController.svelte";
   import MapController from "./controllers/MapController.svelte";
@@ -54,6 +54,18 @@
 
   onMount(async () => {
     window.addEventListener("clearData", clearData);
+    const controlsTarget = document.getElementById("svelte-controls-panel");
+    if (controlsTarget) {
+      mount(ControlsPanel, {
+        target: controlsTarget,
+        props: {
+          segmentationState,
+          mapState,
+          classificationState: appState.classification,
+          interactiveState: appState.interactive,
+        },
+      });
+    }
   });
 
   function coordinateDataLoading(manifest, overlays) {
@@ -146,12 +158,6 @@
 
 {#if dataState?.dataIO && mapState?.mapManager && segmentationController}
   <LegendPanel {appState} {callbacks} />
-  <ControlsPanel
-    {segmentationState}
-    {mapState}
-    classificationState={appState.classification}
-    interactiveState={appState.interactive}
-  />
   <MapInfoPanel
     currentLabel={mapState.currentHoverLabel}
     isVisible={mapState.interactionMode === "composite"}

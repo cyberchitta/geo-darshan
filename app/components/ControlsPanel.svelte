@@ -57,7 +57,7 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
     z-index: 1000;
     transition: all 0.3s ease;
-    max-width: 90vw;
+    max-width: calc(100% - 40px);
     min-width: 320px;
   }
 
