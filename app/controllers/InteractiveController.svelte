@@ -21,20 +21,20 @@
   let interactiveLayer = $state(null);
   let pixelRenderer = $state(null);
   let layerGroup = $state(null);
-  let interactiveSegmentation = $state(null);
+  let baseInteractiveSegmentation = $state(null);
   let isLayerVisible = $state(false);
   let currentSegmentationKey = $derived(
     segmentationController?.getState()?.currentSegmentationKey
   );
-  let processedInteractiveRaster = $state(null);
+  let displayRasterValues = $state(null);
   let selectedPixelData = $state(new Map());
 
   const stateObject = {
     get interactiveSegmentation() {
-      return interactiveSegmentation;
+      return baseInteractiveSegmentation;
     },
-    get processedInteractiveRaster() {
-      return processedInteractiveRaster;
+    get displayRasterValues() {
+      return displayRasterValues;
     },
     get hasActiveLayer() {
       return interactiveLayer && isLayerVisible;
@@ -46,25 +46,25 @@
       return selectedRegion;
     },
     handleCompositeClick: async (latlng) => {
-      if (!interactiveSegmentation) return null;
+      if (!baseInteractiveSegmentation) return null;
       const pixelCoord = RegionLabeler.latlngToPixelCoord(
         latlng,
-        interactiveSegmentation
+        baseInteractiveSegmentation
       );
       if (!pixelCoord) return null;
       const isUnlabeled = RegionLabeler.isPixelUnlabeled(
         pixelCoord,
-        interactiveSegmentation
+        baseInteractiveSegmentation
       );
       if (!isUnlabeled) return null;
       const contiguousRegion = RegionLabeler.findContiguousRegion(
         pixelCoord,
-        interactiveSegmentation
+        baseInteractiveSegmentation
       );
       if (contiguousRegion.length === 0) return null;
       const suggestions = RegionLabeler.analyzeNeighborhood(
         contiguousRegion,
-        interactiveSegmentation
+        baseInteractiveSegmentation
       );
       markRegionAsSelected(contiguousRegion);
       selectedRegion = {
@@ -112,15 +112,15 @@
       }
     },
     selectClusterAt: async (latlng) => {
-      if (!processedInteractiveRaster || !interactiveSegmentation?.raster) {
+      if (!displayRasterValues || !baseInteractiveSegmentation?.raster) {
         return;
       }
-      const pixel = interactiveSegmentation.raster.latlngToPixel(latlng);
+      const pixel = baseInteractiveSegmentation.raster.latlngToPixel(latlng);
       if (!pixel) {
         selectedCluster = null;
         return;
       }
-      const clusterId = processedInteractiveRaster[pixel.y][pixel.x];
+      const clusterId = displayRasterValues[pixel.y][pixel.x];
       if (clusterId === CLUSTER_ID_RANGES.NODATA) {
         selectedCluster = null;
         return;
@@ -129,13 +129,13 @@
     },
     cancelSelection: () => {
       restoreOriginalValues();
-      createInteractiveLayer();
+      updateDisplayLayer();
       selectedRegion = null;
     },
     clearSelection: () => {
       if (selectedPixelData.size > 0) {
         restoreOriginalValues();
-        createInteractiveLayer();
+        updateDisplayLayer();
       }
       selectedCluster = null;
       selectedRegion = null;
@@ -174,7 +174,7 @@
       return;
     if (!dataState.segmentedRasters?.has(currentSegmentationKey)) return;
     createInteractiveSegmentation();
-    createInteractiveLayer();
+    updateDisplayLayer();
     hasInitialized = true;
   });
   let lastSegKey = $state(null);
@@ -190,7 +190,7 @@
       currentKey !== lastSegKey || synthVersion !== lastSynthVersion;
     if (needsRegeneration) {
       createInteractiveSegmentation();
-      createInteractiveLayer();
+      updateDisplayLayer();
       lastSegKey = currentKey;
       lastSynthVersion = synthVersion;
     }
@@ -213,7 +213,7 @@
         selectedCluster: cluster ? { clusterId: cluster } : null,
         interactionMode: mode,
       });
-      createInteractiveLayer();
+      updateDisplayLayer();
       lastHierLevel = hierLevel;
       lastCluster = cluster;
       lastMode = mode;
@@ -233,23 +233,22 @@
   });
 
   function markRegionAsSelected(region) {
-    if (!processedInteractiveRaster) return;
+    if (!displayRasterValues) return;
     selectedPixelData.clear();
     region.forEach((pixel) => {
       const key = `${pixel.x},${pixel.y}`;
-      const original = processedInteractiveRaster[pixel.y][pixel.x];
+      const original = displayRasterValues[pixel.y][pixel.x];
       selectedPixelData.set(key, original);
-      processedInteractiveRaster[pixel.y][pixel.x] =
-        CLUSTER_ID_RANGES.SELECTED_REGION;
+      displayRasterValues[pixel.y][pixel.x] = CLUSTER_ID_RANGES.SELECTED_REGION;
     });
-    createInteractiveLayer();
+    updateDisplayLayer();
   }
 
   function restoreOriginalValues() {
-    if (!processedInteractiveRaster || selectedPixelData.size === 0) return;
+    if (!displayRasterValues || selectedPixelData.size === 0) return;
     selectedPixelData.forEach((original, key) => {
       const [x, y] = key.split(",").map(Number);
-      processedInteractiveRaster[y][x] = original;
+      displayRasterValues[y][x] = original;
     });
     selectedPixelData.clear();
   }
@@ -283,8 +282,8 @@
         color,
       };
     });
-    processedInteractiveRaster = aggregated.raster.toGeoRaster().values[0];
-    interactiveSegmentation = aggregated;
+    displayRasterValues = aggregated.raster.toGeoRaster().values[0];
+    baseInteractiveSegmentation = aggregated;
     pixelRenderer = new ClassificationRenderer(aggregated, {
       hierarchyLevel,
       interactionMode,
@@ -293,14 +292,18 @@
     });
   }
 
-  function createInteractiveLayer() {
-    if (!interactiveSegmentation || !pixelRenderer) return;
+  function updateDisplayLayer() {
+    if (!baseInteractiveSegmentation || !pixelRenderer) return;
     if (interactiveLayer) {
       layerGroup.removeLayer(interactiveLayer);
     }
-    const interactiveGeoRaster = interactiveSegmentation.raster.toGeoRaster();
+    const baseGeoRaster = baseInteractiveSegmentation.raster.toGeoRaster();
+    const displayGeoRaster = {
+      ...baseGeoRaster,
+      values: [displayRasterValues],
+    };
     interactiveLayer = mapManager.rasterHandler.createMapLayer(
-      interactiveGeoRaster,
+      displayGeoRaster,
       {
         pixelValuesToColorFn: (values) => pixelRenderer.render(values),
         zIndex: 3000,
