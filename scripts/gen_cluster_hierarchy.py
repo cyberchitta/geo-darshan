@@ -2,12 +2,18 @@
 
 import sys
 from pathlib import Path
-import json
 from dataclasses import dataclass
 import traceback
 from typing import List, Dict, Any
 import numpy as np
-import yaml
+
+sys.path.insert(0, str(Path(__file__).parent))
+from lib.config import (
+    load_config,
+    get_source_config,
+    get_current_segmentation,
+    resolve_aoi_path,
+)
 
 try:
     from alpha_bhu.data import load_aef_embeddings, reshape_for_clustering
@@ -18,11 +24,6 @@ except ImportError as e:
     print(f"Error importing alpha-bhu: {e}")
     print("Ensure alpha-bhu is installed or in Python path")
     sys.exit(1)
-
-
-# ============================================================================
-# CONFIGURATION
-# ============================================================================
 
 
 @dataclass(frozen=True)
@@ -37,24 +38,14 @@ class ClusterConfig:
     overwrite_existing: bool = True
 
     @classmethod
-    def from_range(
-        cls, k_min: int, k_max: int, k_step: int = 2, **kwargs: Any
-    ) -> "ClusterConfig":
-        k_values = list(range(k_min, k_max + 1, k_step))
-        return cls(k_values=k_values, **kwargs)
-
-    @classmethod
-    def from_config(
-        cls, seg_config: Dict[str, Any], aoi_config: Dict[str, Any]
-    ) -> "ClusterConfig":
-        input_file = (
-            Path(aoi_config["output_dir"]) / "inputs" / "aef" / seg_config["input_file"]
-        )
-        output_dir = (
-            Path(aoi_config["output_dir"])
-            / "intermediates"
-            / seg_config.get("output_subdir", "clusters")
-        )
+    def from_config(cls, config: Dict[str, Any]) -> "ClusterConfig":
+        aoi_path = config["aoi_path"]
+        aoi_config = config["aoi_config"]
+        seg_name, seg_config = get_current_segmentation(aoi_config)
+        source_config = get_source_config(aoi_config, seg_config["source"])
+        input_file = resolve_aoi_path(aoi_path, source_config["input_file"])
+        output_subdir = seg_config.get("output_subdir", "clusters")
+        output_dir = resolve_aoi_path(aoi_path, f"intermediates/{output_subdir}")
         return cls(
             aef_file=input_file,
             output_dir=output_dir,
@@ -85,7 +76,6 @@ def generate_hierarchical_clusters(
         print("=" * 55)
         print(f"Output directory: {config.output_dir.resolve()}")
         print(f"K range: {config.k_values}")
-
     if config.output_dir.exists() and not config.overwrite_existing:
         print(f"❌ Output directory exists, skipping: {config.output_dir}")
         return
@@ -110,44 +100,21 @@ def generate_hierarchical_clusters(
         config.output_dir,
         verbose=config.verbose,
     )
-    web_config = {
-        "format_version": "1.0",
-        "data_type": "hierarchical_clusters",
-        "data_bounds": metadata["bounds"],
-        "data_crs": str(metadata["crs"]),
-        "cluster_files": [f.name for f in results["exported_files"].values()],
-        "color_legend_file": "color_legend.json",
-        "manifest_file": "manifest.json",
-        "k_values": config.k_values,
-        "nodata_value": -1,
-        "color_method": "hierarchical",
-        "n_color_families": config.n_color_families,
-        "generated": results["manifest"]["generated"],
-    }
-    with open(config.output_dir / "web_config.json", "w") as f:
-        json.dump(web_config, f, indent=2)
     if config.verbose:
         print("✅ Hierarchical clustering generation complete!")
         print(f"📁 {len(results['exported_files'])} cluster rasters")
         print("🎨 1 color legend file")
-        print(f"🌐 Web config: {config.output_dir}/web_config.json")
-
+        print("📄 1 manifest file")
 
 def main():
-    config_path = Path(__file__).parent.parent / "config.yaml"
-    if not config_path.exists():
-        raise FileNotFoundError(f"config.yaml not found: {config_path}")
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
-    seg_name = config["segmentation"]["current"]
-    seg_config = config["segmentation"][seg_name]
-    aoi_name = seg_config["aoi"]
-    aoi_config = config["aoi"][aoi_name]
-    cluster_config = ClusterConfig.from_config(seg_config, aoi_config)
-    verbose = cluster_config.verbose
+    project_root = Path(__file__).parent.parent
     try:
+        config = load_config(project_root)
+        cluster_config = ClusterConfig.from_config(config)
+        verbose = cluster_config.verbose
         cluster_config.validate()
         if verbose:
+            print(f"AOI: {config['aoi_name']}")
             print(f"Input file: {cluster_config.aef_file.resolve()}")
         if verbose:
             print(f"\n📊 Loading AEF embeddings from {cluster_config.aef_file.name}...")
@@ -170,7 +137,7 @@ def main():
             print("  • web_config.json (client integration info)")
     except Exception as e:
         print(f"❌ An error occurred: {e}")
-        if verbose:
+        if cluster_config.verbose if "cluster_config" in locals() else True:
             traceback.print_exc()
         sys.exit(1)
 

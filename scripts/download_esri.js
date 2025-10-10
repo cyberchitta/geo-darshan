@@ -1,111 +1,92 @@
 import { mkdir, writeFile } from "fs/promises";
+import { access } from "fs/promises";
 import * as path from "node:path";
-import yaml from "js-yaml";
 import shapefile from "shapefile";
 import bbox from "@turf/bbox";
 import SphericalMercator from "sphericalmercator";
+import { loadConfig, getSourceConfig, resolveAoiPath } from "./lib/config.js";
 
 async function main() {
-  const configPath = path.join(__dirname, "..", "config.yaml");
-  const configFile = await fs.readFile(configPath, "utf8");
-  const config = yaml.load(configFile);
-  const aoiName = config.aoi.current;
-  const aoiConfig = config.aoi[aoiName];
-  if (!aoiConfig || aoiConfig.source !== "esri") {
-    throw new Error(`No ESRI config for AOI: ${aoiName}`);
-  }
+  const projectRoot = path.join(import.meta.dirname, "..");
+  const config = loadConfig(projectRoot);
+  const aoiConfig = config.aoiConfig;
+  const esriConfig = getSourceConfig(aoiConfig, "esri");
   let bounds;
   if (aoiConfig.shapefile_path) {
-    const shpPath = path.resolve(aoiConfig.shapefile_path);
+    const shpPath = resolveAoiPath(config.aoiPath, aoiConfig.shapefile_path);
     if (
-      !(await fs
-        .access(shpPath)
+      !(await access(shpPath)
         .then(() => true)
         .catch(() => false))
     ) {
       throw new Error(`Shapefile not found: ${shpPath}`);
     }
-    const [headers, features] = await shapefile.read(shpPath);
+    const source = await shapefile.open(shpPath);
+    const features = [];
+    let result = await source.read();
+    while (!result.done) {
+      features.push(result.value);
+      result = await source.read();
+    }
     const featureCollection = { type: "FeatureCollection", features };
-    const computedBbox = bbox(featureCollection); // [west, south, east, north]
+    const computedBbox = bbox(featureCollection);
     bounds = [
       computedBbox[1],
       computedBbox[0],
       computedBbox[3],
       computedBbox[2],
-    ]; // ESRI: [south, west, north, east]
+    ];
     console.log(`Computed bounds from shapefile: [${bounds.join(", ")}]`);
   } else if (aoiConfig.bounds) {
     bounds = aoiConfig.bounds;
   } else {
-    throw new Error("No bounds or shapefile_path in config");
+    throw new Error("No bounds or shapefile_path in AOI config");
   }
-  const zoom = aoiConfig.scale;
-  const OUTPUT_DIR = path.join(aoiConfig.output_dir, "inputs", "esri");
+  const zoom = esriConfig.zoom;
+  const OUTPUT_DIR = resolveAoiPath(config.aoiPath, "inputs/esri");
   const CONFIG = {
-    zoom, // Use scale from config
+    zoom,
     batchSize: 10,
     batchDelayMs: 500,
     maxRetries: 3,
     baseRetryDelayMs: 1000,
   };
-  const ROI = bounds; // [west, south, east, north] from config/compute
-  const ESRI_URL =
-    "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-  const merc = new SphericalMercator({ size: 256 });
-  await ensureOutputDir();
+  const ROI = bounds;
+  await ensureOutputDir(OUTPUT_DIR);
   const tiles = getTilesForBbox(ROI[0], ROI[1], ROI[2], ROI[3], CONFIG.zoom);
   console.log(
-    `Fetching ${tiles.length} tiles for AOI '${aoiName}' at zoom ${CONFIG.zoom}...`
+    `Fetching ${tiles.length} tiles for AOI '${config.aoiName}' at zoom ${CONFIG.zoom}...`
   );
-  await fetchTilesInBatches(tiles);
+  await fetchTilesInBatches(tiles, OUTPUT_DIR, CONFIG);
   console.log(
-    `Tile download complete for '${aoiName}'. Run 'bun run stitch-tiles' to create COG.`
+    `Tile download complete for '${config.aoiName}'. Run 'bun run stitch-tiles' to create COG.`
   );
 }
 
 function getTilesForBbox(west, south, east, north, zoom) {
+  const merc = new SphericalMercator({ size: 256 });
   const tiles = [];
-  const minTileX = Math.floor(((west + 180) / 360) * Math.pow(2, zoom));
-  const maxTileX = Math.floor(((east + 180) / 360) * Math.pow(2, zoom));
-  const minTileY = Math.floor(
-    ((1 -
-      Math.log(
-        Math.tan((north * Math.PI) / 180) +
-          1 / Math.cos((north * Math.PI) / 180)
-      ) /
-        Math.PI) /
-      2) *
-      Math.pow(2, zoom)
-  );
-  const maxTileY = Math.floor(
-    ((1 -
-      Math.log(
-        Math.tan((south * Math.PI) / 180) +
-          1 / Math.cos((south * Math.PI) / 180)
-      ) /
-        Math.PI) /
-      2) *
-      Math.pow(2, zoom)
-  );
-  for (let x = minTileX; x <= maxTileX; x++) {
-    for (let y = minTileY; y <= maxTileY; y++) {
+  const minTile = merc.xyz([west, south, east, north], zoom);
+  for (let x = minTile.minX; x <= minTile.maxX; x++) {
+    for (let y = minTile.minY; y <= minTile.maxY; y++) {
       tiles.push({ x, y, z: zoom });
     }
   }
   return tiles;
 }
 
-async function ensureOutputDir() {
+async function ensureOutputDir(outputDir) {
   try {
-    await mkdir(OUTPUT_DIR, { recursive: true });
+    await mkdir(outputDir, { recursive: true });
   } catch (error) {
-    console.error(`Failed to create directory ${OUTPUT_DIR}: ${error.message}`);
+    console.error(`Failed to create directory ${outputDir}: ${error.message}`);
     process.exit(1);
   }
 }
 
-async function fetchTileWithRetry(tile, attempt = 1) {
+async function fetchTileWithRetry(tile, outputDir, config, attempt = 1) {
+  const ESRI_URL =
+    "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
   const url = ESRI_URL.replace("{z}", tile.z)
     .replace("{y}", tile.y)
     .replace("{x}", tile.x);
@@ -113,16 +94,16 @@ async function fetchTileWithRetry(tile, attempt = 1) {
     const response = await fetch(url);
     if (!response.ok) {
       if (response.status === 429 || response.status === 503) {
-        if (attempt <= CONFIG.maxRetries) {
-          const delay = CONFIG.baseRetryDelayMs * Math.pow(2, attempt - 1);
+        if (attempt <= config.maxRetries) {
+          const delay = config.baseRetryDelayMs * Math.pow(2, attempt - 1);
           console.warn(
-            `Rate limit or server error for tile ${tile.x}/${tile.y}/${tile.z}. Retrying (${attempt}/${CONFIG.maxRetries}) after ${delay}ms...`
+            `Rate limit or server error for tile ${tile.x}/${tile.y}/${tile.z}. Retrying (${attempt}/${config.maxRetries}) after ${delay}ms...`
           );
           await new Promise((resolve) => setTimeout(resolve, delay));
-          return fetchTileWithRetry(tile, attempt + 1);
+          return fetchTileWithRetry(tile, outputDir, config, attempt + 1);
         }
         throw new Error(
-          `Failed tile ${tile.x}/${tile.y}/${tile.z} after ${CONFIG.maxRetries} retries: ${response.status}`
+          `Failed tile ${tile.x}/${tile.y}/${tile.z} after ${config.maxRetries} retries: ${response.status}`
         );
       }
       throw new Error(
@@ -130,39 +111,39 @@ async function fetchTileWithRetry(tile, attempt = 1) {
       );
     }
     const buffer = await response.arrayBuffer();
-    const filePath = `${OUTPUT_DIR}/tile_${tile.z}_${tile.x}_${tile.y}.jpg`; // .jpg for ESRI
+    const filePath = `${outputDir}/tile_${tile.z}_${tile.x}_${tile.y}.jpg`;
     await writeFile(filePath, new Uint8Array(buffer));
     console.log(`Downloaded tile ${tile.x}/${tile.y}/${tile.z}`);
   } catch (error) {
     console.error(
       `Error fetching tile ${tile.x}/${tile.y}/${tile.z}: ${error.message}`
     );
-    if (attempt <= CONFIG.maxRetries) {
-      const delay = CONFIG.baseRetryDelayMs * Math.pow(2, attempt - 1);
+    if (attempt <= config.maxRetries) {
+      const delay = config.baseRetryDelayMs * Math.pow(2, attempt - 1);
       console.warn(
-        `Retrying (${attempt}/${CONFIG.maxRetries}) after ${delay}ms...`
+        `Retrying (${attempt}/${config.maxRetries}) after ${delay}ms...`
       );
       await new Promise((resolve) => setTimeout(resolve, delay));
-      return fetchTileWithRetry(tile, attempt + 1);
+      return fetchTileWithRetry(tile, outputDir, config, attempt + 1);
     }
     console.error(
-      `Gave up on tile ${tile.x}/${tile.y}/${tile.z} after ${CONFIG.maxRetries} retries.`
+      `Gave up on tile ${tile.x}/${tile.y}/${tile.z} after ${config.maxRetries} retries.`
     );
   }
 }
 
-async function fetchTilesInBatches(tiles) {
-  for (let i = 0; i < tiles.length; i += CONFIG.batchSize) {
-    const batch = tiles.slice(i, i + CONFIG.batchSize);
+async function fetchTilesInBatches(tiles, outputDir, config) {
+  for (let i = 0; i < tiles.length; i += config.batchSize) {
+    const batch = tiles.slice(i, i + config.batchSize);
     console.log(
-      `Processing batch ${Math.floor(i / CONFIG.batchSize) + 1} of ${Math.ceil(
-        tiles.length / CONFIG.batchSize
-      )}...`
+      `Processing batch ${Math.floor(i / config.batchSize) + 1} of ${Math.ceil(tiles.length / config.batchSize)}...`
     );
-    await Promise.all(batch.map((tile) => fetchTileWithRetry(tile)));
-    if (i + CONFIG.batchSize < tiles.length) {
-      console.log(`Waiting ${CONFIG.batchDelayMs}ms before next batch...`);
-      await new Promise((resolve) => setTimeout(resolve, CONFIG.batchDelayMs));
+    await Promise.all(
+      batch.map((tile) => fetchTileWithRetry(tile, outputDir, config))
+    );
+    if (i + config.batchSize < tiles.length) {
+      console.log(`Waiting ${config.batchDelayMs}ms before next batch...`);
+      await new Promise((resolve) => setTimeout(resolve, config.batchDelayMs));
     }
   }
 }
