@@ -224,6 +224,7 @@
 
   function markRegionAsSelected(region) {
     if (!displayRasterValues) return;
+    restoreOriginalValues();
     selectedPixelData.clear();
     region.forEach((pixel) => {
       const key = `${pixel.x},${pixel.y}`;
