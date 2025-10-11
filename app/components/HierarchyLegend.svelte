@@ -3,6 +3,8 @@
   import TreeNode from "./TreeNode.svelte";
 
   let { dataState, classificationController } = $props();
+  let hierarchyColors = $derived(dataState?.hierarchyColors);
+  let hasHierarchy = $derived(dataState?.hasHierarchy);
   let hierarchyLevel = $derived(classificationController?.hierarchyLevel || 1);
   let isExporting = $state(false);
   let expandedNodes = $state(new Set());
@@ -18,7 +20,7 @@
   );
   let labeledPaths = $derived(extractLabeledPaths(dataState?.segmentedRasters));
   let treeData = $derived(
-    ClassificationHierarchy.isLoaded() && labeledPaths.size > 0
+    hasHierarchy && labeledPaths.size > 0
       ? buildHierarchyTree(labeledPaths, hierarchyLevel)
       : []
   );
@@ -105,10 +107,9 @@
   }
 
   function buildHierarchyTree(labeledPaths, maxLevel) {
-    if (!ClassificationHierarchy.isLoaded() || labeledPaths.size === 0) {
+    if (!hasHierarchy || labeledPaths.size === 0) {
       return [];
     }
-    const hierarchy = ClassificationHierarchy.getInstance();
     const pathCounts = new Map();
     for (const path of labeledPaths) {
       const pathParts = path.split(".");
@@ -129,7 +130,10 @@
       const name = pathParts[pathParts.length - 1];
       let color = null;
       try {
-        const hierarchyColor = hierarchy.getColorForPath(path);
+        const hierarchyColor = ClassificationHierarchy.getColorForPath(
+          path,
+          hierarchyColors
+        );
         color = hierarchyColor
           ? `#${hierarchyColor.replace("#", "")}`
           : "#888888";

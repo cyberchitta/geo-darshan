@@ -7,18 +7,18 @@
     suggestions = [],
     disabled = false,
     onSelectionChange = null,
+    hierarchy = null,
   } = $props();
 
   let selectElement = $state();
   let selectionState = $state("unlabeled");
   let options = $state([]);
   $effect(() => {
-    if (!ClassificationHierarchy.isLoaded()) {
+    if (!hierarchy) {
       options = [];
       return;
     }
-    const allOptions =
-      ClassificationHierarchy.getInstance().getSelectableOptions();
+    const allOptions = ClassificationHierarchy.getSelectableOptions(hierarchy);
     if (!suggestions || suggestions.length === 0) {
       options = allOptions;
       return;

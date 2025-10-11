@@ -1,77 +1,53 @@
 import { CLUSTER_ID_RANGES, hexToRgb, SEGMENTATION_KEYS } from "./utils.js";
 
 class ClassificationHierarchy {
-  constructor(hierarchyData, colorData) {
-    this.hierarchy = hierarchyData;
-    this.colors = colorData;
-    this.flatPaths = this.flattenHierarchy();
-  }
-
-  static getColorForClassification(classificationPath, hierarchyLevel = null) {
+  static getColorForClassification(
+    classificationPath,
+    colorData,
+    hierarchyLevel = null
+  ) {
     if (!classificationPath || classificationPath === "unlabeled") {
       return null;
     }
-    const hierarchy = ClassificationHierarchy.getInstance();
     const effectivePath = hierarchyLevel
       ? PixelClassifier.truncateToHierarchyLevel(
           classificationPath,
           hierarchyLevel
         )
       : classificationPath;
-    const hexColor = hierarchy.getColorForPath(effectivePath);
-    return `rgb(${hexToRgb(hexColor)})`;
+    const hexColor = this.getColorForPath(effectivePath, colorData);
+    return hexColor ? `rgb(${hexToRgb(hexColor)})` : null;
   }
 
-  static async loadFromFile(
-    hierarchyUrl = "hierarchy.json",
-    colorUrl = "hierarchy-colors.json"
-  ) {
-    try {
-      const [hierarchyResponse, colorResponse] = await Promise.all([
-        fetch(hierarchyUrl),
-        fetch(colorUrl),
-      ]);
-      if (!hierarchyResponse.ok) {
-        throw new Error(
-          `Failed to load hierarchy: ${hierarchyResponse.status} ${hierarchyResponse.statusText}`
-        );
-      }
-      if (!colorResponse.ok) {
-        throw new Error(
-          `Failed to load colors: ${colorResponse.status} ${colorResponse.statusText}`
-        );
-      }
-      const [hierarchyData, colorData] = await Promise.all([
-        hierarchyResponse.json(),
-        colorResponse.json(),
-      ]);
-      const instance = new ClassificationHierarchy(hierarchyData, colorData);
-      ClassificationHierarchy._instance = instance;
-      console.log(
-        "✅ Classification hierarchy and colors loaded as singleton service"
-      );
-      return instance;
-    } catch (error) {
-      console.error(
-        "Failed to load classification hierarchy or colors:",
-        error
-      );
-      throw error;
+  static getColorForPath(path, colorData) {
+    if (!path || !colorData) return null;
+    if (colorData[path]) {
+      return colorData[path];
     }
-  }
-
-  static getInstance() {
-    if (!ClassificationHierarchy._instance) {
-      throw new Error("Hierarchy not loaded. Call loadFromFile() first.");
+    const pathParts = path.split(".");
+    while (pathParts.length > 0) {
+      pathParts.pop();
+      const parentPath = pathParts.join(".");
+      if (colorData[parentPath]) {
+        return colorData[parentPath];
+      }
     }
-    return ClassificationHierarchy._instance;
+    throw new Error(`No color mapping found for path: ${path}`);
   }
 
-  static isLoaded() {
-    return !!ClassificationHierarchy._instance;
+  static getSelectableOptions(hierarchyData) {
+    const unlabeled = {
+      path: "unlabeled",
+      displayPath: "Unlabeled",
+      level: 0,
+      description: "Not yet classified",
+      isLeaf: true,
+    };
+    const flatPaths = this.flattenHierarchy(hierarchyData);
+    return [unlabeled, ...flatPaths];
   }
 
-  flattenHierarchy(obj = this.hierarchy, currentPath = [], result = []) {
+  static flattenHierarchy(obj, currentPath = [], result = []) {
     for (const [key, value] of Object.entries(obj)) {
       if (key.startsWith("_")) continue;
       const newPath = [...currentPath, key];
@@ -92,59 +68,19 @@ class ClassificationHierarchy {
     return result;
   }
 
-  getSelectableOptions() {
-    return [
-      {
-        path: "unlabeled",
-        displayPath: "Unlabeled",
-        level: 0,
-        description: "Not yet classified",
-        isLeaf: true,
-      },
-      ...this.flatPaths,
-    ];
-  }
-
-  getPathByPrefix(prefix) {
-    return this.flatPaths.filter((item) => item.path.startsWith(prefix));
-  }
-
-  getColorForPath(path, level = null) {
-    if (!path) return null;
-    const pathParts = path.split(".");
-    const truncatedPath = level ? pathParts.slice(0, level).join(".") : path;
-    return this.findColorInColorMapping(truncatedPath);
-  }
-
-  findColorInColorMapping(path) {
-    if (!path) return null;
-    if (this.colors[path]) {
-      return this.colors[path];
-    }
-    const pathParts = path.split(".");
-    while (pathParts.length > 0) {
-      pathParts.pop();
-      const parentPath = pathParts.join(".");
-      if (this.colors[parentPath]) {
-        return this.colors[parentPath];
-      }
-    }
-    throw new Error(`No color mapping found for path: ${path}`);
-  }
-
-  getHierarchyItemsAtLevel(level) {
+  static getHierarchyItemsAtLevel(hierarchyData, colorData, level) {
     const items = [];
-    this.traverseHierarchy(this.hierarchy, [], items, level);
+    this.traverseHierarchy(hierarchyData, colorData, [], items, level);
     return items.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  traverseHierarchy(obj, currentPath, items, targetLevel) {
+  static traverseHierarchy(obj, colorData, currentPath, items, targetLevel) {
     for (const [key, value] of Object.entries(obj)) {
       if (key.startsWith("_")) continue;
       const newPath = [...currentPath, key];
       if (newPath.length === targetLevel) {
         const path = newPath.join(".");
-        const color = this.findColorInColorMapping(path);
+        const color = this.getColorForPath(path, colorData);
         items.push({
           path: path,
           name: key,
@@ -152,21 +88,28 @@ class ClassificationHierarchy {
           color: color.startsWith("#") ? color : `#${color}`,
         });
       } else if (newPath.length < targetLevel) {
-        this.traverseHierarchy(value, newPath, items, targetLevel);
+        this.traverseHierarchy(value, colorData, newPath, items, targetLevel);
       }
     }
+  }
+
+  static getPathsByPrefix(hierarchyData, prefix) {
+    const flatPaths = this.flattenHierarchy(hierarchyData);
+    return flatPaths.filter((item) => item.path.startsWith(prefix));
   }
 }
 
 class PixelClassifier {
   constructor(
-    hierarchy,
+    hierarchyData,
+    colorData,
     compositeData,
     clusterIdMapping,
     segmentations,
     hierarchyLevel
   ) {
-    this.hierarchy = hierarchy;
+    this.hierarchyData = hierarchyData;
+    this.colorData = colorData;
     this.compositeData = compositeData;
     this.clusterIdMapping = clusterIdMapping;
     this.segmentations = segmentations;
@@ -260,7 +203,12 @@ class PixelClassifier {
     return rasterData;
   }
 
-  static createColorMapping(pixelMapping, hierarchy, hierarchyLevel) {
+  static createColorMapping(
+    pixelMapping,
+    hierarchyData,
+    colorData,
+    hierarchyLevel
+  ) {
     const colorMapping = {};
     colorMapping[CLUSTER_ID_RANGES.NODATA] = "#000000";
     colorMapping[CLUSTER_ID_RANGES.UNLABELED] = null;
@@ -268,9 +216,9 @@ class PixelClassifier {
       if (classificationPath === "unlabeled") {
         return;
       }
-      const color = hierarchy.getColorForPath(
+      const color = ClassificationHierarchy.getColorForPath(
         classificationPath,
-        hierarchyLevel
+        colorData
       );
       colorMapping[id] = color;
     });

@@ -8,6 +8,9 @@
   } from "../js/classification.js";
 
   let { compositeState, dataState, mapManager, dataIO } = $props();
+  let hierarchy = $derived(dataState.hierarchy);
+  let hierarchyColors = $derived(dataState.hierarchyColors);
+  let hasHierarchy = $derived(dataState.hasHierarchy);
   let classificationLayer = $state(null);
   let layerGroup = $state(null);
   let hierarchyLevel = $state(1);
@@ -52,7 +55,7 @@
     },
     exportLandCoverFiles: async () => {
       try {
-        if (!window.ClassificationHierarchy?.isLoaded()) {
+        if (!hasHierarchy) {
           throw new Error("Classification hierarchy not loaded");
         }
         if (!compositeState?.compositeSegRaster) {
@@ -67,6 +70,7 @@
         }
         const classifier = new PixelClassifier(
           hierarchy,
+          hierarchyColors,
           compositeState.compositeSegRaster.raster.toGeoRaster(),
           compositeState.clusterIdMapping,
           dataState.segmentedRasters,
@@ -76,6 +80,7 @@
         const colorMapping = PixelClassifier.createColorMapping(
           pixelMapping,
           hierarchy,
+          hierarchyColors,
           hierarchyLevel
         );
         const geotiffBlob = await generateCompositeGeotiff(classifier);
@@ -159,6 +164,9 @@
     if (!values || values.length === 0 || values[0] === 0) {
       return null;
     }
+    if (!hasHierarchy) {
+      return null;
+    }
     const uniqueId = values[0];
     if (
       CLUSTER_ID_RANGES.isNoData(uniqueId) ||
@@ -194,6 +202,7 @@
     }
     const rgbColor = ClassificationHierarchy.getColorForClassification(
       classificationPath,
+      hierarchyColors,
       hierarchyLevel
     );
     classificationColorCache.set(cacheKey, rgbColor);

@@ -74,6 +74,7 @@ class ClassificationRenderer {
   constructor(segmentedRaster, options = {}) {
     this._segmentedRaster = segmentedRaster;
     this._hierarchyLevel = options.hierarchyLevel || 1;
+    this._hierarchyColors = options.hierarchyColors || null;
     this._interactionMode = options.interactionMode || "view";
     this._selectedCluster = options.selectedCluster || null;
     this._grayscaleLabeled = options.grayscaleLabeled || false;
@@ -82,6 +83,7 @@ class ClassificationRenderer {
 
   update(options) {
     this._hierarchyLevel = options.hierarchyLevel ?? this._hierarchyLevel;
+    this._hierarchyColors = options.hierarchyColors ?? this._hierarchyColors;
     this._interactionMode = options.interactionMode ?? this._interactionMode;
     this._selectedCluster =
       "selectedCluster" in options
@@ -123,6 +125,7 @@ class ClassificationRenderer {
     }
     const color = ClassificationHierarchy.getColorForClassification(
       classificationPath,
+      this._hierarchyColors,
       this._hierarchyLevel
     );
     this._colorCache.set(cacheKey, color);

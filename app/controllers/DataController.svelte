@@ -19,6 +19,8 @@
   let clusterLabels = $state({});
   let overlayMap = $state(new Map());
   let segmentedRastersVersion = $state(0);
+  let hierarchyData = $state(null);
+  let hierarchyColors = $state(null);
 
   const stateObject = {
     get aoiName() {
@@ -44,6 +46,15 @@
     },
     get userLabelsVersion() {
       return userLabelsVersion;
+    },
+    get hierarchy() {
+      return hierarchyData;
+    },
+    get hierarchyColors() {
+      return hierarchyColors;
+    },
+    get hasHierarchy() {
+      return hierarchyData !== null && hierarchyColors !== null;
     },
     addSegmentedRaster: (key, segRaster) => {
       segmentedRasters.set(key, segRaster);
@@ -129,8 +140,15 @@
     console.log("✅ Restored labels to cluster registries");
   }
 
-  async function handleLoadComplete(manifestData, overlayData) {
+  async function handleLoadComplete(
+    manifestData,
+    overlayData,
+    hierarchyResult
+  ) {
     try {
+      hierarchyData = hierarchyResult.hierarchy;
+      hierarchyColors = hierarchyResult.colors;
+      console.log("✅ Loaded hierarchy and colors");
       overlayData.forEach((overlay) => {
         overlayMap.set(overlay.segmentationKey, overlay);
       });
@@ -179,20 +197,11 @@
       const rootDir = firstFile.webkitRelativePath
         ? firstFile.webkitRelativePath.split("/")[0]
         : "unknown-aoi";
-      const intermediatesPrefix = `${rootDir}/intermediates/`;
-      const filteredFiles = loadFiles.filter((f) =>
-        f.webkitRelativePath.startsWith(intermediatesPrefix)
-      );
-      if (filteredFiles.length === 0) {
-        throw new Error(
-          `No files in ${rootDir}/intermediates/ subfolder—ensure AOI structure is correct`
-        );
-      }
       aoiName = rootDir;
       console.log("DataController: Starting folder load...");
       isLoading = true;
       error = null;
-      dataIO.loadFromFolder(filteredFiles);
+      dataIO.loadFromFolder(loadFiles);
     } catch (err) {
       console.error("Failed to load from folder:", err);
       error = err.message;
@@ -203,8 +212,11 @@
   function setClusterLabel(segmentationKey, clusterId, classificationPath) {
     const segRaster = segmentedRasters.get(segmentationKey);
     if (segRaster) {
-      const color =
-        ClassificationHierarchy.getColorForClassification(classificationPath);
+      const color = ClassificationHierarchy.getColorForClassification(
+        classificationPath,
+        hierarchyColors,
+        null
+      );
       const updated = segRaster.setClassification(
         clusterId,
         classificationPath,

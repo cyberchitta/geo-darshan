@@ -30,6 +30,9 @@
   let selectedPixelData = $state(new Map());
   let lastCompositeGen = $state(0);
   let lastSegKey = $state(null);
+  let hierarchy = $derived(dataState.hierarchy);
+  let hierarchyColors = $derived(dataState.hierarchyColors);
+  let hasHierarchy = $derived(dataState.hasHierarchy);
   const stateObject = {
     get interactiveSegmentation() {
       return baseInteractiveSegmentation;
@@ -77,6 +80,10 @@
       return selectedRegion;
     },
     labelRegion: (region, classificationPath) => {
+      if (!hasHierarchy) {
+        console.error("Hierarchy not loaded");
+        return null;
+      }
       restoreOriginalValues();
       const syntheticSegRaster = dataState.segmentedRasters?.get(
         SEGMENTATION_KEYS.SYNTHETIC
@@ -90,6 +97,8 @@
           region,
           classificationPath,
           syntheticSegRaster,
+          hierarchy,
+          hierarchyColors,
           hierarchyLevel
         );
       dataState.updateSegmentedRaster(
@@ -200,6 +209,7 @@
     if (needsUpdate) {
       pixelRenderer = pixelRenderer.update({
         hierarchyLevel: hierLevel,
+        hierarchyColors,
         selectedCluster: cluster ? { clusterId: cluster } : null,
         interactionMode: mode,
       });
@@ -245,7 +255,7 @@
   }
 
   function createInteractiveSegmentation() {
-    if (!compositeState?.compositeSegRaster) return;
+    if (!compositeState?.compositeSegRaster || !hasHierarchy) return;
     const compositeSegRaster = dataState.segmentedRasters?.get(
       SEGMENTATION_KEYS.COMPOSITE
     );
@@ -266,6 +276,7 @@
           ? null
           : ClassificationHierarchy.getColorForClassification(
               cluster.classificationPath,
+              hierarchyColors,
               hierarchyLevel
             );
       return {
@@ -277,6 +288,7 @@
     baseInteractiveSegmentation = aggregated;
     pixelRenderer = new ClassificationRenderer(aggregated, {
       hierarchyLevel,
+      hierarchyColors,
       interactionMode,
       selectedCluster: selectedCluster ? { clusterId: selectedCluster } : null,
       grayscaleLabeled: false,

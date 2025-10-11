@@ -52,7 +52,6 @@
 
   onMount(async () => {
     try {
-      await ClassificationHierarchy.loadFromFile();
       const rasterHandler = window.rasterHandler;
       if (!rasterHandler) {
         throw new Error(

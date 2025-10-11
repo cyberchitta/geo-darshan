@@ -11,6 +11,9 @@
   let segmentationState = $derived(appState.segmentation);
   let dataState = $derived(appState.data);
   let interactiveState = $derived(appState.interactive);
+  let hierarchy = $derived(appState.data?.hierarchy);
+  let hierarchyColors = $derived(appState.data?.hierarchyColors);
+  let hasHierarchy = $derived(appState.data?.hasHierarchy);
   let hierarchyLevel = $derived(appState.classification?.hierarchyLevel || 1);
   let segmentationSelectedCluster = $derived(
     segmentationState?.selectedCluster
@@ -281,11 +284,12 @@
   }
   function calculateSyntheticColors(segRaster, level) {
     const colorMap = new Map();
-    if (!ClassificationHierarchy.isLoaded()) return colorMap;
+    if (!hasHierarchy) return colorMap;
     const clusters = segRaster.getAllClusters();
     clusters.forEach((cluster) => {
       const rgbColor = ClassificationHierarchy.getColorForClassification(
         cluster.classificationPath,
+        hierarchyColors,
         level
       );
       const hexColor = rgbColor ? rgbToHex(rgbColor) : null;
@@ -477,6 +481,7 @@
                 currentSelection={currentLabels[cluster.id]}
                 suggestions={clusterSuggestions}
                 onSelectionChange={handleLabelChange}
+                {hierarchy}
               />
             </div>
           </button>
@@ -500,6 +505,7 @@
                 currentSelection="unlabeled"
                 suggestions={selectedRegion.suggestions || []}
                 onSelectionChange={handleRegionCommit}
+                {hierarchy}
               />
             </div>
             <div class="region-actions">
@@ -554,6 +560,7 @@
                     currentSelection={syntheticLabels[cluster.id] ||
                       "unlabeled"}
                     onSelectionChange={handleSyntheticLabelChange}
+                    {hierarchy}
                   />
                 </div>
               </button>

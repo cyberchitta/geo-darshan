@@ -6,6 +6,9 @@
 
   let { dataState } = $props();
   let hasSegmentedRasters = $derived(dataState?.segmentedRasters?.size > 0);
+  let hierarchy = $derived(dataState?.hierarchy);
+  let hierarchyColors = $derived(dataState?.hierarchyColors);
+  let hasHierarchy = $derived(dataState?.hasHierarchy);
   let compositeState = $state(null);
   let compositeGeneration = $state(0);
   let lastSegmentedRastersVersion = $state(-1);
@@ -24,13 +27,10 @@
   }
 
   $effect(async () => {
-    if (!hasSegmentedRasters) return;
+    if (!hasSegmentedRasters || !hasHierarchy) return;
     const currentVersion = dataState.segmentedRastersVersion;
     if (currentVersion !== lastSegmentedRastersVersion) {
       try {
-        if (!ClassificationHierarchy.isLoaded()) {
-          return;
-        }
         const allLabelsMap = SegmentedRaster.extractLabeledClusters(
           dataState.segmentedRasters
         );
@@ -91,7 +91,9 @@
     aggregated.getAllClusters().forEach((cluster) => {
       if (cluster.classificationPath !== "unlabeled") {
         const color = ClassificationHierarchy.getColorForClassification(
-          cluster.classificationPath
+          cluster.classificationPath,
+          hierarchyColors,
+          null
         );
         aggregated.registry.updateClassification(
           cluster.id,

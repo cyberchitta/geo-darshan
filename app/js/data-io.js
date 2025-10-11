@@ -1,6 +1,8 @@
+import yaml from "js-yaml";
 import { STORAGE_KEYS } from "./utils.js";
 import { GeoTIFFExporter } from "./raster/geotiff-exporter.js";
 import { Raster } from "./raster/raster.js";
+import { ClassificationHierarchy } from "./classification.js";
 
 class DataIO {
   constructor(rasterHandler = null) {
@@ -25,17 +27,50 @@ class DataIO {
 
   async loadFromFolder(files) {
     try {
+      const configFile = Array.from(files).find(
+        (f) => f.name === "config.yaml"
+      );
+      if (!configFile) {
+        throw new Error("config.yaml not found in selected folder");
+      }
+      const configText = await this.readFileAsText(configFile);
+      const config = yaml.load(configText);
+      const rootDir = files[0].webkitRelativePath?.split("/")[0] || "";
+      const hierarchyPath = `${rootDir}/${config.files.hierarchy}`;
+      const hierarchyColorsPath = `${rootDir}/${config.files.hierarchy_colors}`;
+      const hierarchyFile = Array.from(files).find(
+        (f) => f.webkitRelativePath === hierarchyPath
+      );
+      const hierarchyColorsFile = Array.from(files).find(
+        (f) => f.webkitRelativePath === hierarchyColorsPath
+      );
+      if (!hierarchyFile || !hierarchyColorsFile) {
+        throw new Error(
+          `Hierarchy files not found: ${hierarchyPath}, ${hierarchyColorsPath}`
+        );
+      }
+      const hierarchyResult = await this.loadHierarchyFromFiles(
+        hierarchyFile,
+        hierarchyColorsFile
+      );
+      const currentSeg = config.segmentation.current;
+      const segConfig = config.segmentation.configs[currentSeg];
+      const intermediatesPath = `${config.files.intermediates_dir}/${segConfig.output_subdir}/`;
       const manifestFile = Array.from(files).find(
-        (f) => f.name === "manifest.json"
+        (f) =>
+          f.webkitRelativePath?.includes(intermediatesPath) &&
+          f.name === "manifest.json"
       );
       if (!manifestFile) {
-        throw new Error("manifest.json not found in selected files");
+        throw new Error(`manifest.json not found in ${intermediatesPath}`);
       }
       const colorLegendFile = Array.from(files).find(
-        (f) => f.name === "color_legend.json"
+        (f) =>
+          f.webkitRelativePath?.includes(intermediatesPath) &&
+          f.name === "color_legend.json"
       );
       if (!colorLegendFile) {
-        throw new Error("color_legend.json not found in selected files");
+        throw new Error(`color_legend.json not found in ${intermediatesPath}`);
       }
       const manifestText = await this.readFileAsText(manifestFile);
       const manifest = JSON.parse(manifestText);
@@ -45,16 +80,28 @@ class DataIO {
       this.processColorLegend(colorLegend, manifest);
       const fileMap = new Map();
       Array.from(files).forEach((file) => {
-        if (file.name.endsWith(".tif") || file.name.endsWith(".tiff")) {
+        if (
+          file.webkitRelativePath?.includes(intermediatesPath) &&
+          (file.name.endsWith(".tif") || file.name.endsWith(".tiff"))
+        ) {
           fileMap.set(file.name, file);
         }
       });
       const overlays = await this.loadGeoRastersFromFiles(manifest, fileMap);
-      this.emit("loadComplete", manifest, overlays);
+      this.emit("loadComplete", manifest, overlays, hierarchyResult);
     } catch (error) {
       console.error("Failed to load from folder:", error);
       this.emit("loadError", error);
     }
+  }
+
+  async loadHierarchyFromFiles(hierarchyFile, colorsFile) {
+    const hierarchyText = await this.readFileAsText(hierarchyFile);
+    const colorsText = await this.readFileAsText(colorsFile);
+    return {
+      hierarchy: JSON.parse(hierarchyText),
+      colors: JSON.parse(colorsText),
+    };
   }
 
   processColorLegend(colorLegend, manifest) {

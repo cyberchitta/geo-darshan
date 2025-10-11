@@ -79,6 +79,8 @@ class RegionLabeler {
     region,
     classificationPath,
     syntheticSegRaster,
+    hierarchyData,
+    hierarchyColors,
     hierarchyLevel = null
   ) {
     if (!syntheticSegRaster) {
@@ -99,6 +101,7 @@ class RegionLabeler {
     );
     const color = ClassificationHierarchy.getColorForClassification(
       classificationPath,
+      hierarchyColors,
       hierarchyLevel
     );
     const newRegistry = syntheticSegRaster.registry.clone();
