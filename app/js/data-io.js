@@ -53,6 +53,23 @@ class DataIO {
         hierarchyFile,
         hierarchyColorsFile
       );
+      let shapefileData = null;
+      if (config.files?.reference_labels) {
+        const shapefilePath = `${rootDir}/${config.files.reference_labels}`;
+        const shapefileFile = Array.from(files).find(
+          (f) => f.webkitRelativePath === shapefilePath
+        );
+        if (shapefileFile) {
+          try {
+            shapefileData = await this.loadShapefile(shapefileFile);
+            console.log("✅ Loaded reference labels shapefile");
+          } catch (error) {
+            console.warn("Failed to load reference labels shapefile:", error);
+          }
+        } else {
+          console.warn(`Reference labels file not found: ${shapefilePath}`);
+        }
+      }
       const currentSeg = config.segmentation.current;
       const segConfig = config.segmentation.configs[currentSeg];
       const intermediatesPath = `${config.files.intermediates_dir}/${segConfig.output_subdir}/`;
@@ -88,10 +105,31 @@ class DataIO {
         }
       });
       const overlays = await this.loadGeoRastersFromFiles(manifest, fileMap);
-      this.emit("loadComplete", manifest, overlays, hierarchyResult);
+      this.emit(
+        "loadComplete",
+        manifest,
+        overlays,
+        hierarchyResult,
+        shapefileData
+      );
     } catch (error) {
       console.error("Failed to load from folder:", error);
       this.emit("loadError", error);
+    }
+  }
+
+  async loadShapefile(file) {
+    try {
+      if (!window.shp) {
+        throw new Error("shpjs library not loaded");
+      }
+      const arrayBuffer = await this.readFileAsArrayBuffer(file);
+      const geojson = await window.shp(arrayBuffer);
+      console.log("✅ Shapefile loaded:", geojson.features.length, "features");
+      return geojson;
+    } catch (error) {
+      console.error("Failed to load shapefile:", error);
+      throw new Error(`Shapefile loading failed: ${error.message}`);
     }
   }
 

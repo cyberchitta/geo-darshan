@@ -21,6 +21,7 @@
   let segmentedRastersVersion = $state(0);
   let hierarchyData = $state(null);
   let hierarchyColors = $state(null);
+  let shapefileData = $state(null);
 
   const stateObject = {
     get aoiName() {
@@ -55,6 +56,9 @@
     },
     get hasHierarchy() {
       return hierarchyData !== null && hierarchyColors !== null;
+    },
+    get shapefile() {
+      return shapefileData;
     },
     addSegmentedRaster: (key, segRaster) => {
       segmentedRasters.set(key, segRaster);
@@ -143,12 +147,21 @@
   async function handleLoadComplete(
     manifestData,
     overlayData,
-    hierarchyResult
+    hierarchyResult,
+    shapefile
   ) {
     try {
       hierarchyData = hierarchyResult.hierarchy;
       hierarchyColors = hierarchyResult.colors;
+      shapefileData = shapefile;
       console.log("✅ Loaded hierarchy and colors");
+      if (shapefile) {
+        console.log(
+          "✅ Loaded shapefile with",
+          shapefile.features.length,
+          "features"
+        );
+      }
       overlayData.forEach((overlay) => {
         overlayMap.set(overlay.segmentationKey, overlay);
       });
@@ -288,6 +301,7 @@
     manifest = null;
     overlayMap = new Map();
     segmentedRasters = new Map();
+    shapefileData = null;
     isLoading = false;
     error = null;
   }

@@ -6,6 +6,7 @@
   import CompositeController from "./controllers/CompositeController.svelte";
   import ClassificationController from "./controllers/ClassificationController.svelte";
   import InteractiveController from "./controllers/InteractiveController.svelte";
+  import ShapefileController from "./controllers/ShapefileController.svelte";
   import LegendPanel from "./components/LegendPanel.svelte";
   import ControlsPanel from "./components/ControlsPanel.svelte";
   import MapInfoPanel from "./components/MapInfoPanel.svelte";
@@ -17,6 +18,7 @@
   let compositeController = $state();
   let classificationController = $state();
   let interactiveController = $state();
+  let shapefileController = $state();
 
   let dataState = $derived(dataController?.getState());
   let segmentationState = $derived(segmentationController?.getState());
@@ -24,6 +26,7 @@
   let compositeState = $derived(compositeController?.getState());
   let classificationState = $derived(classificationController?.getState());
   let interactiveState = $derived(interactiveController?.getState());
+  let shapefileState = $derived(shapefileController?.getState());
 
   let hasCoordinated = $state(false);
 
@@ -34,6 +37,7 @@
     composite: compositeState,
     classification: classificationState,
     interactive: interactiveState,
+    shapefile: shapefileState,
   });
 
   const callbacks = {
@@ -111,6 +115,14 @@
     bind:this={mapController}
     {segmentationController}
     {interactiveController}
+  />
+{/if}
+
+{#if dataState?.dataIO && mapState?.mapManager && dataState?.shapefile}
+  <ShapefileController
+    bind:this={shapefileController}
+    {dataState}
+    mapManager={mapState.mapManager}
   />
 {/if}
 

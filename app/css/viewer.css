@@ -174,3 +174,17 @@ body {
     border-top: 1px solid #ddd;
   }
 }
+
+.shapefile-tooltip {
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #ff7800;
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.shapefile-tooltip strong {
+  color: #ff7800;
+}
