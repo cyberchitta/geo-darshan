@@ -1,14 +1,21 @@
 class ShapefileIntersection {
   static polygonToPixelMask(polygon, raster) {
-    const coordinates =
-      polygon.type === "Polygon"
-        ? polygon.coordinates[0]
-        : polygon.coordinates[0][0];
     const pixelCoords = new Set();
+    if (polygon.type === "Polygon") {
+      this._addPolygonToMask(polygon.coordinates[0], raster, pixelCoords);
+    } else if (polygon.type === "MultiPolygon") {
+      polygon.coordinates.forEach((polyCoords) => {
+        this._addPolygonToMask(polyCoords[0], raster, pixelCoords);
+      });
+    }
+    return pixelCoords;
+  }
+
+  static _addPolygonToMask(coordinates, raster, pixelCoords) {
     const vertices = coordinates
       .map(([lng, lat]) => raster.latlngToPixel({ lat, lng }))
       .filter((p) => p !== null);
-    if (vertices.length < 3) return pixelCoords;
+    if (vertices.length < 3) return;
     const minX = Math.floor(Math.min(...vertices.map((v) => v.x)));
     const maxX = Math.ceil(Math.max(...vertices.map((v) => v.x)));
     const minY = Math.floor(Math.min(...vertices.map((v) => v.y)));
@@ -20,7 +27,6 @@ class ShapefileIntersection {
         }
       }
     }
-    return pixelCoords;
   }
 
   static _isPointInPolygon(point, vertices) {
@@ -55,7 +61,7 @@ class ShapefileIntersection {
     return { intersectionCount, clusterSize, percentage };
   }
 
-  static findIntersectingClusters(polygon, segmentedRaster, threshold = 90) {
+  static findIntersectingClusters(polygon, segmentedRaster, threshold) {
     const pixelMask = this.polygonToPixelMask(polygon, segmentedRaster.raster);
     if (pixelMask.size === 0) return [];
     const results = [];

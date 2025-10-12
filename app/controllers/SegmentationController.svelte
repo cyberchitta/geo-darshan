@@ -26,9 +26,10 @@
     segmentationKey: currentSegmentationKey,
   });
   let filteredClusters = $state(null); // Map<clusterId, {intersectionPct, pixelCount}>
-  let intersectionThreshold = $state(90);
+  let intersectionThreshold = $state(30);
   let lastFilteredFrame = $state(null);
   let activeFilterGeometry = $state(null);
+  let filteredVersion = $state(0);
 
   const stateObject = {
     get currentFrame() {
@@ -60,6 +61,7 @@
     },
     clearFilter: () => {
       filteredClusters = null;
+      filteredVersion++;
     },
     stepForward: () => {
       if (totalFrames > 0) {
@@ -232,9 +234,13 @@
 
   function handleShapefileSelection(geometry) {
     activeFilterGeometry = geometry;
-    if (!layersReady || !currentSegmentationKey) return;
+    if (!layersReady || !currentSegmentationKey) {
+      return;
+    }
     const segRaster = dataState.segmentedRasters?.get(currentSegmentationKey);
-    if (!segRaster) return;
+    if (!segRaster) {
+      return;
+    }
     const results = ShapefileIntersection.findIntersectingClusters(
       geometry,
       segRaster,
@@ -242,7 +248,6 @@
     );
     if (results.length === 0) {
       filteredClusters = null;
-      console.log("No clusters found above threshold");
       return;
     }
     filteredClusters = new Map(
@@ -255,7 +260,7 @@
         },
       ])
     );
-    console.log(`✅ Found ${results.length} intersecting clusters`);
+    filteredVersion++;
   }
 
   export function getState() {
@@ -292,9 +297,6 @@
     const mode = interactionMode;
     const filteredIds = filteredClusters
       ? new Set(filteredClusters.keys())
-      : null;
-    const filteredVersion = filteredClusters
-      ? Array.from(filteredClusters.keys()).join(",")
       : null;
     const needsUpdate =
       clusterId !== lastRenderState.clusterId ||
@@ -348,11 +350,15 @@
     }
     lastFilteredFrame = frame;
   });
+  let listenerRegistered = $state(false);
+  $effect(() => {
+    if (mapManager && !listenerRegistered) {
+      mapManager.on("shapefileFeatureSelected", handleShapefileSelection);
+      listenerRegistered = true;
+    }
+  });
 
   onMount(() => {
-    if (mapManager) {
-      mapManager.on("shapefileFeatureSelected", handleShapefileSelection);
-    }
     return () => {
       if (layerGroup) {
         layerGroup._group.clearLayers();
