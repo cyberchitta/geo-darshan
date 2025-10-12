@@ -35,6 +35,7 @@ class ClusterRenderer {
     this._interactionMode = options.interactionMode || "view";
     this._selectedCluster = options.selectedCluster || null;
     this._grayscaleLabeled = options.grayscaleLabeled || false;
+    this._filteredClusterIds = options.filteredClusterIds || null;
   }
 
   update(options) {
@@ -44,6 +45,10 @@ class ClusterRenderer {
         ? options.selectedCluster
         : this._selectedCluster;
     this._grayscaleLabeled = options.grayscaleLabeled ?? this._grayscaleLabeled;
+    this._filteredClusterIds =
+      "filteredClusterIds" in options
+        ? options.filteredClusterIds
+        : this._filteredClusterIds;
     return this;
   }
 
@@ -58,6 +63,13 @@ class ClusterRenderer {
     if (!cluster) return null;
     let color = cluster.color;
     if (!color) return null;
+    if (
+      this._filteredClusterIds !== null &&
+      !this._filteredClusterIds.has(clusterId)
+    ) {
+      const grayColor = PixelRenderUtils.toGrayscale(color, 0.3);
+      return grayColor;
+    }
     if (
       PixelRenderUtils.shouldGrayscaleLabeled(
         cluster.classificationPath,

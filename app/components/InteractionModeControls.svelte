@@ -6,6 +6,7 @@
     mapState?.segmentationLayerVisible ?? false
   );
   let interactiveVisible = $derived(mapState?.interactiveLayerVisible ?? false);
+  let shapefileVisible = $derived(mapState?.shapefileLayerVisible ?? false);
 
   const modes = $derived([
     {
@@ -28,6 +29,13 @@
       icon: "🏷️",
       desc: "Click to label contiguous regions",
       available: interactiveVisible && !segmentationVisible,
+    },
+    {
+      id: "shapefile",
+      label: "Filter by Region",
+      icon: "🗺️",
+      desc: "Click shapefile regions to filter clusters",
+      available: segmentationVisible && shapefileVisible,
     },
   ]);
   $effect(() => {

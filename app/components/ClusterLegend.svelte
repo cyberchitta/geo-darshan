@@ -125,6 +125,31 @@
           : `regular-${cluster.id}`,
       }))
   );
+  let filteredClusters = $derived(segmentationState?.filteredClusters);
+  let hasFilter = $derived(filteredClusters !== null);
+  let intersectionThreshold = $derived(
+    segmentationState?.intersectionThreshold || 90
+  );
+  let sortedClusters = $derived.by(() => {
+    if (!hasFilter) {
+      return clusters;
+    }
+    const filtered = [];
+    const unfiltered = [];
+    clusters.forEach((cluster) => {
+      if (filteredClusters.has(cluster.id)) {
+        const metadata = filteredClusters.get(cluster.id);
+        filtered.push({ ...cluster, ...metadata });
+      } else {
+        unfiltered.push(cluster);
+      }
+    });
+    filtered.sort((a, b) => b.intersectionPct - a.intersectionPct);
+    return [...filtered, ...unfiltered];
+  });
+  let filteredCount = $derived(
+    hasFilter ? Array.from(filteredClusters.keys()).length : 0
+  );
   $effect(() => {
     if (
       segmentationSelectedCluster !== undefined &&
@@ -435,8 +460,23 @@
           No clusters in current segmentation
         </div>
       {:else}
-        {#each clusters as cluster (cluster.id)}
+        {#if hasFilter}
+          <div class="filter-summary">
+            <span
+              >Showing {filteredCount} clusters ≥ {intersectionThreshold}%
+              intersection</span
+            >
+            <button
+              class="clear-filter-btn"
+              onclick={() => segmentationState.clearFilter?.()}
+            >
+              Clear Filter
+            </button>
+          </div>
+        {/if}
+        {#each sortedClusters as cluster (cluster.id)}
           {@const isSelected = segmentationSelectedCluster === cluster.id}
+          {@const isFiltered = filteredClusters?.has(cluster.id)}
           {@const clusterSuggestions =
             isSelected && appState.map?.clusterSuggestions
               ? appState.map.clusterSuggestions
@@ -446,6 +486,7 @@
             class:labeled={currentLabels[cluster.id] &&
               currentLabels[cluster.id] !== "unlabeled"}
             class:focused={focusedClusterId === cluster.id}
+            class:dimmed={hasFilter && !isFiltered}
             data-cluster-id={cluster.id}
             aria-labelledby="cluster-{cluster.id}-label"
             aria-describedby="cluster-{cluster.id}-desc"
@@ -463,6 +504,14 @@
               <span id="cluster-{cluster.id}-label" class="cluster-id">
                 Cluster {cluster.id}
               </span>
+              {#if isFiltered}
+                <span
+                  class="intersection-badge"
+                  title="Intersection with shapefile region"
+                >
+                  {cluster.intersectionPct.toFixed(1)}%
+                </span>
+              {/if}
               <span class="cluster-stats"
                 >({cluster.pixelCount || 0} pixels)</span
               >
@@ -922,5 +971,49 @@
     .legend-cluster-item:hover {
       transform: none;
     }
+  }
+  .filter-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #eee;
+    font-size: 13px;
+    font-weight: 500;
+    color: #666;
+  }
+  .clear-filter-btn {
+    padding: 6px 12px;
+    background: #6c757d;
+    color: white;
+    border: 1px solid #6c757d;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  .clear-filter-btn:hover {
+    background: #5a6268;
+    border-color: #545b62;
+  }
+  .clear-filter-btn:focus {
+    outline: 2px solid #6c757d;
+    outline-offset: 2px;
+  }
+  .legend-cluster-item.dimmed {
+    opacity: 0.3;
+  }
+  .intersection-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    background: #28a745;
+    color: white;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: auto;
+    margin-right: 8px;
   }
 </style>

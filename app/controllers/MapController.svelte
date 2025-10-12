@@ -4,7 +4,8 @@
   import { CLUSTER_ID_RANGES } from "../js/utils.js";
   import { MapManager } from "../js/map-manager.js";
 
-  let { segmentationController, interactiveController } = $props();
+  let { segmentationController, interactiveController, shapefileController } =
+    $props();
   let mapManager = $state(null);
   let segmentationOpacity = $state(0.8);
   let interactiveOpacity = $state(0.8);
@@ -17,6 +18,9 @@
   );
   let interactiveLayerVisible = $derived(
     interactiveController?.getState()?.hasActiveLayer && interactiveOpacity > 0
+  );
+  let shapefileLayerVisible = $derived(
+    shapefileController?.getState?.()?.hasActiveLayer ?? false
   );
 
   const stateObject = {
@@ -34,6 +38,9 @@
     },
     get interactiveLayerVisible() {
       return interactiveLayerVisible;
+    },
+    get shapefileLayerVisible() {
+      return shapefileLayerVisible;
     },
     setOpacity: (value) => {
       segmentationOpacity = value;

@@ -115,6 +115,7 @@
     bind:this={mapController}
     {segmentationController}
     {interactiveController}
+    {shapefileController}
   />
 {/if}
 
@@ -122,6 +123,7 @@
   <ShapefileController
     bind:this={shapefileController}
     {dataState}
+    {mapState}
     mapManager={mapState.mapManager}
   />
 {/if}

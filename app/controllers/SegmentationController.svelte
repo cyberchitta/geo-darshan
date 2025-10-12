@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { ClusterRenderer } from "../js/raster/color-renderers.js";
   import { MapOverlay } from "../js/map-overlay.js";
+  import { ShapefileIntersection } from "../js/shapefile-intersection.js";
 
   let { mapState, dataState } = $props();
   let mapManager = $derived(mapState?.mapManager);
@@ -24,6 +25,10 @@
     total: totalFrames,
     segmentationKey: currentSegmentationKey,
   });
+  let filteredClusters = $state(null); // Map<clusterId, {intersectionPct, pixelCount}>
+  let intersectionThreshold = $state(90);
+  let lastFilteredFrame = $state(null);
+  let activeFilterGeometry = $state(null);
 
   const stateObject = {
     get currentFrame() {
@@ -43,6 +48,18 @@
     },
     get selectedCluster() {
       return selectedCluster;
+    },
+    get filteredClusters() {
+      return filteredClusters;
+    },
+    get intersectionThreshold() {
+      return intersectionThreshold;
+    },
+    setIntersectionThreshold: (threshold) => {
+      intersectionThreshold = threshold;
+    },
+    clearFilter: () => {
+      filteredClusters = null;
     },
     stepForward: () => {
       if (totalFrames > 0) {
@@ -157,10 +174,14 @@
     }
     const grayscaleLabeled =
       interactionMode === "cluster" || interactionMode === "composite";
+    const filteredIds = filteredClusters
+      ? new Set(filteredClusters.keys())
+      : null;
     const renderer = new ClusterRenderer(segRaster, segmentationKey, {
       interactionMode,
       selectedCluster: selectedCluster ? { clusterId: selectedCluster } : null,
       grayscaleLabeled,
+      filteredClusterIds: filteredIds,
     });
     const layer = mapManager.rasterHandler.createMapLayer(georaster, {
       opacity: 0,
@@ -209,6 +230,34 @@
     }
   }
 
+  function handleShapefileSelection(geometry) {
+    activeFilterGeometry = geometry;
+    if (!layersReady || !currentSegmentationKey) return;
+    const segRaster = dataState.segmentedRasters?.get(currentSegmentationKey);
+    if (!segRaster) return;
+    const results = ShapefileIntersection.findIntersectingClusters(
+      geometry,
+      segRaster,
+      intersectionThreshold
+    );
+    if (results.length === 0) {
+      filteredClusters = null;
+      console.log("No clusters found above threshold");
+      return;
+    }
+    filteredClusters = new Map(
+      results.map((r) => [
+        r.clusterId,
+        {
+          intersectionPct: r.intersectionPct,
+          pixelCount: r.pixelCount,
+          clusterSize: r.clusterSize,
+        },
+      ])
+    );
+    console.log(`✅ Found ${results.length} intersecting clusters`);
+  }
+
   export function getState() {
     return stateObject;
   }
@@ -233,6 +282,7 @@
     clusterId: undefined,
     mode: undefined,
     grayscale: undefined,
+    filteredVersion: undefined,
   });
   $effect(() => {
     if (!hasInitialized || !layersReady || !isLayerVisible) return;
@@ -240,10 +290,17 @@
       interactionMode === "cluster" || interactionMode === "composite";
     const clusterId = selectedCluster;
     const mode = interactionMode;
+    const filteredIds = filteredClusters
+      ? new Set(filteredClusters.keys())
+      : null;
+    const filteredVersion = filteredClusters
+      ? Array.from(filteredClusters.keys()).join(",")
+      : null;
     const needsUpdate =
       clusterId !== lastRenderState.clusterId ||
       mode !== lastRenderState.mode ||
-      grayscaleLabeled !== lastRenderState.grayscale;
+      grayscaleLabeled !== lastRenderState.grayscale ||
+      filteredVersion !== lastRenderState.filteredVersion;
     if (needsUpdate) {
       const renderer = pixelRenderers.get(currentFrame);
       if (renderer) {
@@ -251,6 +308,7 @@
           selectedCluster: clusterId !== null ? { clusterId } : null,
           interactionMode: mode,
           grayscaleLabeled,
+          filteredClusterIds: filteredIds,
         });
         const layer = geoRasterLayers.get(currentFrame);
         if (layer) {
@@ -258,7 +316,12 @@
           setTimeout(() => layer.setOpacity(targetOpacity), 0);
         }
       }
-      lastRenderState = { clusterId, mode, grayscale: grayscaleLabeled };
+      lastRenderState = {
+        clusterId,
+        mode,
+        grayscale: grayscaleLabeled,
+        filteredVersion,
+      };
     }
   });
   $effect(() => {
@@ -273,8 +336,23 @@
     }
     prevKey = currentSegmentationKey;
   });
+  $effect(() => {
+    if (!hasInitialized || !layersReady) return;
+    const frame = currentFrame;
+    if (
+      activeFilterGeometry &&
+      frame !== lastFilteredFrame &&
+      lastFilteredFrame !== null
+    ) {
+      handleShapefileSelection(activeFilterGeometry);
+    }
+    lastFilteredFrame = frame;
+  });
 
   onMount(() => {
+    if (mapManager) {
+      mapManager.on("shapefileFeatureSelected", handleShapefileSelection);
+    }
     return () => {
       if (layerGroup) {
         layerGroup._group.clearLayers();
