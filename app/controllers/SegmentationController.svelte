@@ -25,13 +25,14 @@
     segmentationKey: currentSegmentationKey,
   });
   let filteredClusters = $state(null); // Map<clusterId, {intersectionPct, pixelCount}>
-  let intersectionThreshold = $state(30);
+  let intersectionThreshold = $state(null);
   let lastFilteredFrame = $state(null);
   let activeFilterGeometry = $state(null);
   let filteredVersion = $state(0);
   let hasIntersectionCache = $derived(
     dataState.intersectionCache?.has(currentSegmentationKey) ?? false
   );
+  let minIntersectionPct = $derived(dataState.minIntersectionPct);
 
   const stateObject = {
     get currentFrame() {
@@ -61,8 +62,19 @@
     get hasIntersectionCache() {
       return hasIntersectionCache;
     },
+    get activeFilterGeometry() {
+      return activeFilterGeometry;
+    },
     setIntersectionThreshold: (threshold) => {
-      intersectionThreshold = threshold;
+      if (threshold >= minIntersectionPct && threshold <= 100) {
+        intersectionThreshold = threshold;
+        if (activeFilterGeometry) {
+          handleShapefileSelection(
+            activeFilterGeometry.geometry,
+            activeFilterGeometry.featureIndex
+          );
+        }
+      }
     },
     clearFilter: () => {
       filteredClusters = null;
@@ -257,8 +269,12 @@
       filteredClusters = null;
       return;
     }
+    const thresholdFiltered = clusterData.filter(
+      ([clusterId, intersectionPct, pixelCount]) =>
+        intersectionPct >= intersectionThreshold
+    );
     filteredClusters = new Map(
-      clusterData.map(([clusterId, intersectionPct, pixelCount]) => [
+      thresholdFiltered.map(([clusterId, intersectionPct, pixelCount]) => [
         clusterId,
         {
           intersectionPct,
@@ -268,7 +284,9 @@
       ])
     );
     filteredVersion++;
-    console.log(`✅ Used cached intersections: ${clusterData.length} clusters`);
+    console.log(
+      `✅ Filtered to ${thresholdFiltered.length}/${clusterData.length} clusters >= ${intersectionThreshold}%`
+    );
   }
 
   function getClusterSize(clusterId) {
@@ -281,6 +299,11 @@
     return stateObject;
   }
 
+  $effect(() => {
+    if (minIntersectionPct !== null && intersectionThreshold === null) {
+      intersectionThreshold = minIntersectionPct;
+    }
+  });
   let hasInitialized = $state(false);
   $effect(() => {
     if (hasInitialized) return;

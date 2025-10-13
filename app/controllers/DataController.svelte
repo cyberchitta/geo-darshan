@@ -23,6 +23,7 @@
   let hierarchyColors = $state(null);
   let shapefileData = $state(null);
   let intersectionCache = $state(null);
+  let minIntersectionPct = $state(null);
 
   const stateObject = {
     get aoiName() {
@@ -63,6 +64,9 @@
     },
     get intersectionCache() {
       return intersectionCache;
+    },
+    get minIntersectionPct() {
+      return minIntersectionPct;
     },
     addSegmentedRaster: (key, segRaster) => {
       segmentedRasters.set(key, segRaster);
@@ -172,6 +176,11 @@
         console.log(
           `✅ Intersection cache available for ${intersectionCache.size} segmentations`
         );
+        const firstCache = Array.from(intersectionCache.values())[0];
+        if (firstCache?.config?.min_intersection_pct) {
+          minIntersectionPct = firstCache.config.min_intersection_pct;
+          console.log(`✅ Cache minimum intersection: ${minIntersectionPct}%`);
+        }
       }
       overlayData.forEach((overlay) => {
         overlayMap.set(overlay.segmentationKey, overlay);

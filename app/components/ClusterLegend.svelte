@@ -128,9 +128,11 @@
   );
   let filteredClusters = $derived(segmentationState?.filteredClusters);
   let hasFilter = $derived(filteredClusters !== null);
+  let minIntersectionPct = $derived(appState.data?.minIntersectionPct);
   let intersectionThreshold = $derived(
-    segmentationState?.intersectionThreshold || 90
+    segmentationState?.intersectionThreshold || minIntersectionPct || 0
   );
+
   let sortedClusters = $derived.by(() => {
     if (!hasFilter) {
       return clusters;
@@ -151,6 +153,27 @@
   let filteredCount = $derived(
     hasFilter ? Array.from(filteredClusters.keys()).length : 0
   );
+  let featureCoverage = $derived.by(() => {
+    if (!hasFilter || !filteredClusters) return 0;
+    const cache = dataState.intersectionCache?.get(currentSegmentationKey);
+    if (!cache) return 0;
+    let coveredPixels = 0;
+    filteredClusters.forEach((data) => {
+      coveredPixels += data.pixelCount;
+    });
+    const featureId = segmentationState?.activeFilterGeometry?.featureIndex;
+    if (featureId === null || featureId === undefined) return 0;
+    const allClustersForFeature =
+      cache.feature_to_clusters[(featureId + 1).toString()];
+    if (!allClustersForFeature) return 0;
+    const totalFeaturePixels = allClustersForFeature.reduce(
+      (sum, [_, __, pixelCount]) => sum + pixelCount,
+      0
+    );
+    return totalFeaturePixels > 0
+      ? (coveredPixels / totalFeaturePixels) * 100
+      : 0;
+  });
   $effect(() => {
     if (
       segmentationSelectedCluster !== undefined &&
@@ -390,6 +413,10 @@
     if (!confirm("Clear all cluster labels for ALL segmentations?")) return;
     dataState?.clearLabels?.();
   }
+  function handleThresholdChange(event) {
+    const threshold = parseFloat(event.target.value);
+    segmentationState?.setIntersectionThreshold?.(threshold);
+  }
 </script>
 
 <div aria-live="polite" aria-atomic="true" class="sr-only">
@@ -463,16 +490,46 @@
       {:else}
         {#if hasFilter}
           <div class="filter-summary">
-            <span
-              >Showing {filteredCount} clusters ≥ {intersectionThreshold}%
-              intersection</span
-            >
-            <button
-              class="clear-filter-btn"
-              onclick={() => segmentationState.clearFilter?.()}
-            >
-              Clear Filter
-            </button>
+            <div class="filter-header">
+              <span>
+                Showing {filteredCount} clusters ≥ {intersectionThreshold.toFixed(
+                  1
+                )}% intersection
+                <span
+                  class="coverage-badge"
+                  title="Percentage of feature area covered by filtered clusters"
+                >
+                  ({featureCoverage.toFixed(1)}% coverage)
+                </span>
+              </span>
+              <button
+                class="clear-filter-btn"
+                onclick={() => segmentationState.clearFilter?.()}
+              >
+                Clear Filter
+              </button>
+            </div>
+            {#if minIntersectionPct !== null}
+              <div class="threshold-control">
+                <label for="threshold-slider">
+                  Intersection threshold: {intersectionThreshold.toFixed(1)}%
+                </label>
+                <input
+                  type="range"
+                  id="threshold-slider"
+                  min={minIntersectionPct}
+                  max="100"
+                  step="0.5"
+                  value={intersectionThreshold}
+                  oninput={handleThresholdChange}
+                  aria-label="Minimum intersection percentage"
+                />
+                <div class="threshold-range">
+                  <span>{minIntersectionPct}%</span>
+                  <span>100%</span>
+                </div>
+              </div>
+            {/if}
           </div>
         {/if}
         {#each sortedClusters as cluster (cluster.id)}
@@ -974,15 +1031,76 @@
     }
   }
   .filter-summary {
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #eee;
+  }
+  .filter-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 16px;
-    background: #f8f9fa;
-    border-bottom: 1px solid #eee;
+    margin-bottom: 12px;
     font-size: 13px;
     font-weight: 500;
     color: #666;
+  }
+  .threshold-control {
+    margin-top: 12px;
+  }
+  .threshold-control label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .threshold-control input[type="range"] {
+    width: 100%;
+    margin: 8px 0;
+    height: 6px;
+    border-radius: 3px;
+    background: #dee2e6;
+    outline: none;
+    cursor: pointer;
+  }
+  .threshold-control input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #007bff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .threshold-control input[type="range"]::-webkit-slider-thumb:hover {
+    background: #0056b3;
+    transform: scale(1.1);
+  }
+  .threshold-control input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #007bff;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+  }
+  .threshold-control input[type="range"]::-moz-range-thumb:hover {
+    background: #0056b3;
+    transform: scale(1.1);
+  }
+  .threshold-control input[type="range"]:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+  }
+  .threshold-range {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #6c757d;
+    font-weight: 500;
   }
   .clear-filter-btn {
     padding: 6px 12px;
@@ -1002,6 +1120,16 @@
   .clear-filter-btn:focus {
     outline: 2px solid #6c757d;
     outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .threshold-control input[type="range"]::-webkit-slider-thumb,
+    .threshold-control input[type="range"]::-moz-range-thumb {
+      transition: none;
+    }
+    .threshold-control input[type="range"]::-webkit-slider-thumb:hover,
+    .threshold-control input[type="range"]::-moz-range-thumb:hover {
+      transform: none;
+    }
   }
   .legend-cluster-item.dimmed {
     opacity: 0.3;
