@@ -56,7 +56,6 @@
   <div class="data-header">
     <h3>Data Management</h3>
   </div>
-
   <div class="data-controls">
     <button
       class="data-btn primary"
@@ -80,7 +79,6 @@
       Error: {error}
     </div>
   {/if}
-
   <div class="dataset-info">
     <button
       class="dataset-info-header"
@@ -95,13 +93,17 @@
         {isDatasetInfoCollapsed ? "▶" : "▼"}
       </span>
     </button>
-
     {#if !isDatasetInfoCollapsed}
       <div class="dataset-info-content" id="dataset-info-content">
         <div class="info-item">AOI: {aoiName}</div>
         <div class="info-item">{dataStatus}</div>
         {#if dataBounds}<div class="info-item">{dataBounds}</div>{/if}
         {#if dataShape}<div class="info-item">{dataShape}</div>{/if}
+        {#if dataState?.intersectionCache}
+          <div class="info-item">
+            Intersection Cache: {dataState.intersectionCache.size} segmentations
+          </div>
+        {/if}
       </div>
     {/if}
   </div>

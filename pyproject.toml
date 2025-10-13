@@ -5,7 +5,11 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "alpha-bhu",
+    "fiona>=1.10.1",
+    "numpy>=2.3.2",
     "pyyaml>=6.0.3",
+    "rasterio>=1.4.3",
+    "shapely>=2.1.1",
 ]
 
 [tool.uv.sources]

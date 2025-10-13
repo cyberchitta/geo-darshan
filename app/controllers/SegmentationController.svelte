@@ -30,6 +30,9 @@
   let lastFilteredFrame = $state(null);
   let activeFilterGeometry = $state(null);
   let filteredVersion = $state(0);
+  let hasIntersectionCache = $derived(
+    dataState.intersectionCache?.has(currentSegmentationKey) ?? false
+  );
 
   const stateObject = {
     get currentFrame() {
@@ -55,6 +58,9 @@
     },
     get intersectionThreshold() {
       return intersectionThreshold;
+    },
+    get hasIntersectionCache() {
+      return hasIntersectionCache;
     },
     setIntersectionThreshold: (threshold) => {
       intersectionThreshold = threshold;
@@ -232,35 +238,44 @@
     }
   }
 
-  function handleShapefileSelection(geometry) {
-    activeFilterGeometry = geometry;
+  function handleShapefileSelection(geometry, featureIndex) {
+    if (!hasIntersectionCache) {
+      console.warn("Intersection cache not available");
+      return;
+    }
+    activeFilterGeometry = { geometry, featureIndex };
     if (!layersReady || !currentSegmentationKey) {
       return;
     }
-    const segRaster = dataState.segmentedRasters?.get(currentSegmentationKey);
-    if (!segRaster) {
+    const featureId = (featureIndex + 1).toString();
+    const cache = dataState.intersectionCache.get(currentSegmentationKey);
+    if (!featureId) {
+      filteredClusters = null;
       return;
     }
-    const results = ShapefileIntersection.findIntersectingClusters(
-      geometry,
-      segRaster,
-      intersectionThreshold
-    );
-    if (results.length === 0) {
+    const clusterData = cache.feature_to_clusters[featureId];
+    if (!clusterData || clusterData.length === 0) {
       filteredClusters = null;
       return;
     }
     filteredClusters = new Map(
-      results.map((r) => [
-        r.clusterId,
+      clusterData.map(([clusterId, intersectionPct, pixelCount]) => [
+        clusterId,
         {
-          intersectionPct: r.intersectionPct,
-          pixelCount: r.pixelCount,
-          clusterSize: r.clusterSize,
+          intersectionPct,
+          pixelCount,
+          clusterSize: getClusterSize(clusterId),
         },
       ])
     );
     filteredVersion++;
+    console.log(`✅ Used cached intersections: ${clusterData.length} clusters`);
+  }
+
+  function getClusterSize(clusterId) {
+    const segRaster = dataState.segmentedRasters?.get(currentSegmentationKey);
+    const cluster = segRaster?.getClusterById(clusterId);
+    return cluster?.pixelCount || 0;
   }
 
   export function getState() {
@@ -346,7 +361,10 @@
       frame !== lastFilteredFrame &&
       lastFilteredFrame !== null
     ) {
-      handleShapefileSelection(activeFilterGeometry);
+      handleShapefileSelection(
+        activeFilterGeometry.geometry,
+        activeFilterGeometry.featureIndex
+      );
     }
     lastFilteredFrame = frame;
   });

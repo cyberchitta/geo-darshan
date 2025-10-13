@@ -1,5 +1,5 @@
 <script>
-  let { mapState } = $props();
+  let { mapState, segmentationState } = $props();
   let interactionMode = $state("view");
 
   let segmentationVisible = $derived(
@@ -7,6 +7,9 @@
   );
   let interactiveVisible = $derived(mapState?.interactiveLayerVisible ?? false);
   let shapefileVisible = $derived(mapState?.shapefileLayerVisible ?? false);
+  let hasIntersectionCache = $derived(
+    segmentationState?.hasIntersectionCache ?? false
+  );
 
   const modes = $derived([
     {
@@ -35,7 +38,8 @@
       label: "Filter by Region",
       icon: "🗺️",
       desc: "Click shapefile regions to filter clusters",
-      available: segmentationVisible && shapefileVisible,
+      available:
+        segmentationVisible && shapefileVisible && hasIntersectionCache,
     },
   ]);
   $effect(() => {

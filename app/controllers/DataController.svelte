@@ -22,6 +22,7 @@
   let hierarchyData = $state(null);
   let hierarchyColors = $state(null);
   let shapefileData = $state(null);
+  let intersectionCache = $state(null);
 
   const stateObject = {
     get aoiName() {
@@ -59,6 +60,9 @@
     },
     get shapefile() {
       return shapefileData;
+    },
+    get intersectionCache() {
+      return intersectionCache;
     },
     addSegmentedRaster: (key, segRaster) => {
       segmentedRasters.set(key, segRaster);
@@ -148,7 +152,8 @@
     manifestData,
     overlayData,
     hierarchyResult,
-    shapefile
+    shapefile,
+    intersectionCacheData
   ) {
     try {
       hierarchyData = hierarchyResult.hierarchy;
@@ -160,6 +165,12 @@
           "✅ Loaded shapefile with",
           shapefile.features.length,
           "features"
+        );
+      }
+      intersectionCache = intersectionCacheData;
+      if (intersectionCache) {
+        console.log(
+          `✅ Intersection cache available for ${intersectionCache.size} segmentations`
         );
       }
       overlayData.forEach((overlay) => {

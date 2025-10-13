@@ -105,8 +105,13 @@
   function handleFeatureClick(feature) {
     selectedFeature = feature;
     createShapefileLayer(shapefile);
+    const featureIndex = shapefile.features.indexOf(feature);
     if (mapManager) {
-      mapManager.emit("shapefileFeatureSelected", feature.geometry);
+      mapManager.emit(
+        "shapefileFeatureSelected",
+        feature.geometry,
+        featureIndex
+      );
     }
   }
 

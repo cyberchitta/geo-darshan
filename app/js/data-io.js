@@ -104,13 +104,33 @@ class DataIO {
           fileMap.set(file.name, file);
         }
       });
+      let intersectionCache = null;
+      const cacheDir = `${rootDir}/${config.files.intermediates_dir}/shapefile_intersections/`;
+      const cacheFiles = Array.from(files).filter(
+        (f) =>
+          f.webkitRelativePath?.includes(cacheDir) &&
+          f.name.endsWith(".json") &&
+          f.name !== "config.json"
+      );
+      if (cacheFiles.length > 0) {
+        intersectionCache = new Map();
+        for (const cacheFile of cacheFiles) {
+          const cacheText = await this.readFileAsText(cacheFile);
+          const cacheData = JSON.parse(cacheText);
+          intersectionCache.set(cacheData.segmentation_key, cacheData);
+        }
+        console.log(
+          `✅ Loaded intersection cache for ${cacheFiles.length} segmentations`
+        );
+      }
       const overlays = await this.loadGeoRastersFromFiles(manifest, fileMap);
       this.emit(
         "loadComplete",
         manifest,
         overlays,
         hierarchyResult,
-        shapefileData
+        shapefileData,
+        intersectionCache
       );
     } catch (error) {
       console.error("Failed to load from folder:", error);

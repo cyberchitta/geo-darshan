@@ -34,7 +34,7 @@
           <OverlayControls {classificationState} {interactiveState} />
         </div>
         <div class="control-group interaction-group">
-          <InteractionModeControls {mapState} />
+          <InteractionModeControls {mapState} {segmentationState} />
         </div>
         <div class="control-group navigation-group">
           <NavigationControls {segmentationState} />
