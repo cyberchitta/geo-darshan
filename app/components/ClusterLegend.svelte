@@ -6,6 +6,7 @@
   } from "../js/utils.js";
   import HierarchySelector from "./HierarchySelector.svelte";
   import { ClassificationHierarchy } from "../js/classification.js";
+
   let { appState, callbacks } = $props();
   const { onLabelChange, onSegmentationChange } = callbacks;
   let segmentationState = $derived(appState.segmentation);

@@ -108,6 +108,7 @@ def generate_hierarchical_clusters(
         print("🎨 1 color legend file")
         print("📄 1 manifest file")
 
+
 def main():
     project_root = Path(__file__).parent.parent
     try:
