@@ -2,7 +2,6 @@
   import { onMount } from "svelte";
   import { ClusterRenderer } from "../js/raster/color-renderers.js";
   import { MapOverlay } from "../js/map-overlay.js";
-  import { ShapefileIntersection } from "../js/shapefile-intersection.js";
 
   let { mapState, dataState } = $props();
   let mapManager = $derived(mapState?.mapManager);
