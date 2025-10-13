@@ -32,7 +32,7 @@ class ClusterConfig:
     output_dir: Path
     k_values: List[int]
     n_color_families: int = 8
-    scenario: str = "exploration"
+    sample_fraction: float = 0.25
     random_seed: int = 42
     verbose: bool = True
     overwrite_existing: bool = True
@@ -51,7 +51,7 @@ class ClusterConfig:
             output_dir=output_dir,
             k_values=seg_config.get("k_values", []),
             n_color_families=seg_config.get("n_color_families", cls.n_color_families),
-            scenario=seg_config.get("scenario", cls.scenario),
+            sample_fraction=seg_config.get("sample_fraction", cls.sample_fraction),
             random_seed=seg_config.get("random_seed", cls.random_seed),
             verbose=seg_config.get("verbose", cls.verbose),
             overwrite_existing=seg_config.get(
@@ -76,14 +76,16 @@ def generate_hierarchical_clusters(
         print("=" * 55)
         print(f"Output directory: {config.output_dir.resolve()}")
         print(f"K range: {config.k_values}")
+        print(f"Color families: {config.n_color_families}")
+        print(f"Sample fraction: {config.sample_fraction:.0%}")
     if config.output_dir.exists() and not config.overwrite_existing:
-        print(f"❌ Output directory exists, skipping: {config.output_dir}")
+        print(f"⌛ Output directory exists, skipping: {config.output_dir}")
         return
     segset = SegSet.from_embeddings(
         embeddings_flat, metadata["shape"]
     ).with_kmeans_range(
         config.k_values,
-        config.scenario,
+        sample_fraction=config.sample_fraction,
         random_state=config.random_seed,
         verbose=config.verbose,
     )
