@@ -5,27 +5,23 @@ compose:
   filters: ["flt-repo"]
 gitignores:
   full-files:
-    - "land-cover*.html"
-    - "detection.html"
-    - "DetectionContext.svelte"
-    - "app/detection/**"
-    - "app/js/detection/**"
     - "*.svelte"
     - "*.config.js"
     - "*.json"
     - "*.css"
   excerpted-files:
-    - "land-cover*.html"
-    - "detection.html"
-    - "DetectionContext.svelte"
-    - "app/detection/**"
-    - "app/js/detection/**"
     - "*.config.js"
     - "*.json"
     - "*.css"
 limit-to:
   full-files:
-    - "app/**"
+    - "detection.html"
+    - "DetectionContext.svelte"
+    - "app/detection/**"
+    - "app/js/detection/**"
   excerpted-files:
-    - "app/**"
+    - "detection.html"
+    - "DetectionContext.svelte"
+    - "app/detection/**"
+    - "app/js/detection/**"
 ---
