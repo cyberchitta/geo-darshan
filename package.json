@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "cluster-viewer:dev": "bun run vite",
+    "cluster-viewer:dev": "cd app && bun run vite",
+    "detection:dev": "cd app && bun run vite --open /detection.html",
+    "build": "cd app && vite build",
     "download-tiles": "bun run scripts/download_esri.js test",
     "download-tiles:3.5k": "bun run scripts/download_esri.js 3.5k",
     "download-tiles:5k": "bun run scripts/download_esri.js 5k",
@@ -29,6 +31,7 @@
     "leaflet": "^1.9.4",
     "leaflet-draw": "^1.0.4",
     "shapefile": "^0.6.6",
+    "shpjs": "^6.2.0",
     "sphericalmercator": "^1.0.5"
   },
   "devDependencies": {

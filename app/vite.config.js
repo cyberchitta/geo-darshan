@@ -10,6 +10,7 @@ export default defineConfig({
       input: {
         main: "index.html",
         landcover: "land-cover-viewer.html",
+        detection: "detection.html",
       },
     },
   },
