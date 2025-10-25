@@ -13,7 +13,6 @@ export class LLMGeoJSONAdapter {
         georeferencing,
         regionBbox
       );
-
       return {
         type: "Feature",
         geometry,
@@ -24,7 +23,6 @@ export class LLMGeoJSONAdapter {
         },
       };
     });
-
     return {
       type: "FeatureCollection",
       features,
@@ -50,7 +48,6 @@ export class LLMGeoJSONAdapter {
       const [x1, y1, x2, y2] = detection.bbox;
       const sw = this.pixelToLatlng(x1, y2, georeferencing, regionBbox);
       const ne = this.pixelToLatlng(x2, y1, georeferencing, regionBbox);
-
       return {
         type: "Polygon",
         coordinates: [
@@ -76,11 +73,9 @@ export class LLMGeoJSONAdapter {
     // Convert to regional bbox space, then to actual lat/lng
     const imageWidth = regionBbox.east - regionBbox.west;
     const imageHeight = regionBbox.north - regionBbox.south;
-
     const lng = regionBbox.west + (x / georeferencing.imageWidth) * imageWidth;
     const lat =
       regionBbox.north - (y / georeferencing.imageHeight) * imageHeight;
-
     return [lng, lat];
   }
 }

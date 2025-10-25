@@ -1,5 +1,5 @@
 <script>
-  let { mode = "manual" } = $props();
+  let { mode = $bindable("manual") } = $props();
 </script>
 
 <div class="workflow-toggle">
@@ -37,7 +37,6 @@
     padding-bottom: 16px;
     border-bottom: 1px solid #eee;
   }
-
   .toggle-label {
     display: block;
     margin-bottom: 8px;
@@ -45,13 +44,11 @@
     font-weight: 600;
     color: #333;
   }
-
   .toggle-buttons {
     display: flex;
     gap: 8px;
     margin-bottom: 8px;
   }
-
   .toggle-btn {
     flex: 1;
     padding: 8px;
@@ -63,17 +60,14 @@
     cursor: pointer;
     transition: all 0.2s;
   }
-
   .toggle-btn:hover {
     border-color: #999;
   }
-
   .toggle-btn.active {
     background: #3498db;
     color: white;
     border-color: #3498db;
   }
-
   .mode-description {
     margin: 0;
     font-size: 11px;

@@ -9,7 +9,7 @@
   import ResultsViewer from "./components/ResultsViewer.svelte";
 
   let mapManager = $state(null);
-  let workflowMode = $state("manual"); // "manual" or "automatic"
+  let workflowMode = $state("manual");
   let selectedRegion = $state(null);
   let uploadedImage = $state(null);
   let detectionResults = $state(null);
@@ -51,6 +51,15 @@
     return stateObject;
   }
 
+  $effect.pre(() => {
+    if (workflowMode) {
+      selectedRegion = null;
+      uploadedImage = null;
+      detectionResults = null;
+      error = null;
+    }
+  });
+
   onMount(async () => {
     try {
       const rasterHandler = window.rasterHandler;
@@ -69,11 +78,9 @@
 
 <div class="detection-container">
   <div id="detection-map"></div>
-
   {#if mapManager}
     <div class="detection-sidebar">
       <WorkflowModeToggle bind:mode={workflowMode} />
-
       <div class="workflow-section">
         {#if workflowMode === "manual"}
           <RegionSelector
@@ -92,7 +99,6 @@
           />
         {/if}
       </div>
-
       <DetectionPanel
         {selectedRegion}
         {uploadedImage}
@@ -102,13 +108,11 @@
         bind:error
         {mapManager}
       />
-
       {#if detectionResults}
         <ResultsViewer results={detectionResults} {mapManager} />
       {/if}
     </div>
   {/if}
-
   {#if error}
     <div class="error-banner">{error}</div>
   {/if}
@@ -120,12 +124,10 @@
     width: 100%;
     height: 100%;
   }
-
   #detection-map {
     flex: 1;
     background: #f0f0f0;
   }
-
   .detection-sidebar {
     width: 350px;
     background: white;
@@ -134,11 +136,9 @@
     padding: 16px;
     box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
   }
-
   .workflow-section {
     margin-bottom: 20px;
   }
-
   .error-banner {
     position: fixed;
     bottom: 20px;
