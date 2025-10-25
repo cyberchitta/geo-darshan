@@ -19,12 +19,7 @@ export class DetectionService {
   }
 
   async callLLM(base64Image, prompt) {
-    if (this.model.includes("gemini")) {
-      return this.callGemini(base64Image, prompt);
-    } else if (this.model.includes("claude")) {
-      return this.callClaude(base64Image, prompt);
-    }
-    throw new Error(`Unsupported model: ${this.model}`);
+    return this.callGemini(base64Image, prompt);
   }
 
   async callGemini(base64Image, prompt) {
@@ -91,10 +86,6 @@ Return ONLY valid JSON, no markdown or extra text.`;
     } catch (err) {
       throw new Error(`Failed to parse Gemini response: ${err.message}`);
     }
-  }
-
-  async callClaude(base64Image, prompt) {
-    throw new Error("Claude API integration not yet implemented");
   }
 
   async blobToBase64(blob) {

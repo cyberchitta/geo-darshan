@@ -11,8 +11,7 @@
     error,
     mapManager,
   } = $props();
-
-  let llmModel = $state("claude-3-5-sonnet");
+  let llmModel = $state("gemini-2.5-flash");
   let apiKey = $state("");
   let prompt = $state(
     "Detect all buildings, roads, and vegetation. Return as separate objects."
@@ -90,8 +89,8 @@
   <div class="form-group">
     <label for="model">LLM Model</label>
     <select id="model" bind:value={llmModel}>
-      <option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option>
-      <option value="gpt-4-vision">GPT-4 Vision</option>
+      <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+      <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
     </select>
   </div>
   <div class="form-group">
