@@ -8,8 +8,16 @@ A web-based geospatial visualization tool for analyzing cluster segmentation dat
 
 - **Cluster Animation**: Navigate through different segmentation levels (k-values)
 - **Land Cover Classification**: Label clusters with hierarchical land use categories
+- **Object Detection**: LLM-powered detection of buildings, roads, vegetation, and other features from satellite imagery
 - **Visualization**: Dynamic overlay rendering with adjustable opacity
 - **Export**: Generate GeoTIFF and mapping files for analysis
+
+### Object Detection
+
+- **Workflow Modes**: Manual (upload image) or Automatic (capture from map)
+- **Models**: Gemini 2.5 Flash/Pro (requires API key)
+- **Output**: GeoJSON features with confidence scores and geometry
+- **Region Selection**: Draw rectangular bounds on map for analysis
 
 ### Map Features
 
