@@ -60,10 +60,11 @@
     isProcessing = true;
     error = null;
     try {
+      const satellitePrompt = `You are analyzing a satellite/aerial image. ${prompt}`;
       const service = new DetectionService(apiKey, llmModel);
       detectionResults = await service.detectObjects(
         image,
-        prompt,
+        satellitePrompt,
         confidenceThreshold
       );
       console.log("✅ Detection complete:", detectionResults);
