@@ -7,7 +7,7 @@ gitignores:
   full-files:
     - ".vscode/**"
     - ".python-version"
-  outline-files:
+  excerpted-files:
     - ".vscode/**"
     - ".python-version"
 ---
