@@ -31,3 +31,6 @@ output/
 .venv/
 .ruff_cache/
 .vscode/
+
+.commit-msg
+__pycache__/

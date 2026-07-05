@@ -1,0 +1,12 @@
+aoi:
+  current: india-24-1000
+
+aoi-paths:
+  auroville-24-10: data/av-3.5K
+  tamilnadu-24-1000: data/tamil-nadu-24-1000
+  india-24-1000: data/india-24-1000
+
+shapefile_intersection:
+  min_intersection_pct: 62.5
+  cache_filename: "reference_labels"
+  compute_reverse_index: true
