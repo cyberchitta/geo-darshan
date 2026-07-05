@@ -156,6 +156,21 @@ a confirmed **young planted_forest** (the light-green/smooth case misread as gra
   (round 1) drove the label-policy + signature updates above. Key errors found:
   `grazing_land` over-applied as a low-confidence default (now retired); built subtypes
   arbitrary without definitions (now defined); harvested casuarina under-called.
+- **k88 ∩ k22 intersection BUILT (2026-07-05)** via the engine's `gen_intersection.py`:
+  the 22 flagged split candidates (see `vlm_label_k88/split_candidates.md`) partitioned
+  by k22 membership → `intermediates/clusters/k88xk22_s42.tif` (**191 clusters**, ids
+  0–190; largest cell keeps parent id, minorities = 88–190) + `k88xk22_s42_mapping.json`
+  (parentage). All 22 split under k22; verified px-conserving. Details + round-3 plan:
+  `vlm_label_k88/INTERSECTION.md`. NOTE: interleaved impurities (two-phase casuarina,
+  central gardens gradient) may survive within cells — those still need (c) below.
+- **Round 3 = k88∩k22 cells JUDGED (2026-07-05)**, in
+  `data/av-3.5K/intermediates/vlm_label_k88xk22/`: 103 minority cells + the 22 re-judged
+  parents, 332 verdicts by 10 parallel fresh readers off `BRIEF.md`. Hard rules held (no
+  grazing_land / natural_forest); maintained_grass stayed central; tank-margin cells
+  resolved as a coherent seasonal-tank family; c113-type riparian strips isolated.
+  ⚠️ Systematic suspect: **`agriculture.fallow` became the new smooth-green default**
+  (30/125 votes, confetti pattern on the choropleth) — watch it like grazing_land was
+  watched. Awaiting user feedback via `review.html`; log in that dir's `corrections.md`.
 - **Next ideas (not yet done):** (a) **stratified exemplar selection** — pick exemplars
   to span the old-label strata within each cluster instead of just the N largest patches,
   so minority covers in impure clusters get sampled (the current `patch_exemplars` largest-N
@@ -179,6 +194,13 @@ python .claude/skills/cluster-labeling/scripts/gen_locator.py $RUN \
 python .claude/skills/cluster-labeling/scripts/gen_overview.py $RUN \
   --seg data/av-3.5K/intermediates/clusters/k88_s42.tif \
   --base data/av-3.5K/intermediates/esri_3.5k_roi_cog.tif
+# split raster for round 3 (flagged impure clusters partitioned by k22):
+python .claude/skills/cluster-labeling/scripts/gen_intersection.py \
+  data/av-3.5K/intermediates/clusters/k88xk22_s42.tif \
+  --seg data/av-3.5K/intermediates/clusters/k88_s42.tif \
+  --with data/av-3.5K/intermediates/clusters/k22_s42.tif \
+         data/av-3.5K/intermediates/clusters/k44_s42.tif \
+  --ids <flagged ids from split_candidates.md>
 # → read overview_basemap.jpg + crops + locators, write $RUN/judgments.json
 python .claude/skills/cluster-labeling/scripts/aggregate.py $RUN --judgments $RUN/judgments.json
 python .claude/skills/cluster-labeling/scripts/gen_review_html.py $RUN \

@@ -154,5 +154,9 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
 - `scripts/gen_overview.py` — whole-area basemap overview + label choropleth (macro-QA).
 - `scripts/aggregate.py` — judgments.json + results.jsonl → cluster_to_label.json.
 - `scripts/gen_review_html.py` — review.html.
+- `scripts/gen_intersection.py` — split flagged impure clusters by intersecting
+  with other k-level rasters (kA ∩ kB): minority cells get new ids, the largest
+  cell keeps the parent id, slivers (< --min-px) fold into it. Output is a normal
+  cluster raster + parentage mapping JSON, consumable by all the other scripts.
 - Renderer is **reused** from the repo: `scripts/vlm_label_prototype.py`
   (`--dry-run` renders crops; the same script can also call an API model).
