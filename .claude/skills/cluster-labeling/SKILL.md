@@ -87,8 +87,9 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
 
 6. **Corrections loop.** Keep an append-only `RUN_DIR/corrections.md` (one section
    per cluster, geo direction in the header, `- fb:` lines). Record user feedback,
-   revise `judgments.json`, re-run steps 4–5. Update the AOI pack with any new
-   durable signature/geography/reference learned.
+   revise `judgments.json`, re-run steps 4–5. Route durable learnings to the right
+   sink: AOI-specific (signature/geography/reference/label policy) → the AOI pack;
+   methodology that would hold for any AOI → this skill (see Self-improvement).
 
 ## Methodology rules (hard-won)
 
@@ -147,6 +148,30 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
   prior-label strata (or distinct spatial sub-regions) within the cluster so each
   sub-population is seen. Prior-label family-spread *within* a cluster is an independent
   impurity/split trigger, complementary to vote-disagreement.
+
+## Self-improvement (living skill)
+
+This skill is a procedure, not a frozen product — every round should leave it
+better than it found it. Two grades of learning, two speeds:
+
+- **User-confirmed corrections fold in immediately.** Feedback recorded in
+  `RUN_DIR/corrections.md` is ground truth from the maintainer — route it
+  before the round closes: AOI-specific (signature / geography / reference /
+  label policy) → the AOI pack; AOI-agnostic methodology (a new rule, failure
+  mode, QA surface) → this file's Methodology rules. A round that ends with an
+  unrecorded surprise isn't done.
+- **Self-observed friction accumulates first.** A one-session hunch (awkward
+  step, suspected pattern, missing view) gets logged — a `- friction:` line in
+  `RUN_DIR/corrections.md`, or the AOI pack's State section if cross-round —
+  not an immediate edit here. Same friction in a second round ⇒ promote it.
+  Log first, don't filter; a pattern only emerges from honestly recorded
+  one-offs.
+- **Improvise views; promote on reuse.** The scripted views (crops, locators,
+  overview, review page) are a floor, not a ceiling. When a judgment stalls for
+  want of evidence, compile a new task-shaped view on the spot (recrop, upscale,
+  tint-free, composite, intersection — whatever the question needs); that's how
+  every current script started. An ad-hoc view that earns a second use graduates
+  into `scripts/` and gets a line under Files and Procedure.
 
 ## Files
 
