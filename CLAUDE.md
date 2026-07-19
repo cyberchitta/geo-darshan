@@ -19,9 +19,10 @@ Hybrid project with a Python data pipeline and a Svelte web frontend:
 
 - `app/` - Svelte frontend (cluster viewer + object detection UI)
 - `scripts/` - Python/JS scripts for tile downloading and stitching (ESRI imagery)
-- `data/` - Geospatial data (rasters, vectors)
-- `output/` - Generated GeoTIFFs and mapping files
+- `data/` - Geospatial data (rasters, vectors) — gitignored, ~3 GB, not on GitHub
+- `output/` - Generated GeoTIFFs and mapping files — gitignored
 - `config.yaml` - Pipeline configuration (paths, parameters)
+- `_notes/` - working notes, gitignored — see below
 
 The frontend has two main views: cluster-viewer (segmentation navigation and labeling) and detection (LLM-based feature detection).
 
@@ -44,6 +45,19 @@ bun run format
 bun run lint
 bun run type-check
 ```
+
+## Working notes (gitignored)
+
+Tracked separately in the private `working-notes` repo, symlinked at `_notes/`;
+not discoverable by search — `Grep`/`Glob` follow neither symlinks nor
+gitignored paths. `Read` works once a path is named.
+
+- `_notes/cluster-relabeling_handoff.md` — how VLM-based cluster relabeling
+  replaced the original hand-labeling. **Historical narrative only:** that
+  workflow is now a skill, and
+  `.claude/skills/cluster-labeling-auroville/SKILL.md` is canonical.
+
+Speculative unless stated otherwise. Do not implement from these without asking.
 
 ## Activity
 

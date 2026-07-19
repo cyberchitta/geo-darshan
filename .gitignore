@@ -34,3 +34,7 @@ output/
 
 .commit-msg
 __pycache__/
+
+# Working notes — a symlink to the private working-notes repo. No trailing
+# slash: git sees a symlink as a file, and a rule with one would not match.
+_notes
