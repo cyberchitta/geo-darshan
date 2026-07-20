@@ -49,8 +49,7 @@ bun run type-check
 ## Working notes (gitignored)
 
 Tracked separately in the private `working-notes` repo, symlinked at `_notes/`;
-not discoverable by search — `Grep`/`Glob` follow neither symlinks nor
-gitignored paths. `Read` works once a path is named.
+invisible to the `Grep`/`Glob` tools (global `CLAUDE.md` has the `rg` forms).
 
 - `_notes/cluster-relabeling_handoff.md` — how VLM-based cluster relabeling
   replaced the original hand-labeling. **Historical narrative only:** that
