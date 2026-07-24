@@ -154,7 +154,10 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
 - **Always look at the locator** before labeling — "largest patch" exemplars can
   be unrepresentative of a dispersed/impure cluster; the locator reveals that.
 - **Geography is a prior, not trivia.** Every exemplar has lon/lat; compute its
-  direction from the AOI center and apply the pack's spatial priors.
+  direction from the AOI center and apply the pack's spatial priors. The same data
+  polices landmark claims: never record "this crop is <landmark>" without checking the
+  exemplar's coordinates against the landmark's — a look-alike building 1 km away got
+  logged as the AOI's central monument and the error propagated for rounds.
 - **Record `alternative` + `reasoning` every time** — they drive the review and
   the corrections triage.
 - **Disagreement (mine vs prior) = the expert-review queue**, not noise.

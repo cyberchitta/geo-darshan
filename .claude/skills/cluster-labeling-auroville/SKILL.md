@@ -115,6 +115,10 @@ Every exemplar has lon/lat → compute 8-point compass from center
 - **Forest (planted) → broad central-ish belt incl. the SE**; soft prior, not dead-center.
 - **The geometric center (around Matrimandir) is GARDENS** — neither forest nor
   field (managed garden/agroforestry/built mosaic). Don't default the center to forest.
+- **The Matrimandir itself is AT the center** (= `CENTER`). k88xk22 c2 does NOT
+  include it — its exemplars are 0.6–1.1 km out; the round-3 note calling c2 e0
+  "the Matrimandir monument" misidentified another large white-roofed building
+  ~1 km west (user-corrected 2026-07-24).
 - A "scrub" read in the middle of the east/south cashew belt is almost certainly cashew.
 - Apply per-exemplar, not per-cluster-centroid (scattered clusters have meaningless centroids).
 
