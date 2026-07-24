@@ -171,6 +171,17 @@ a confirmed **young planted_forest** (the light-green/smooth case misread as gra
   ⚠️ Systematic suspect: **`agriculture.fallow` became the new smooth-green default**
   (30/125 votes, confetti pattern on the choropleth) — watch it like grazing_land was
   watched. Awaiting user feedback via `review.html`; log in that dir's `corrections.md`.
+  **Neighbor context added (2026-07-24, user request):** `review.html` now shows each
+  cluster's dominant spatial neighbors + labels and flags 28 clusters whose dominant
+  neighbor's label is unrelated (`differs from neighbours` filter) — the triage queue
+  for "small cell visually identical to its surroundings, should inherit the neighbor's
+  label". Caveat: neighbor labels for un-rejudged k88 parents come from round 2 via
+  `--nbr-labels vlm_label_k88/cluster_to_label.json` and can be stale (c20/c71 still
+  say retired `grazing_land`). Per the user, "visually identical" is decided by the
+  VLM alone (embeddings' job ended at clustering) → engine step 5b pair crops judged
+  2026-07-24: 18/28 same-cover, 10 distinct; verdicts in `nbr_verdicts.json`, folded
+  into `review.html`; breakdown + proposed relabels in `corrections.md`. Awaiting user
+  confirmation before revising `judgments.json`.
 - **Next ideas (not yet done):** (a) **stratified exemplar selection** — pick exemplars
   to span the old-label strata within each cluster instead of just the N largest patches,
   so minority covers in impure clusters get sampled (the current `patch_exemplars` largest-N
@@ -207,4 +218,9 @@ python .claude/skills/cluster-labeling/scripts/gen_review_html.py $RUN \
   --seg data/av-3.5K/intermediates/clusters/k88_s42.tif \
   --old data/av-3.5K/outputs/land-cover_cog.tif \
   --mapping data/av-3.5K/outputs/pixel-mapping.json
+# round-3 (k88xk22) variant: --seg …/clusters/k88xk22_s42.tif plus
+#   --nbr-labels data/av-3.5K/intermediates/vlm_label_k88/cluster_to_label.json
+# (fallback labels for un-rejudged k88 parents in the neighbor context)
+# NOTE (cleanroom mac): alpha-bhu is absent so the uv project env can't build;
+# run engine scripts via  uv run --no-project --with rasterio,numpy python …
 ```

@@ -44,17 +44,49 @@ def old_crosstab(seg, old, mapping):
     return table
 
 
+def neighbor_table(seg):
+    """Per-cluster spatial neighbors from raster adjacency: {cid: (size_px,
+    [(nbr_id, boundary_share), ...])} with shares of that cluster's boundary."""
+    import numpy as np, rasterio
+    a = rasterio.open(seg).read(1)
+    pairs = Counter()
+    for a1, a2 in ((a[:, :-1], a[:, 1:]), (a[:-1, :], a[1:, :])):
+        d = (a1 != a2) & (a1 >= 0) & (a2 >= 0)
+        pairs.update(zip(a1[d].tolist(), a2[d].tolist()))
+    adj = {}
+    for (i, j), n in pairs.items():
+        adj.setdefault(i, Counter())[j] += n
+        adj.setdefault(j, Counter())[i] += n
+    sizes = Counter(a[a >= 0].tolist())
+    return {cid: (sizes[cid],
+                  [(j, n / sum(nb.values())) for j, n in nb.most_common()])
+            for cid, nb in adj.items()}
+
+
+def related(x, y):
+    return x == y or x.startswith(y + ".") or y.startswith(x + ".")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("run_dir", type=Path)
     ap.add_argument("--seg", type=Path)
     ap.add_argument("--old", type=Path)
     ap.add_argument("--mapping", type=Path)
+    ap.add_argument("--nbr-labels", type=Path, help="cluster_to_label.json from a "
+                    "prior round — fallback labels for neighbor clusters not judged in this run")
+    ap.add_argument("--nbr-verdicts", type=Path, help="nbr_verdicts.json — VLM same-cover "
+                    "judgments on the flagged boundary-pair crops (see gen_nbr_pairs.py)")
     a = ap.parse_args()
 
     rows = [json.loads(l) for l in (a.run_dir / "results.jsonl").read_text().splitlines() if l.strip()]
     agg = json.loads((a.run_dir / "cluster_to_label.json").read_text())
     old = old_crosstab(a.seg, a.old, a.mapping) if (a.seg and a.old) else {}
+    nbrs = neighbor_table(a.seg) if a.seg else {}
+    nbr_agg = dict(json.loads(a.nbr_labels.read_text()) if a.nbr_labels else {})
+    nbr_agg.update(agg)
+    verdicts = {v["cluster"]: v for v in
+                json.loads(a.nbr_verdicts.read_text())} if a.nbr_verdicts else {}
 
     clusters = []
     for cid in sorted({r["cluster"] for r in rows}):
@@ -63,15 +95,37 @@ def main():
         cl = c["label"]
         agrees = None
         if ot:
-            ol = ot[0]["label"]
-            agrees = cl == ol or cl.startswith(ol + ".") or ol.startswith(cl + ".")
+            agrees = related(cl, ot[0]["label"])
+        size_px, nb = nbrs.get(cid, (None, []))
+        nb_out = [{"id": j, "share": round(s, 3),
+                   "label": nbr_agg[str(j)]["label"] if str(j) in nbr_agg else None,
+                   "conf": nbr_agg[str(j)]["confidence"] if str(j) in nbr_agg else None}
+                  for j, s in nb[:4]]
+        # flag: (mostly) surrounded by one neighbor whose label is unrelated —
+        # the "small cell visually identical to its surroundings" triage case;
+        # small clusters flag at a lower boundary-share bar
+        mismatch = bool(nb_out and nb_out[0]["label"]
+                        and not related(cl, nb_out[0]["label"])
+                        and (nb_out[0]["share"] >= 0.4
+                             or (nb_out[0]["share"] >= 0.25 and (size_px or 0) <= 300)))
         clusters.append({
             "id": cid, "label": cl, "confidence": c["confidence"],
             "agreement": c["agreement"], "old": ot, "oldAgrees": agrees,
+            "sizePx": size_px, "neighbors": nb_out, "nbrMismatch": mismatch,
+            "nbrVerdict": verdicts.get(cid),
             "exemplars": [{"i": r["exemplar"], "sizePx": r["size_px"],
                            "img": f"crops/{Path(r['crop']).name}", **r["result"]}
                           for r in rows if r["cluster"] == cid],
         })
+    flagged = [c for c in clusters if c["nbrMismatch"]]
+    if flagged:
+        print(f"{len(flagged)} clusters differ from their dominant neighbor: "
+              + " ".join(f"c{c['id']}" for c in flagged))
+        (a.run_dir / "nbr_flags.json").write_text(json.dumps(
+            [{"cluster": c["id"], "label": c["label"], "confidence": c["confidence"],
+              "nbr": c["neighbors"][0]["id"], "nbr_label": c["neighbors"][0]["label"],
+              "nbr_conf": c["neighbors"][0]["conf"], "share": c["neighbors"][0]["share"]}
+             for c in flagged], indent=1))
 
     html = TEMPLATE.replace("__DATA__", json.dumps({"clusters": clusters, "hasOld": bool(old)}))
     (a.run_dir / "review.html").write_text(html)
@@ -117,6 +171,7 @@ TEMPLATE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <div class="filters" id="filters">
   <button data-f="all" class="on">all</button>
   <button data-f="lowagree">low exemplar agreement</button>
+  <button data-f="nbr">differs from neighbours</button>
   <button data-f="disagree">disagrees with old</button>
   <button data-f="agree">agrees with old</button>
 </div>
@@ -128,23 +183,36 @@ function badges(c){const o=[];o.push(c.agreement>=0.67?`<span class="badge b-ok"
   if(c.oldAgrees!==null)o.push(c.oldAgrees?`<span class="badge b-ok">matches old</span>`:`<span class="badge b-bad">disagrees with old</span>`);return o.join(' ');}
 for(const c of DATA.clusters){const card=document.createElement('div');card.className='card';
   card.dataset.disagree=(c.oldAgrees===false);card.dataset.lowagree=(c.agreement<0.67);
+  card.dataset.nbr=(c.nbrMismatch===true);
   const pad=String(c.id).padStart(3,'0');
   const oldStr=c.old.length?('old: '+c.old.map(o=>`<b>${o.label}</b> ${o.pct}%`).join(' &middot; ')):'';
+  const nbrStr=(c.neighbors&&c.neighbors.length)?('nbrs: '+c.neighbors.map((n,i)=>{
+    const mm=i===0&&c.nbrMismatch;const lbl=n.label?n.label.split('.').pop():'?';
+    return `<span${mm?' style="color:var(--warn)"':''}>c${n.id} <b>${lbl}</b> ${(n.share*100).toFixed(0)}%</span>`;
+  }).join(' &middot; ')):'';
   card.innerHTML=`<div class="head"><span class="cid">c${c.id}</span><span class="lbl">${c.label}</span>
-    <span class="badge" style="background:#23272f;color:var(--dim)">conf ${c.confidence.toFixed(2)}</span>${badges(c)}</div>
+    <span class="badge" style="background:#23272f;color:var(--dim)">conf ${c.confidence.toFixed(2)}</span>
+    ${c.sizePx?`<span class="badge" style="background:#23272f;color:var(--dim)">${c.sizePx}px</span>`:''}
+    ${badges(c)}${c.nbrMismatch?`<span class="badge b-warn">&#9888; differs from nbr</span>`:''}
+    ${c.nbrVerdict?(c.nbrVerdict.same_cover?`<span class="badge b-bad">vlm: same cover as c${c.nbrVerdict.nbr}${c.nbrVerdict.cover?' &rarr; '+c.nbrVerdict.cover.split('.').pop():''}</span>`:`<span class="badge b-ok">vlm: distinct from c${c.nbrVerdict.nbr}</span>`):''}</div>
     ${oldStr?`<div class="old">${oldStr}</div>`:'<div class="old"></div>'}
+    ${nbrStr?`<div class="old">${nbrStr}</div>`:''}
     <div class="thumbs">${c.exemplars.map(e=>`<div class="thumb" data-img="${e.img}"
         data-cap="c${c.id} e${e.i} — ${e.label} (${e.confidence}) — ${e.reasoning||''}">
         <img loading="lazy" src="${e.img}"><div class="cap"><b>${e.label.split('.').pop()}</b> ${e.confidence}</div></div>`).join('')}
       <div class="thumb" data-img="crops/c${pad}_locator.jpg" data-cap="c${c.id} — cluster extent + exemplar locations">
-        <img loading="lazy" src="crops/c${pad}_locator.jpg"><div class="cap">&#128506; where</div></div></div>
+        <img loading="lazy" src="crops/c${pad}_locator.jpg"><div class="cap">&#128506; where</div></div>
+      ${c.nbrVerdict&&c.nbrVerdict.img?`<div class="thumb" data-img="${c.nbrVerdict.img}"
+        data-cap="c${c.id} (magenta) vs nbr c${c.nbrVerdict.nbr} (cyan) — ${c.nbrVerdict.note||''}">
+        <img loading="lazy" src="${c.nbrVerdict.img}"><div class="cap">&#8644; nbr c${c.nbrVerdict.nbr}</div></div>`:''}</div>
     <details><summary>per-exemplar reasoning</summary><ul class="reasons">${c.exemplars.map(e=>
       `<li><b>e${e.i}</b> (${e.sizePx}px): ${e.label} (${e.confidence}${e.alternative?', alt '+e.alternative:''}) — ${e.reasoning||''}</li>`).join('')}</ul></details>`;
   grid.appendChild(card);}
 document.getElementById('filters').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   document.querySelectorAll('.filters button').forEach(x=>x.classList.toggle('on',x===b));const f=b.dataset.f;
   document.querySelectorAll('.card').forEach(card=>{const show=f==='all'||(f==='disagree'&&card.dataset.disagree==='true')||
-    (f==='lowagree'&&card.dataset.lowagree==='true')||(f==='agree'&&card.dataset.disagree==='false'&&card.dataset.lowagree==='false');
+    (f==='lowagree'&&card.dataset.lowagree==='true')||(f==='nbr'&&card.dataset.nbr==='true')||
+    (f==='agree'&&card.dataset.disagree==='false'&&card.dataset.lowagree==='false');
     card.classList.toggle('hidden',!show);});});
 const lb=document.getElementById('lightbox');
 document.body.addEventListener('click',e=>{const t=e.target.closest('.thumb');

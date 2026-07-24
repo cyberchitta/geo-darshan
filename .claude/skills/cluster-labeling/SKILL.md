@@ -79,11 +79,29 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
 5. **Review page:**
    ```
    python .claude/skills/cluster-labeling/scripts/gen_review_html.py RUN_DIR \
-     --seg SEG [--old OLD.tif --mapping pixel-mapping.json]
+     --seg SEG [--old OLD.tif --mapping pixel-mapping.json] \
+     [--nbr-labels PRIOR_RUN/cluster_to_label.json]
    ```
    → `RUN_DIR/review.html` (cards: exemplars + locator + voted label + agreement
-   + optional old-label cross-tab; filters for low-agreement / disagrees-with-old;
-   click to zoom). Open it; this is the human-feedback surface.
+   + spatial-neighbor labels with boundary shares + optional old-label cross-tab;
+   filters for low-agreement / differs-from-neighbours / disagrees-with-old; click
+   to zoom). `--nbr-labels` supplies fallback labels for neighbor clusters not
+   judged in this run (e.g. the parent round of an intersection raster). Open it;
+   this is the human-feedback surface.
+
+5b. **Neighbor-pair check** (for the flagged differs-from-neighbour clusters —
+   the VLM, not any clustering-side signal, decides "visually identical"):
+   ```
+   python .claude/skills/cluster-labeling/scripts/gen_nbr_pairs.py RUN_DIR \
+     --seg SEG --base BASE
+   ```
+   → raw boundary-straddling crops (`crops/cXXX_nbrYYY.jpg`, cell magenta /
+   neighbor cyan) from `nbr_flags.json`. Judge each: same cover across the
+   boundary? → `RUN_DIR/nbr_verdicts.json`
+   (`[{cluster, nbr, same_cover, cover, confidence, note, img}]`), then re-run
+   step 5 with `--nbr-verdicts` to fold verdicts + pair crops into the cards.
+   NOTE adoption has no fixed direction: "same cover" as often means the big
+   neighbor is wrong at that spot as the small cell — the verdict names which.
 
 6. **Corrections loop.** Keep an append-only `RUN_DIR/corrections.md` (one section
    per cluster, geo direction in the header, `- fb:` lines). Record user feedback,
@@ -93,6 +111,13 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
 
 ## Methodology rules (hard-won)
 
+- **Layer separation: embeddings cluster, vision labels.** The embeddings' job ends
+  when the cluster raster is produced. In the labeling pass, every qualitative question —
+  including "is this cell visually identical to its neighbor?" — is answered by the VLM
+  looking at imagery, never by reaching back into embedding distances or other
+  clustering-side signals. (Corollary: "k-means kept them separate" is NOT evidence the
+  covers differ.) Imagery/embedding snapshot-date mismatches are acknowledged and worked
+  *modulo* — do not reintroduce embedding signals to compensate.
 - **Consult the whole-area overview, and use the label choropleth as macro-QA.** Read
   `overview_basemap.jpg` before judging — it shows large uniform regions and how cover
   types are arranged (the visual form of the geography priors, and the neighbor context
@@ -116,6 +141,10 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
   cell is frequently wrong on its own, but an adjacent cell/cluster of the same visual type
   is often confidently (and correctly) labeled — adopt the confident neighbor's label.
   Show neighbors in review and let confident regions propagate into ambiguous ones.
+  Implemented: `gen_review_html.py` computes raster adjacency, prints each cluster's
+  dominant neighbors + labels on its card, and flags/filters clusters whose dominant
+  neighbor's label is unrelated (lower boundary-share bar for small clusters — the
+  "small cell visually identical to its surroundings" case).
 - **Inherit the parts of the prior map that are already right.** Don't relabel cells the
   old map gets correct (the AOI pack names which — e.g. water). Freeze them and spend
   judgment only where the relabel adds value.
@@ -178,7 +207,10 @@ better than it found it. Two grades of learning, two speeds:
 - `scripts/gen_locator.py` — per-cluster locator maps.
 - `scripts/gen_overview.py` — whole-area basemap overview + label choropleth (macro-QA).
 - `scripts/aggregate.py` — judgments.json + results.jsonl → cluster_to_label.json.
-- `scripts/gen_review_html.py` — review.html.
+- `scripts/gen_review_html.py` — review.html (+ `nbr_flags.json` side output).
+- `scripts/gen_nbr_pairs.py` — boundary-straddling pair crops for the flagged
+  neighbor mismatches (handles dispersed cells: centers on the largest connected
+  patch touching that neighbor). Needs scipy.
 - `scripts/gen_intersection.py` — split flagged impure clusters by intersecting
   with other k-level rasters (kA ∩ kB): minority cells get new ids, the largest
   cell keeps the parent id, slivers (< --min-px) fold into it. Output is a normal
