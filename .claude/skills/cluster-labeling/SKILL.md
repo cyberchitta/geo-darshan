@@ -143,8 +143,8 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
   Show neighbors in review and let confident regions propagate into ambiguous ones.
   Implemented: `gen_review_html.py` computes raster adjacency, prints each cluster's
   dominant neighbors + labels on its card, and flags/filters clusters whose dominant
-  neighbor's label is unrelated (lower boundary-share bar for small clusters — the
-  "small cell visually identical to its surroundings" case).
+  neighbor's label is unrelated and holds ≥ 25% of the boundary — the
+  "cell visually identical to its surroundings" case.
 - **Inherit the parts of the prior map that are already right.** Don't relabel cells the
   old map gets correct (the AOI pack names which — e.g. water). Freeze them and spend
   judgment only where the relabel adds value.

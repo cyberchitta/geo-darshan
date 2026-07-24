@@ -179,9 +179,10 @@ a confirmed **young planted_forest** (the light-green/smooth case misread as gra
   `--nbr-labels vlm_label_k88/cluster_to_label.json` and can be stale (c20/c71 still
   say retired `grazing_land`). Per the user, "visually identical" is decided by the
   VLM alone (embeddings' job ended at clustering) → engine step 5b pair crops judged
-  2026-07-24: 18/28 same-cover, 10 distinct; verdicts in `nbr_verdicts.json`, folded
-  into `review.html`; breakdown + proposed relabels in `corrections.md`. Awaiting user
-  confirmation before revising `judgments.json`.
+  2026-07-24, then extended to medium/large cells (flag bar now share ≥ 0.25 at any
+  size): 35 pairs, 21 same-cover / 14 distinct; verdicts in `nbr_verdicts.json`, folded
+  into `review.html`; breakdown + proposed relabels in `corrections.md` (fallow-default
+  suspect count now 8). Awaiting user confirmation before revising `judgments.json`.
 - **Next ideas (not yet done):** (a) **stratified exemplar selection** — pick exemplars
   to span the old-label strata within each cluster instead of just the N largest patches,
   so minority covers in impure clusters get sampled (the current `patch_exemplars` largest-N

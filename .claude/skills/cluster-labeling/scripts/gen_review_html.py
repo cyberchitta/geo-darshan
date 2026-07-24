@@ -101,13 +101,11 @@ def main():
                    "label": nbr_agg[str(j)]["label"] if str(j) in nbr_agg else None,
                    "conf": nbr_agg[str(j)]["confidence"] if str(j) in nbr_agg else None}
                   for j, s in nb[:4]]
-        # flag: (mostly) surrounded by one neighbor whose label is unrelated —
-        # the "small cell visually identical to its surroundings" triage case;
-        # small clusters flag at a lower boundary-share bar
+        # flag: a substantial share of the boundary is one neighbor whose label
+        # is unrelated — the "cell visually identical to its surroundings" triage case
         mismatch = bool(nb_out and nb_out[0]["label"]
                         and not related(cl, nb_out[0]["label"])
-                        and (nb_out[0]["share"] >= 0.4
-                             or (nb_out[0]["share"] >= 0.25 and (size_px or 0) <= 300)))
+                        and nb_out[0]["share"] >= 0.25)
         clusters.append({
             "id": cid, "label": cl, "confidence": c["confidence"],
             "agreement": c["agreement"], "old": ot, "oldAgrees": agrees,
