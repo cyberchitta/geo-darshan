@@ -21,7 +21,18 @@ from pathlib import Path
 import numpy as np
 import rasterio
 from rasterio.enums import Resampling
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
+
+
+def load_font(size=15):
+    for p in ("/System/Library/Fonts/Helvetica.ttc",
+              "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+              "C:/Windows/Fonts/arialbd.ttf"):
+        try:
+            return ImageFont.truetype(p, size)
+        except OSError:
+            continue
+    return ImageFont.load_default(size)
 
 
 def main():
@@ -62,15 +73,22 @@ def main():
         img[m] = (img[m] * 0.45 + np.array([0, 220, 255]) * 0.55).astype(np.uint8)
         im = Image.fromarray(img)
         d = ImageDraw.Draw(im)
+        font = load_font(15)
         if a.center:
             cx, cy = to_px(*a.center)
             d.ellipse([cx - 5, cy - 5, cx + 5, cy + 5], outline=(255, 255, 255), width=2)
-            d.text((cx + 7, cy - 6), "center", fill=(255, 255, 255))
+            d.text((cx + 7, cy - 8), "center", fill=(255, 255, 255), font=font,
+                   stroke_width=2, stroke_fill=(0, 0, 0))
         for i, (lon, lat) in sorted(ex[cid]):
             x, y = to_px(lon, lat)
             d.ellipse([x - 9, y - 9, x + 9, y + 9], outline=(255, 0, 255), width=3)
-            d.text((x - 3, y - 6), str(i), fill=(255, 0, 255))
-        d.text((6, 6), f"cluster {cid} — full extent (cyan) + exemplars", fill=(255, 255, 0))
+            # digit beside the circle (inside it is unreadable at this scale);
+            # flip to the left edge of the circle when near the image border
+            tx = x - 20 if x > W - 24 else x + 12
+            d.text((tx, y - 9), str(i), fill=(255, 0, 255), font=font,
+                   stroke_width=2, stroke_fill=(0, 0, 0))
+        d.text((6, 6), f"cluster {cid} — full extent (cyan) + exemplars", fill=(255, 255, 0),
+               font=font, stroke_width=2, stroke_fill=(0, 0, 0))
         out = crops / f"c{cid:03d}_locator.jpg"
         im.save(out, quality=88)
         print(out.name, f"({int(m.sum())} px in cluster)")
