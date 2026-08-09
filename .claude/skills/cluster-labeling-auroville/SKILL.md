@@ -27,7 +27,11 @@ labeling Auroville. Update it every session with new durable learnings.
 - Basemap (`BASE`): `data/av-3.5K/intermediates/esri_3.5k_roi_cog.tif`
   — ESRI mosaic, ~1 m effective (grid ~0.58 m, oversampled), 11906×12151, EPSG:4326,
   same bounds as the cluster rasters.
-- Hierarchy: `data/av-3.5K/land-cover.json` (44 nodes flattened).
+- Hierarchy: **`references/land-cover.json`, here in this pack** (44 nodes
+  flattened). The label tree is Auroville-specific, not general, so it belongs to
+  the AOI pack and not to the engine or to `data/` — which is gitignored, where it
+  sat unversioned until 2026-08-09. Pass it explicitly:
+  `--hierarchy .claude/skills/cluster-labeling-auroville/references/land-cover.json`.
 - Prior/old labels (for review cross-tab): `data/av-3.5K/outputs/land-cover_cog.tif`
   + `data/av-3.5K/outputs/pixel-mapping.json` (known weak — see below).
 - **CENTER (`--center`): `79.8106 12.0058`** = Matrimandir.
@@ -167,6 +171,7 @@ in; `judgments.json` not yet revised. Session handoff lives in
 ```
 RUN=data/av-3.5K/intermediates/vlm_label_k88
 python scripts/vlm_label_prototype.py --aoi data/av-3.5K --seg-key k88_s42 \
+  --hierarchy .claude/skills/cluster-labeling-auroville/references/land-cover.json \
   --clusters 88 --exemplars 6 --dry-run --out $RUN
 python .claude/skills/cluster-labeling/scripts/gen_locator.py $RUN \
   --seg data/av-3.5K/intermediates/clusters/k88_s42.tif \

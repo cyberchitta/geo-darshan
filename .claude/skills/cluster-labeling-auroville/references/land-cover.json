@@ -1,0 +1,123 @@
+{
+  "forest": {
+    "natural_forest": {
+      "_description": "Dry deciduous remnants"
+    },
+    "planted_forest": {
+      "_description": "Reforestation areas"
+    },
+    "bamboo_groves": {
+      "_description": "Bamboo plantations"
+    },
+    "tree_lines": {
+      "_description": "Linear woody features outside forest blocks - roadside/avenue tree strips, canal and bund alignments, riparian green strips. Width <= 30 m, length >= 30 m (Copernicus Small Woody Features geometry; FSI Trees-Outside-Forests 'linear' stratum)."
+    }
+  },
+  "agriculture": {
+    "orchards": {
+      "mango": {
+        "_description": "Mango plantations"
+      },
+      "coconut": {
+        "_description": "Coconut groves"
+      },
+      "cashew": {
+        "_description": "Cashew plantations"
+      },
+      "casuarina": {
+        "_description": "Casuarina plantations"
+      },
+      "mixed_fruit": {
+        "_description": "Polyculture orchards"
+      }
+    },
+    "field_crops": {
+      "rice_paddies": {
+        "_description": "Wetland rice cultivation"
+      },
+      "dryland_crops": {
+        "_description": "Groundnut, millets"
+      },
+      "sugarcane": {
+        "_description": "Irrigated sugarcane"
+      }
+    },
+    "agroforestry": {
+      "permaculture": {
+        "_description": "Auroville systems"
+      },
+      "food_forests": {
+        "_description": "Multi-story cultivation"
+      },
+      "mixed_cultivation": {
+        "_description": "Trees + crops"
+      }
+    },
+    "fallow": {
+      "_description": "Agricultural land intentionally left unplanted"
+    }
+  },
+  "built_environment": {
+    "dense_built": {
+      "_description": "High density buildings, urban areas"
+    },
+    "sparse_built": {
+      "_description": "Low density buildings in open areas"
+    },
+    "forest_built": {
+      "_description": "Buildings integrated within forested areas"
+    },
+    "infrastructure": {
+      "_description": "Roads, industrial facilities"
+    }
+  },
+  "water": {
+    "permanent_water": {
+      "_description": "Rivers, permanent ponds"
+    },
+    "seasonal_tanks": {
+      "_description": "Traditional water storage"
+    },
+    "constructed_wetlands": {
+      "_description": "Engineered water treatment"
+    }
+  },
+  "degraded_barren": {
+    "eroded_land": {
+      "_description": "Severely eroded areas"
+    },
+    "quarries": {
+      "_description": "Stone quarries"
+    },
+    "construction_sites": {
+      "_description": "Active construction"
+    }
+  },
+  "scrubland": {
+    "dense_scrub": {
+      "_description": "Dense shrubland"
+    },
+    "sparse_scrub": {
+      "_description": "Open shrubland"
+    },
+    "thorny_scrub": {
+      "_description": "Acacia and thorny vegetation"
+    }
+  },
+  "grassland": {
+    "grazing_land": {
+      "_description": "Livestock grazing areas"
+    },
+    "maintained_grass": {
+      "_description": "Managed grassland"
+    }
+  },
+  "infrastructure": {
+    "roads": {
+      "_description": "Highways, streets, paths"
+    },
+    "industrial": {
+      "_description": "Small-scale industries"
+    }
+  }
+}

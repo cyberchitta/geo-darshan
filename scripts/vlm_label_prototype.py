@@ -427,6 +427,13 @@ def parse_args() -> Config:
     p.add_argument("--cluster-ids", type=int, nargs="+", help="explicit cluster ids")
     p.add_argument("--exemplars", type=int, default=3, help="patches per cluster")
     p.add_argument("--window-m", type=float, default=200.0, help="context window (m)")
+    p.add_argument(
+        "--hierarchy", type=Path,
+        help="label hierarchy JSON. The hierarchy is AOI-specific, so it lives with "
+             "the AOI pack, not here: for Auroville pass "
+             ".claude/skills/cluster-labeling-auroville/references/land-cover.json. "
+             "Defaults to <aoi>/land-cover.json for AOIs that keep it beside their data.",
+    )
     p.add_argument("--min-patch-px", type=int, default=4, help="skip patches smaller than this")
     p.add_argument("--max-img-px", type=int, default=768, help="max crop dimension")
     p.add_argument("--model", default=DEFAULT_MODEL)
@@ -447,7 +454,7 @@ def parse_args() -> Config:
     cfg = Config(
         cluster_raster=aoi / "intermediates" / "clusters" / f"{a.seg_key}.tif",
         esri_raster=a.esri or (aoi / "intermediates" / "esri_3.5k_roi_cog.tif"),
-        hierarchy_file=aoi / "land-cover.json",
+        hierarchy_file=a.hierarchy or (aoi / "land-cover.json"),
         out_dir=a.out or (aoi / "intermediates" / "vlm_label"),
         n_clusters=a.clusters,
         cluster_ids=a.cluster_ids,
