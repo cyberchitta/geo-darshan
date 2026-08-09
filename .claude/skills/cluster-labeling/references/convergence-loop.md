@@ -35,7 +35,7 @@ retirement expensive.
 | 2 | unanimous label | — | |
 | 3 | every exemplar independently verified | — | **usually the binding one** |
 | 4 | mean confidence ≥ | 0.65 | **see "confidence is not a criterion"** |
-| 5 | coverage ≥, or cluster below px floor | 0.30 / 25 px | |
+| 5 | coverage ≥, or cluster below px floor | 0.30 / 25 px | **exemplars see ~a fifth of a cluster** — see below |
 | 6 | no prior-map class ≥ threshold in a different family | 0.60 | |
 | 7 | no unrelated dominant neighbour ≥ share | 0.25 | compares *current* labels |
 | 8 | label exists in the hierarchy | — | catches `uncertain`, stale classes |
@@ -55,6 +55,17 @@ changes; comparing against it blocked 27 clusters where only 5 were real.
 caused by the cluster covering two different things.** Definitional ambiguity
 produces children that still straddle the same boundary — that is a contract
 problem, fix the class definition. Resolution limits want a parent-level label.
+
+## Exemplars see about a fifth of a cluster
+
+Measured over 125 clusters (k88∩k22): exemplar pixels as a fraction of cluster
+pixels ran **median 20.8%**, mean 27.2%, and 45 clusters were under 15%.
+
+The default picks the N *largest* patches, so coverage is biased toward the
+dominant cover and the minority cover sits in the unseen tail — which is exactly
+what impurity is. Unanimity across three views of a fifth of a cluster is weak
+evidence about the other four fifths. This is why criterion 5 exists, and why
+"all exemplars agreed" cannot stand alone as a retirement rule.
 
 ## Confidence is not a criterion
 
