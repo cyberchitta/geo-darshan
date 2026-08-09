@@ -264,6 +264,12 @@ better than it found it. Two grades of learning, two speeds:
 
 ## Files
 
+- `references/convergence-loop.md` — the multi-pass settle/split loop that wraps
+  this procedure: per-cluster state machine, the settle gate and its criteria,
+  disagreement triage, what is built vs not, and the open decisions. Load it when
+  running a pass after the first, or tuning the gate.
+- `scripts/gate.py` — ledger + settle gate: judgments (+ verify, prior, neighbour)
+  → `ledger.json` with a state per cluster, stamped with `defs_version`.
 - `scripts/gen_locator.py` — per-cluster locator maps.
 - `scripts/gen_overview.py` — whole-area basemap overview + label choropleth (macro-QA).
 - `scripts/gen_context.py` — mid-scale context crop per exemplar (same centre, wider
