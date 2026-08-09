@@ -2,17 +2,22 @@
 name: cluster-labeling-auroville
 description: >-
   Auroville (Tamil Nadu, India) AOI pack for the cluster-labeling skill — paths,
-  label hierarchy, crop visual signatures, geography priors, reference example
-  crops, and the running corrections log. Use whenever labeling Auroville
-  land-cover clusters / relabeling the Auroville land-use map. Load this together
-  with the cluster-labeling engine skill.
+  label hierarchy, research-backed per-class definitions, geography priors,
+  reference example crops, and the running corrections log. Use whenever labeling
+  Auroville land-cover clusters / relabeling the Auroville land-use map. Load this
+  together with the cluster-labeling engine skill.
 ---
 
 # Auroville AOI pack
 
-Domain pack for the `cluster-labeling` engine. **This file is the source of
-truth** for Auroville labeling knowledge (the user's two memories point here).
-Update it every session with new durable learnings.
+Domain pack for the `cluster-labeling` engine — the operational rules for
+labeling Auroville. Update it every session with new durable learnings.
+
+- `references/class-definitions.md` — the per-class contract for every node in
+  `land-cover.json`, anchored to published schemes. **Read before judging.**
+- `references/history.md` — round history, why each rule exists, open threads.
+  Consult when **revising** the pack; not needed to judge. Keep the narrative
+  there so these files stay operational.
 
 ## Paths / config (engine inputs)
 
@@ -22,87 +27,92 @@ Update it every session with new durable learnings.
 - Basemap (`BASE`): `data/av-3.5K/intermediates/esri_3.5k_roi_cog.tif`
   — ESRI mosaic, ~1 m effective (grid ~0.58 m, oversampled), 11906×12151, EPSG:4326,
   same bounds as the cluster rasters.
-- Hierarchy: `data/av-3.5K/land-cover.json` (43 nodes flattened).
+- Hierarchy: `data/av-3.5K/land-cover.json` (44 nodes flattened).
 - Prior/old labels (for review cross-tab): `data/av-3.5K/outputs/land-cover_cog.tif`
   + `data/av-3.5K/outputs/pixel-mapping.json` (known weak — see below).
 - **CENTER (`--center`): `79.8106 12.0058`** = Matrimandir.
 
+### Two grids — don't conflate them
+
+The thing you **look at** and the thing you **label** are different rasters, an
+order of magnitude apart. Every threshold below is stated against whichever one
+it belongs to.
+
+| | source | cell | role |
+|---|---|---|---|
+| **Imagery** | ESRI mosaic | **~0.58 m** (sub-metre) | what the VLM reads — individual tree crowns, roof outlines, plough lines are all resolved |
+| **Cluster grid** | AlphaEarth embeddings over Sentinel | **~10 m** | what carries a label — 703 × 703 over a ~7 km AOI |
+
+Consequences worth holding onto: (a) you can *see* far more detail than you can
+*assign* — a feature narrower than ~10 m is visible but has no cell of its own;
+(b) one cluster cell = ~100 m², so a 0.5 ha forest MMU is ~50 cells; (c) the AOI
+is **~7 km across, not 3.5** — the `av-3.5K` name is historical and misleads.
+
 Producers (out of scope for labeling): ESRI imagery via `bun run download-tiles`/
 `stitch-tiles`; cluster rasters + hierarchy via the sibling **alpha-bhu** repo.
 
-## Crop visual signatures
+## Class definitions — canonical
 
-- **Cashew** looks scrub-like from above (low spreading crowns ≈ scrub clumps).
-  **Hard rule: my "scrub" vs old "cashew" → it's CASHEW.** Don't trust the scrub read.
-- **`degraded_barren` (esp. `.eroded_land`) is COMMON here and was under-applied** —
-  bare red/laterite soil, eroded/gullied ground, sparse-to-no vegetation. It is more
-  common than the grazing/maintained-grass reads that wrongly became defaults; actively
-  use it for genuinely bare/eroded ground (esp. where the old map's smooth-green default
-  was wrong).
-- **Cashew vs barren discriminator (user-confirmed):** crowns present ⇒ CASHEW;
-  bare/eroded soil with no crowns ⇒ `degraded_barren`. (So the "scrub→cashew" rule fires
-  on vegetated clumps; genuinely bare/eroded laterite is barren, not cashew.)
-- **Mature coconut**: star-burst rosette crowns + thin long shadows (NOT scrub-like).
-- **Young coconut**: a regular dot-grid of shrub-sized crowns in grass → new coconut,
-  not generic orchard.
-- **Casuarina is two-phase** (rotational, harvested every few years, like a water
-  body is seasonal): (a) standing = fine feathery uniform dark-green canopy;
-  (b) harvested = a regular-geometry field that looks fallow/bare for a few years.
-  **A geometric "fallow"/grassy field interspersed with or surrounded by casuarina
-  fields is harvested/fallow casuarina, not generic fallow or dryland crops.**
-  (User-confirmed across k88 c5, c6, c30, c31 — a strong, recurring prior on the west.)
-  When you read a flat field as fallow/field_crops/grass and casuarina stands are nearby,
-  prefer `orchards.casuarina`.
-- **Young / recently-planted forest reads light-green and smooth** — no separable
-  crowns, almost grass-like at ~170 px. Do NOT default this to grassland; in a
-  forest/scrub matrix it is `forest.planted_forest` (k88 c17/c18 were misread as
-  grazing land — they are planted forest).
-- **Tree-lines along irrigation channels / bunds** are common — linear strings of
-  trees following field edges. Don't let a bund tree-line flip an agricultural
-  patch to forest; it's part of the field/agroforestry mosaic.
-- **Geometric field-like patches are NEVER planted forest** → label agriculture
-  (crop/orchard/casuarina).
-- **There are basically NO natural forests here — never use `forest.natural_forest`.**
-  All forest is planted. Dense "natural-looking" canopy = `forest.planted_forest`,
-  or casuarina on the west.
-- **Planted forest clusters around Auroville communities** (correlates with settlement).
-- **Mango orchards** exist but were under-labeled in the old map; smaller clusters.
-  Actively hunt mango (large dense rounded dark crowns, wide regular spacing) at finer k.
+**`references/class-definitions.md` is the contract for every class in
+`land-cover.json`**: definition, the diagnostic to look for at sub-metre, the
+positive evidence the class *requires*, and the confusions it loses to. Written
+2026-08-09 against published schemes — NRSC/ISRO National LULC 50K (India's own,
+and the closest match to our tree), FAO forest + LCCS, CORINE, NLCD, the
+Wastelands Atlas, FSI Trees-Outside-Forests, ICRAF agroforestry. **Read it before
+judging**; do not restate its per-class rules here, they drift.
 
-## Label policy (Auroville-specific class choices)
+**Any change there must also land in `FIELD_GUIDE`** in
+`scripts/vlm_label_prototype.py` — that dict builds `prompt.txt` and is the only
+class description an ordinary reader sees. A correction that lands only in the
+docs does not reach the readers.
 
+Every class states the positive evidence it **requires**, because the standing
+failure mode here is a class applied on *absence* of evidence — most sharply
+`fallow`, which per NRSC needs visible evidence of cultivation plus ≥1 year
+un-cropped, not merely nothing growing.
+
+## Auroville-specific priors on top of the definitions
+
+These are the local facts the standards can't carry:
+
+- **Retired here — never emit:** `grassland.grazing_land` (no exclusive grazing;
+  herds move over common land) and `forest.natural_forest` (nothing here is
+  self-regenerating; all forest was planted within living memory).
 - **INHERIT water from the old map — do NOT relabel it.** The manual map's `water`
-  bodies are accurate (and correctly seasonal). Freeze old-map water cells and carry
-  them straight through; spend judgment only where the relabel adds value. (Don't waste
-  exemplars re-deciding water, and don't second-guess a dry tank that the old map calls
-  water — it's seasonal.)
-- **NEVER use `grassland.grazing_land`.** Auroville has no land used *exclusively*
-  for grazing — herds are moved around and feed off public/common land, so grazing
-  is not a land-cover class here.
-- **`grassland.maintained_grass` is RARE and mostly around Matrimandir** (managed
-  gardens / lawns / campus grounds in the central zone). It became a second catch-all
-  for smooth green (after grazing). Do NOT apply it away from the center unless the
-  patch is unmistakably mown/managed and ringed by built. Away from the center, a
-  smooth light-green patch is far more likely **`forest.planted_forest`** (young/sparse
-  trees — see signature; the common case in a forest matrix), **harvested
-  `orchards.casuarina`** (west / amid casuarina), or **`agriculture.fallow`** (geometric
-  field in an agricultural context). Decide by matrix/context, not by "it's green and smooth."
-- **`agriculture.field_crops.dryland_crops` — VERIFY before using.** Open question
-  whether Auroville actually has dryland crops (groundnut/millet) at scale. Many
-  "dryland_crops" / generic "field_crops" reads in or beside the casuarina zone are
-  suspected to be **harvested/fallow casuarina** instead (user flagged c30/c31). Prefer
-  casuarina when the field sits among casuarina; reserve dryland_crops for fields with a
-  clear active-crop signature away from the casuarina belt, pending ground verification.
-- **Built subtypes — discriminate by what fills the space BETWEEN the buildings:**
-  - `built_environment.dense_built` — roofs adjacent/contiguous, little vegetation
-    between; town/village urban fabric.
-  - `built_environment.sparse_built` — buildings separated by **open ground** (bare
-    soil / grass / field) as the matrix.
-  - `built_environment.forest_built` — buildings embedded **under/among tree canopy**;
-    canopy is the matrix and roofs peek through. The default Auroville
-    community-in-greenbelt pattern.
-  - Tie-breaker question: *is the matrix roofs, open ground, or canopy?* Don't pick a
-    built subtype by roof density alone. (k88 c2/c7 were arbitrary without this.)
+  bodies are accurate and correctly seasonal; **`water` is the one class it has
+  authority on** (it is weak elsewhere — ~25% agreement overall). Don't spend
+  exemplars re-deciding water, and never second-guess a dry tank the old map calls
+  water: on the imagery a dry-season tank is a pale flat bed that reads as bare
+  ground or fallow. Run the cross-tab and freeze it rather than trusting readers to
+  remember:
+  ```
+  python .claude/skills/cluster-labeling/scripts/gen_prior_labels.py $RUN \
+    --seg <SEG> --old data/av-3.5K/outputs/land-cover_cog.tif \
+    --mapping data/av-3.5K/outputs/pixel-mapping.json \
+    --authoritative water --freeze-share 0.5
+  ```
+  Pass the resulting per-cell distribution to the readers as evidence for the
+  non-frozen cells; a cell that is part water and part something else is a
+  shoreline carve-out, not a single label.
+- **`maintained_grass` is RARE and mostly around Matrimandir** — managed gardens,
+  lawns, campus grounds in the central zone. Away from the centre a smooth
+  light-green patch is far more likely young `planted_forest`, harvested
+  `casuarina`, or `fallow`.
+- **`dryland_crops` — VERIFY before using.** Open whether Auroville has groundnut/
+  millet at scale; reads in or beside the casuarina belt are suspected harvested
+  casuarina. Pending ground verification.
+- **`degraded_barren` was under-applied and is genuinely common** — bare red
+  laterite, eroded ground. Use it, but keep the crowns test: crowns ⇒ cashew.
+- **Cashew is the big trap:** it looks scrub-like from above. **Hard rule — my
+  "scrub" vs old map "cashew" ⇒ CASHEW.**
+- **Planted forest clusters around Auroville communities** (correlates with
+  settlement) and is persistently under-called under other class names — when
+  canopy sits in a forest matrix and isn't a clear orchard grid, lean here.
+- **Mango exists but was under-labelled in the old map** — actively hunt it at
+  finer k (large dense rounded dark crowns, wide regular spacing).
+- **Large roofs in a green matrix are still `forest_built`**, not `dense_built` —
+  built subtypes go by artificial *fraction*, never building size (k88xk22 c2).
+
 
 ## Geography priors (direction from Matrimandir)
 
@@ -115,10 +125,9 @@ Every exemplar has lon/lat → compute 8-point compass from center
 - **Forest (planted) → broad central-ish belt incl. the SE**; soft prior, not dead-center.
 - **The geometric center (around Matrimandir) is GARDENS** — neither forest nor
   field (managed garden/agroforestry/built mosaic). Don't default the center to forest.
-- **The Matrimandir itself is AT the center** (= `CENTER`). k88xk22 c2 does NOT
-  include it — its exemplars are 0.6–1.1 km out; the round-3 note calling c2 e0
-  "the Matrimandir monument" misidentified another large white-roofed building
-  ~1 km west (user-corrected 2026-07-24).
+- **The Matrimandir itself is AT the center** (= `CENTER`), and no cluster cell
+  should be recorded as containing it without a coordinate check — a look-alike
+  white-roofed building ~1 km west has been mistaken for it before.
 - A "scrub" read in the middle of the east/south cashew belt is almost certainly cashew.
 - Apply per-exemplar, not per-cluster-centroid (scattered clusters have meaningless centroids).
 
@@ -148,55 +157,10 @@ a confirmed **young planted_forest** (the light-green/smooth case misread as gra
 
 ## State / history
 
-- **Round 1 = k22** (22 clusters × 3 exemplars), in `data/av-3.5K/intermediates/vlm_label_k22/`.
-  Full results + the append-only `corrections.md` (per-cluster geo + user feedback)
-  live there. Labeled by Claude in-harness; user gave 2 feedback rounds.
-- **Round 2 = k88** (88 clusters × 6 exemplars), in `data/av-3.5K/intermediates/vlm_label_k88/`.
-  Judged in-harness via 11 parallel reader agents sharing one calibration brief.
-  Outputs: `judgments.json`, `cluster_to_label.json`, `review.html`, `split_candidates.md`,
-  `corrections.md`. Geography priors all held (casuarina W/NW, cashew E/S, center =
-  gardens). Per-exemplar vs old-map check: only 25% exact / 36% w/ hierarchy match —
-  the relabel is genuinely correcting the old map, not reproducing it. User feedback
-  (round 1) drove the label-policy + signature updates above. Key errors found:
-  `grazing_land` over-applied as a low-confidence default (now retired); built subtypes
-  arbitrary without definitions (now defined); harvested casuarina under-called.
-- **k88 ∩ k22 intersection BUILT (2026-07-05)** via the engine's `gen_intersection.py`:
-  the 22 flagged split candidates (see `vlm_label_k88/split_candidates.md`) partitioned
-  by k22 membership → `intermediates/clusters/k88xk22_s42.tif` (**191 clusters**, ids
-  0–190; largest cell keeps parent id, minorities = 88–190) + `k88xk22_s42_mapping.json`
-  (parentage). All 22 split under k22; verified px-conserving. Details + round-3 plan:
-  `vlm_label_k88/INTERSECTION.md`. NOTE: interleaved impurities (two-phase casuarina,
-  central gardens gradient) may survive within cells — those still need (c) below.
-- **Round 3 = k88∩k22 cells JUDGED (2026-07-05)**, in
-  `data/av-3.5K/intermediates/vlm_label_k88xk22/`: 103 minority cells + the 22 re-judged
-  parents, 332 verdicts by 10 parallel fresh readers off `BRIEF.md`. Hard rules held (no
-  grazing_land / natural_forest); maintained_grass stayed central; tank-margin cells
-  resolved as a coherent seasonal-tank family; c113-type riparian strips isolated.
-  ⚠️ Systematic suspect: **`agriculture.fallow` became the new smooth-green default**
-  (30/125 votes, confetti pattern on the choropleth) — watch it like grazing_land was
-  watched. Awaiting user feedback via `review.html`; log in that dir's `corrections.md`.
-  **Neighbor context added (2026-07-24, user request):** `review.html` now shows each
-  cluster's dominant spatial neighbors + labels and flags 28 clusters whose dominant
-  neighbor's label is unrelated (`differs from neighbours` filter) — the triage queue
-  for "small cell visually identical to its surroundings, should inherit the neighbor's
-  label". Caveat: neighbor labels for un-rejudged k88 parents come from round 2 via
-  `--nbr-labels vlm_label_k88/cluster_to_label.json` and can be stale (c20/c71 still
-  say retired `grazing_land`). Per the user, "visually identical" is decided by the
-  VLM alone (embeddings' job ended at clustering) → engine step 5b pair crops judged
-  2026-07-24, then extended to medium/large cells (flag bar now share ≥ 0.25 at any
-  size): 35 pairs, 21 same-cover / 14 distinct; verdicts in `nbr_verdicts.json`, folded
-  into `review.html`; breakdown + proposed relabels in `corrections.md` (fallow-default
-  suspect count now 8). Awaiting user confirmation before revising `judgments.json`.
-- **Next ideas (not yet done):** (a) **stratified exemplar selection** — pick exemplars
-  to span the old-label strata within each cluster instead of just the N largest patches,
-  so minority covers in impure clusters get sampled (the current `patch_exemplars` largest-N
-  bias under-samples them). (b) Use **old-map family-spread within a cluster** as an
-  independent split trigger. (c) Refine flagged impure clusters: `k88 ∩ k22` (computable
-  locally, good for *spatially-split* impurities) for the spatial ones; a **finer/local
-  re-cluster from alpha-bhu** (k176 or sub-clustering of just the flagged masks) for the
-  *interleaved* ones (two-phase casuarina, gardens gradient, cashew-belt edges) that an
-  intersection with a coarser level won't separate. Avoid *global* k176 (re-fragments the
-  already-clean pure clusters; k-levels don't nest).
+Moved to `references/history.md` — rounds, provenance of each rule, and open
+threads. **Current position:** round 3 (k88∩k22) judged; user feedback partially
+in; `judgments.json` not yet revised. Session handoff lives in
+`data/av-3.5K/intermediates/vlm_label_k88xk22/HANDOFF.md`.
 
 ## Run commands (this AOI)
 
@@ -210,6 +174,9 @@ python .claude/skills/cluster-labeling/scripts/gen_locator.py $RUN \
 python .claude/skills/cluster-labeling/scripts/gen_overview.py $RUN \
   --seg data/av-3.5K/intermediates/clusters/k88_s42.tif \
   --base data/av-3.5K/intermediates/esri_3.5k_roi_cog.tif
+python .claude/skills/cluster-labeling/scripts/gen_context.py $RUN \
+  --seg data/av-3.5K/intermediates/clusters/k88_s42.tif \
+  --base data/av-3.5K/intermediates/esri_3.5k_roi_cog.tif --window-m 800
 # split raster for round 3 (flagged impure clusters partitioned by k22):
 python .claude/skills/cluster-labeling/scripts/gen_intersection.py \
   data/av-3.5K/intermediates/clusters/k88xk22_s42.tif \

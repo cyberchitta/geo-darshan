@@ -69,26 +69,59 @@ class Config:
 # Diagnostic cues for the classes a generic labeler is most likely to confuse.
 # These ride along with the auto-generated label list to give the model the
 # land-use knowledge the original human labeler lacked.
+#
+# Each cue states what the class REQUIRES, not just what it looks like. That is
+# deliberate: every systematic error this pipeline has produced came from a class
+# applied on *absence* of evidence ("smooth green, nothing obviously growing"),
+# which let grazing_land, then maintained_grass, then fallow each become a
+# catch-all in turn. Full definitions and their sources (NRSC/ISRO National LULC
+# 50K, FAO, CORINE, NLCD, Wastelands Atlas, FSI TOF, ICRAF) live in
+# .claude/skills/cluster-labeling-auroville/references/class-definitions.md
 FIELD_GUIDE = {
-    "forest.natural_forest": "Irregular canopy heights, NO planting rows/grid, mixed crown sizes.",
-    "forest.planted_forest": "Even-aged canopy, sometimes faint rows; more uniform than natural forest.",
-    "forest.bamboo_groves": "Very fine bright-green feathery texture, dense clumps.",
-    "agriculture.orchards.mango": "Large dense rounded dark-green crowns, wide regular spacing, blocky orchards.",
-    "agriculture.orchards.coconut": "Tall palms: small star-burst crowns + long thin shadows, regular grid.",
-    "agriculture.orchards.cashew": "Lower spreading crowns, moderate spacing, often on red/laterite soil.",
-    "agriculture.orchards.casuarina": "Fine feathery grey-green texture, tall thin trees in dense plantation rows.",
-    "agriculture.field_crops.rice_paddies": "Flat rectangular bunded fields, often wet/reflective or bright green flush.",
-    "agriculture.field_crops.dryland_crops": "Bare-to-sparse rectangular fields, brown/tan, low texture.",
-    "agriculture.field_crops.sugarcane": "Tall dense uniform bright-green grass-like fields, sharp field edges.",
-    "agriculture.agroforestry.permaculture": "Mixed trees+beds, irregular but managed, paths and swales (Auroville systems).",
-    "agriculture.fallow": "Bare or weedy rectangular fields with no active crop.",
-    "built_environment.dense_built": "Many adjacent roofs, little vegetation, hard geometric edges.",
-    "built_environment.sparse_built": "Scattered roofs amid open ground/vegetation.",
-    "built_environment.forest_built": "Roofs embedded within tree canopy (buildings under/among trees).",
-    "infrastructure.roads": "Linear grey/red strips, consistent width, connecting features.",
-    "water": "Smooth dark or turquoise areas, no internal texture.",
-    "grassland.maintained_grass": "Smooth uniform low green, mown look (lawns, maidans).",
+    # --- forest: FAO gate is >10% canopy, >0.5 ha, species reaching 5 m -------
+    "forest.natural_forest": "Self-regenerating, no planting geometry. NOT USED in Auroville — all forest here was planted.",
+    "forest.planted_forest": "Two looks: mature = closed irregular canopy, crowns touching; YOUNG = light-green, SMOOTH, almost grass-like, crowns not separable. Needs a forest/scrub matrix. The young case is chronically missed.",
+    "forest.bamboo_groves": "Fine feathery yellow-green, tight clump outlines. Unconfirmed in this AOI — treat as a claim needing evidence.",
+    "forest.tree_lines": "LINEAR woody strip following a road, canal, tank margin or bund; <=30 m wide, >=30 m long. Requires linearity AND a linear host feature.",
+    # --- orchards: require planting geometry or a species signature -----------
+    "agriculture.orchards.mango": "Large dense rounded dark crowns, WIDE REGULAR spacing; the biggest crowns around. Needs size + spacing regularity together.",
+    "agriculture.orchards.coconut": "Mature = star-burst rosette crowns + thin long shadows. YOUNG = regular DOT-GRID of shrub-sized crowns in grass/laterite — the grid is the tell. Bare ground inside a young planting is still coconut.",
+    "agriculture.orchards.cashew": "LOOKS SCRUB-LIKE FROM ABOVE: low spreading clumpy crowns. Crowns present => cashew; bare eroded soil with no crowns => degraded_barren. A 'scrub' read in the east/south belt is almost certainly this.",
+    "agriculture.orchards.casuarina": "TWO PHASES. Standing = fine feathery uniform dark-green block. HARVESTED = geometric field looking bare/fallow FOR YEARS. A bare geometric field amid casuarina is harvested casuarina, not fallow and not dryland crops.",
+    "agriculture.orchards.mixed_fruit": "Several DIFFERENT crown types under one planting geometry. Not a fallback for 'orchard, species unclear' — use the parent for that.",
+    # --- field crops: NRSC requires STANDING CROP ----------------------------
+    "agriculture.field_crops.rice_paddies": "Level parcels with water-retaining bunds, strong rectangular tessellation, near tanks/canals. Wetness confirms but is not required.",
+    "agriculture.field_crops.dryland_crops": "VERIFY BEFORE USING — may not exist here at scale. Requires an ACTIVE crop signature (row texture, uniform crop colour) AWAY from the casuarina belt. A merely bare geometric field is fallow or harvested casuarina.",
+    "agriculture.field_crops.sugarcane": "Tall dense uniform bright-green, coarse streaky texture, large irrigated parcels. Unconfirmed here.",
+    # --- agroforestry: requires TWO production layers at once ----------------
+    "agriculture.agroforestry.permaculture": "Visible design geometry (contour bunds, swales, keyline) plus mixed planting; near communities.",
+    "agriculture.agroforestry.food_forests": "Multi-storey edible planting AND proximity to dwellings. Without the habitation link it is planted_forest.",
+    "agriculture.agroforestry.mixed_cultivation": "Trees and crops interspersed in ONE parcel — both layers must be visible. If you cannot see the crop layer it is not agroforestry.",
+    "agriculture.fallow": "REQUIRES BOTH: (1) positive evidence of CULTIVATION — field geometry, bunds, plough lines, straight boundaries shared with active parcels; (2) no standing crop, rested >=1 year. NOT a default for smooth green/tan. Before using, rule out: harvested casuarina, young coconut, young planted_forest, tree_lines, eroded_land, a forest blank.",
+    # --- built: graded by ARTIFICIAL FRACTION, never by building size --------
+    "built_environment.dense_built": "Artificial surface (roofs+roads+paving) >= ~50% of the area. Matrix irrelevant at this density.",
+    "built_environment.sparse_built": "Artificial ~20-50% AND the matrix between buildings is OPEN GROUND (bare soil/grass/field).",
+    "built_environment.forest_built": "Artificial ~20-50% AND the matrix is CANOPY — roofs peeking through trees. The default Auroville community pattern. Large roofs in a green matrix are still this, not dense_built.",
+    # --- water: inherited from the old map; these are for new cells only -----
+    "water.permanent_water": "Water present year-round.",
+    "water.seasonal_tanks": "Bunded basin with a distinct bund arc. A DRY tank is still a tank: flat pale bed, shoreline scar, radiating cattle tracks.",
+    "water.constructed_wetlands": "Rectangular engineered cells with emergent vegetation, adjacent to a community.",
+    # --- degraded / scrub: Wastelands Atlas family ---------------------------
     "degraded_barren": "Bare red laterite / eroded soil, little to no vegetation.",
+    "degraded_barren.eroded_land": "Requires VISIBLE DISSECTION — branching gully channels, sharp shadowed edges. Flat bare ground with no channels is the parent degraded_barren, not this.",
+    "degraded_barren.quarries": "Sharp-edged excavation, benched walls, spoil heaps, access ramp, often a pit pond.",
+    "degraded_barren.construction_sites": "Requires signs of ACTIVITY: foundations, stockpiles, vehicle tracks, part-built structures. Bare ground alone is not a site.",
+    "scrubland.dense_scrub": "Continuous merging shrub cover, no tree canopy, no planting geometry. In the east/south belt this look is CASHEW.",
+    "scrubland.sparse_scrub": "Scattered shrub clumps with soil visible between. Distinguish from young planted_forest, which is smoother and light-green in a forest matrix.",
+    "scrubland.thorny_scrub": "Fine GREY-green open crowns (acacia/prosopis) on poor dry ground.",
+    # An opening amid canopy is a 'forest blank' and stays with the forest
+    # (NRSC 3.4) — it is not fallow and not barren.
+    # --- grassland -----------------------------------------------------------
+    "grassland.grazing_land": "NOT USED in Auroville — herds move over common land, so this is not a cover class here.",
+    "grassland.maintained_grass": "RARE, and mostly around Matrimandir. Requires unmistakably mown/managed grass RINGED BY BUILT. Away from the centre, a smooth green patch is young planted_forest, harvested casuarina, or fallow.",
+    # --- infrastructure ------------------------------------------------------
+    "infrastructure.roads": "Linear grey/red strips of consistent width. The road surface only — roadside trees are forest.tree_lines.",
+    "infrastructure.industrial": "Large uniform roofs, hardstanding, yard space, vehicle access; grain differs from surrounding housing.",
 }
 
 

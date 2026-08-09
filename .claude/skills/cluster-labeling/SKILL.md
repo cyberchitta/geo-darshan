@@ -61,8 +61,31 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
    exists, `RUN_DIR/overview_labels.jpg` (label choropleth + legend — re-run after
    aggregate as a macro-QA surface).
 
+2c. **Mid-scale context crops** (the zoom between exemplar and locator):
+   ```
+   python .claude/skills/cluster-labeling/scripts/gen_context.py RUN_DIR \
+     --seg SEG --base BASE [--window-m 800]
+   ```
+   → `RUN_DIR/crops/cXXX_eN_ctx.jpg` — the same centre as each exemplar at a wider
+   window, magenta outline, 100 m scale bar, no tint. Rendered from `results.jsonl`
+   centres so indices match the exemplars one-to-one. **Any class defined by its
+   surroundings needs this** — a bare field reads as fallow at 200 m and as a
+   harvested plantation block at 800 m; "matrix between the buildings", "opening
+   inside forest", and "strip following a road" are all invisible in a close crop.
+
+2d. **Prior-label cross-tab** (only when a prior label raster exists):
+   ```
+   python .claude/skills/cluster-labeling/scripts/gen_prior_labels.py RUN_DIR \
+     --seg SEG --old OLD.tif --mapping pixel-mapping.json \
+     [--authoritative water --freeze-share 0.5]
+   ```
+   → `RUN_DIR/prior_labels.json` — per cell, the distribution of prior-map classes
+   over its pixels, plus freeze candidates for the classes the AOI pack names as
+   reliable. Feed the distribution to the readers as evidence and hold the frozen
+   cells out of judging entirely.
+
 3. **Judge.** Read `prompt.txt`, the AOI pack's reference example crops, then for
-   each cluster read its exemplar crops **and** its locator map. Emit a verdict
+   each cluster read its exemplar crops, its context crops **and** its locator map. Emit a verdict
    per exemplar into `RUN_DIR/judgments.json` — a JSON array of
    `{cluster, exemplar, label, level, confidence, alternative, reasoning}`,
    following `prompt.txt` exactly. Apply the AOI pack's signatures + geography
@@ -145,19 +168,53 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
   dominant neighbors + labels on its card, and flags/filters clusters whose dominant
   neighbor's label is unrelated and holds ≥ 25% of the boundary — the
   "cell visually identical to its surroundings" case.
-- **Inherit the parts of the prior map that are already right.** Don't relabel cells the
-  old map gets correct (the AOI pack names which — e.g. water). Freeze them and spend
-  judgment only where the relabel adds value.
+- **Inherit the parts of the prior map that are already right, and give the readers the
+  mechanism — not just the policy.** Don't relabel cells the old map gets correct (the AOI
+  pack names which — e.g. water): freeze them and spend judgment only where the relabel
+  adds value. A policy nobody can act on is not a policy: for two rounds this project
+  said "inherit water" while no reader was ever shown what the prior map claimed, and
+  dry-season tank beds were duly judged from the photo alone — four were guessed right at
+  ~0.45 confidence and one became `fallow`. Compute the cross-tab (step 2d), freeze the
+  authoritative class, and pass the rest down as evidence.
+- **A prior map is an independent observation at a different time, and that is its whole
+  value.** It can know what your imagery cannot show — seasonality above all. A tank
+  photographed dry looks like bare ground and nothing in a single-date image says
+  otherwise. But authority is **per-class, never blanket**: the same map is usually weak
+  overall (that's why it's being relabelled), so "the old map says X" must not become the
+  next default. Freeze the classes it's known to get right; treat the rest as one weak
+  input; and where a cell straddles two prior classes, read that as a split signal along a
+  real boundary rather than a label to pick between.
 - **Light tint only.** A heavy patch fill flattens canopy/crown texture and
   causes misreads (it turned a coconut grove into "scrub"). Renderer default is
   12% yellow + magenta outline. Upscale small (~170 px) crops ~4× before reading.
 - **Always look at the locator** before labeling — "largest patch" exemplars can
   be unrepresentative of a dispersed/impure cluster; the locator reveals that.
+- **Judge at three scales, not one.** The close crop identifies the cover, the
+  context crop identifies its *matrix*, and the locator says whether the patch is
+  typical of its cluster. Skipping the middle scale is a systematic bias, not a
+  minor loss: every class whose definition contains "amid", "surrounded by",
+  "between", or "in a … matrix" is undecidable from the close crop, so a reader
+  given only that will reach for the class that needs no context — which is how a
+  smooth-green default gets established in the first place.
 - **Geography is a prior, not trivia.** Every exemplar has lon/lat; compute its
   direction from the AOI center and apply the pack's spatial priors. The same data
   polices landmark claims: never record "this crop is <landmark>" without checking the
   exemplar's coordinates against the landmark's — a look-alike building 1 km away got
   logged as the AOI's central monument and the error propagated for rounds.
+- **The cues the readers actually consume must be the same artifact you maintain.**
+  Class knowledge ends up in three places — the renderer's `FIELD_GUIDE` (which
+  builds `prompt.txt`), the AOI pack's class definitions, and each round's
+  hand-written `BRIEF.md`. Only the first reaches an ordinary reader, and it is the
+  one nobody thinks to edit; a pack can absorb rounds of corrections while readers
+  are still served the original wording. When feedback updates a class, update the
+  cue the model sees, not only the doc you read.
+- **Write cues as REQUIREMENTS, not appearances.** Every systematic error this
+  pipeline produced came from a class applied on *absence* of evidence — "smooth
+  green, nothing obviously growing". A cue that only describes a look can always be
+  satisfied by an ambiguous patch; a cue that names the positive evidence the class
+  *requires* cannot. Where a published scheme defines the class, quote its
+  requirement (e.g. fallow needs visible evidence of prior cultivation, not merely
+  no crop) — it is more defensible than anything you invent, and it survives review.
 - **Record `alternative` + `reasoning` every time** — they drive the review and
   the corrections triage.
 - **Disagreement (mine vs prior) = the expert-review queue**, not noise.
@@ -209,6 +266,8 @@ better than it found it. Two grades of learning, two speeds:
 
 - `scripts/gen_locator.py` — per-cluster locator maps.
 - `scripts/gen_overview.py` — whole-area basemap overview + label choropleth (macro-QA).
+- `scripts/gen_context.py` — mid-scale context crop per exemplar (same centre, wider
+  window) for classes decided by their surroundings.
 - `scripts/aggregate.py` — judgments.json + results.jsonl → cluster_to_label.json.
 - `scripts/gen_review_html.py` — review.html (+ `nbr_flags.json` side output).
 - `scripts/gen_nbr_pairs.py` — boundary-straddling pair crops for the flagged
