@@ -51,12 +51,17 @@ bun run type-check
 Tracked separately in the private `working-notes` repo, symlinked at `_notes/`;
 invisible to the `Grep`/`Glob` tools (global `CLAUDE.md` has the `rg` forms).
 
+- **`_notes/worklist.md` — start here.** Central "what's next to work on": the
+  current task, what's queued, and which document holds the detail for each.
+  Not speculative — it is the live index. Read it at the start of a session that
+  has no other stated goal, and keep it current when the next action changes.
 - `_notes/cluster-relabeling_handoff.md` — how VLM-based cluster relabeling
   replaced the original hand-labeling. **Historical narrative only:** that
   workflow is now a skill, and
   `.claude/skills/cluster-labeling-auroville/SKILL.md` is canonical.
 
-Speculative unless stated otherwise. Do not implement from these without asking.
+Other notes are speculative unless stated otherwise — do not implement from them
+without asking.
 
 ## Activity
 
