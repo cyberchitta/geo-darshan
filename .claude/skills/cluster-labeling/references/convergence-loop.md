@@ -89,6 +89,38 @@ verified at all.
 biggest unblocker: with only 28% of exemplars verified, nothing can settle
 regardless of the other thresholds.
 
+## Readers need a confirmed-exemplar library, not just prose
+
+Concurrence between readers who share a calibration blind spot is *correlated*
+agreement — it reads as evidence and is not. Held-out human calibration (below)
+catches this after the fact; a library of confirmed example crops prevents it,
+by grounding each reader in maintainer-confirmed instances rather than in each
+other. That makes it **upstream of verify-all-exemplars**: 2.5× the verify cost
+against a miscalibrated eye buys less than fixing the eye first.
+
+The AOI pack has the slot — a reference-crops table — and the corrections loop
+routes learnings to it, but nothing promotes into it. The supply is already
+being produced: a SETTLED cluster's verified exemplars *are* confirmed examples
+of their class. Three failure modes in the hand-maintained form, all observed on
+the Auroville pack (2026-08-10):
+
+- **No promotion path.** Every row was hand-added in rounds 1–2; round 3
+  contributed none, and the table's own "still needed" list went unfilled.
+- **Crops live in the gitignored run dir.** A run-dir cleanup silently guts the
+  calibration set, and a reader cannot distinguish a missing crop from one it
+  forgot to read. Promoted crops belong *in the pack*, committed.
+- **Per-class coverage is untracked** — 11 rows against a 44-node hierarchy, with
+  no report of which classes have none. (Distinct from the cluster-pixel coverage
+  of criterion 5; this is coverage of the *label space*.)
+
+Promotion must be **human-confirmed only**, at least initially. Promoting on
+gate-SETTLED alone feeds model-confirmed exemplars back into model calibration —
+the correlated blind spot again, one level up.
+
+Whatever manifest records the library belongs in `defs_version`'s hash: a
+changed exemplar set shifts reader behaviour as much as a changed definition
+does, and must re-open retirements the same way.
+
 ## Re-sampling must show new ground
 
 The renderer's default picks the N *largest* patches, so a split child gets handed
@@ -129,11 +161,12 @@ the retreat label rather than splitting further.
 split) · `gen_prior_labels.py` (cross-tab) · `gen_review_html.py` (neighbour
 flags) · `aggregate.py` (vote).
 
-**Not built:** verify-all-exemplars in the re-judge workflow · concurrence
-criterion replacing confidence · stratified/novel re-sampling · connected-
-component carve (the non-finer-k split path) · human-verdict input with authority
-levels · held-out calibration + precision scoring · re-opening SETTLED on
-`defs_version` change · the pass N→N+1 driver.
+**Not built:** verify-all-exemplars in the re-judge workflow · **exemplar
+promotion into the AOI pack** (confirmed crops → pack, with provenance + per-class
+coverage report) · concurrence criterion replacing confidence · stratified/novel
+re-sampling · connected-component carve (the non-finer-k split path) ·
+human-verdict input with authority levels · held-out calibration + precision
+scoring · re-opening SETTLED on `defs_version` change · the pass N→N+1 driver.
 
 ## Open decisions
 
@@ -144,6 +177,10 @@ levels · held-out calibration + precision scoring · re-opening SETTLED on
   to SPLIT. Defensible (a real spatial distinction) but worth revisiting.
 - How many exemplars does RESAMPLE add, and drawn from where?
 - Do split children inherit their parent's verification state, or reset to zero?
+- Does the exemplar manifest enter `defs_version`? (Argued yes above — but it
+  means every promotion re-opens retirements, so promotion has to batch.)
+- Can gate-SETTLED ever promote an exemplar on its own, or is human confirmation
+  permanently required?
 
 ## Verifying the gate
 
