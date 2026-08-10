@@ -128,6 +128,79 @@ the same patch its parent already showed. On re-entry, exclude previously judged
 patch centroids and stratify across prior-label strata and spatial sub-regions.
 (SKILL.md, "Stratified exemplar selection".)
 
+## `refuted` is not one thing
+
+A refuted flip means the verifier rejected the reader's *change*. It does not mean
+the verifier endorsed the *prior* label — and when it names a `better_label`, the
+two come apart. Measured on k88∩k22 (2026-08-10): of 18 refuted, **5 carried a
+better_label differing from the prior**, so "drop the refuted flips" would have
+reverted them to a label the verifier explicitly argued against. One verifier note
+reads "fallow is correctly rejected" on an exemplar the revert sends back to
+`fallow`.
+
+Triage refuted into three, and route them differently:
+
+    clean      no better_label -> revert to prior; safe to bulk-confirm
+    contested  better_label != prior -> a maintainer choice, not a revert
+    unclear    verifier could not decide -> a maintainer call
+
+`clean` and `contested` are both `verify: refuted` in the flips file; nothing
+downstream distinguishes them unless you compute it.
+
+## The human adjudication step
+
+The loop has a position for the maintainer — **after verify, before gate** — and
+it needs a surface, not a prose request. What that surface must show, learned by
+building one that didn't:
+
+- **Cluster-centric, never per-flip.** A ruling on one exemplar is worth nothing
+  without its siblings: the gate wants unanimity, so an exemplar's call only moves
+  the cluster if the siblings already agree. On k88∩k22, of 15 unsettled
+  exemplars only 4 sat in clusters where the call could produce unanimity; 5 were
+  already decided by sibling disagreement and 6 sat in clusters that fail
+  criterion 1 regardless. A per-flip page asks for 15 rulings and cashes 4.
+- **State the stakes per card** — decisive / not decisive / blocked-regardless.
+  Otherwise every row looks equally urgent.
+- **Carry the contract inline.** The maintainer is a domain expert on the *place*,
+  not on the class scheme. Definitions and confirmed reference crops belong on the
+  card, not one file away.
+- **Group by the question, not the instance.** Where one class definition drives
+  several open decisions, ask it once as a class-contract question. On k88∩k22,
+  `forest.tree_lines` accounted for 4 of 15 unsettled and 6 of 18 refuted.
+
+Output is a `human_verdicts.json` carrying `verify: "human"`, per-exemplar
+decision, self-rated confidence, and provenance. **These are the most durable
+artifacts a round produces** — model verdicts are superseded by the next re-judge
+and retirements re-open on a defs change, but a maintainer's look at a crop stays
+true. They must not live in a gitignored run dir.
+
+## Coarse-scale hierarchy, fine-scale cells
+
+The label set gets drawn while looking at large regions; later passes judge much
+smaller cells. A cover that was negligible at coarse k can be the whole story in a
+40-pixel cell — and **a class that does not exist cannot be chosen**, so the cell
+gets filed under the nearest catch-all and the forcing leaves no trace. The
+symptom is a catch-all that grows without ever being argued for: on this AOI,
+`fallow` reached 28.5% of judged pixels and sprayed across the map.
+
+This has already been caught once by eye — `forest.tree_lines` was added because
+roadside and tank-margin strips were defaulting to `fallow`. Once is luck. The
+loop needs the channel:
+
+- Every judging surface, model and human, needs a **"no class fits" output** with
+  a free-text description, kept as data rather than prose.
+- Two standing signals worth mining per pass: a class whose share grows while its
+  mean confidence falls, and clusters where readers disagree *non-nested* (no
+  common ancestor) at uniformly low confidence — that pattern is a missing class,
+  not the spatial impurity SPLIT assumes.
+- **Look up the published scheme before inventing a node** — NRSC/FAO/CORINE
+  strata are finer than what gets instantiated, and `tree_lines` came straight
+  from FSI Trees-Outside-Forests plus Copernicus Small Woody Features.
+- A proposal must clear the **MMU test**: a feature narrower than one cluster cell
+  has no cell to carry it, so it is a resolution artifact, not a class.
+- Adding a class is a contract revision — it bumps `defs_version` and re-opens
+  retirements. Batch proposals between passes; never mid-pass.
+
 ## Human verdicts
 
 Maintainer verdicts are ground truth, not evidence to be weighed — a human look
@@ -161,12 +234,21 @@ the retreat label rather than splitting further.
 split) · `gen_prior_labels.py` (cross-tab) · `gen_review_html.py` (neighbour
 flags) · `aggregate.py` (vote).
 
+**Prototyped, not promoted** (round-3 run dir, `gen_decisions_review.py`): the
+human adjudication surface — cluster cards, refuted triage, inline contract +
+reference crops, `human_verdicts.json` export with reference-example and
+missing-class channels. First use; graduates to `scripts/` if round 4 wants it.
+The *contract* it emits (the `human` verdict value, the export schema, the
+clean/contested/unclear triage) is AOI-agnostic and belongs here regardless.
+
 **Not built:** verify-all-exemplars in the re-judge workflow · **exemplar
 promotion into the AOI pack** (confirmed crops → pack, with provenance + per-class
 coverage report) · concurrence criterion replacing confidence · stratified/novel
 re-sampling · connected-component carve (the non-finer-k split path) ·
-human-verdict input with authority levels · held-out calibration + precision
-scoring · re-opening SETTLED on `defs_version` change · the pass N→N+1 driver.
+`gate.py` honouring `verify: "human"` (currently counts only `upheld`, so a
+maintainer ruling cannot satisfy criterion 3) · missing-class signal mining ·
+held-out calibration + precision scoring · re-opening SETTLED on `defs_version`
+change · the pass N→N+1 driver.
 
 ## Open decisions
 
@@ -181,6 +263,11 @@ scoring · re-opening SETTLED on `defs_version` change · the pass N→N+1 drive
   means every promotion re-opens retirements, so promotion has to batch.)
 - Can gate-SETTLED ever promote an exemplar on its own, or is human confirmation
   permanently required?
+- Where do `human_verdicts.json` and promoted crops live — the AOI pack, or notes?
+  Both outlive the run dir; the pack is what readers already load.
+- Does a maintainer's self-rated "guess" carry the same authority as "sure"? If
+  not, a low-confidence human call is evidence, not ground truth — and the
+  authority levels stop being binary.
 
 ## Verifying the gate
 
