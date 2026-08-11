@@ -98,6 +98,19 @@ These are the local facts the standards can't carry:
   Pass the resulting per-cell distribution to the readers as evidence for the
   non-frozen cells; a cell that is part water and part something else is a
   shoreline carve-out, not a single label.
+- **The cluster-level cross-tab is THE spatial prior — it outranks the compass
+  priors below.** A cell's `old_map` distribution is the strongest positional
+  evidence a reader gets: short of the `water` freeze, but well above "one weak
+  input". The reason is aggregation over *scattered* pixels. A k-means cell's
+  pixels are spread across the AOI, so the cross-tab samples the old map at many
+  near-independent locations and a single mislabelled polygon barely moves the
+  distribution.
+  **Do not aggregate the old map over a neighbourhood around an exemplar, and do
+  not read its label at a single exemplar's footprint.** Error in a coarse map is
+  spatially correlated: a local window sits inside one or two polygons, so one
+  mapping error comes back as a confident-looking "local: 70% casuarina" and
+  reads as independent evidence. That turns the map's weakest property into its
+  most persuasive output. Cell-level or not at all.
 - **`maintained_grass` is RARE and mostly around Matrimandir** — managed gardens,
   lawns, campus grounds in the central zone. Away from the centre a smooth
   light-green patch is far more likely young `planted_forest`, harvested
@@ -118,22 +131,48 @@ These are the local facts the standards can't carry:
   built subtypes go by artificial *fraction*, never building size (k88xk22 c2).
 
 
-## Geography priors (direction from Matrimandir)
+## Geography priors (direction from Matrimandir) — PROVENANCE, not an input
 
-Every exemplar has lon/lat → compute 8-point compass from center
-(`brg=(90-deg(atan2(dLat,dLon)))%360`; idx=round(brg/45)%8 over [N,NE,E,SE,S,SW,W,NW]).
+**These belts are a compression of the old map, not a second source.** They were
+derived by aggregating it — "Casuarina → west" is recorded as *"Validated: all k22
+casuarina clusters are NW"*, i.e. the cross-tab, summarised down to a compass
+sector. Same data, lossier. They earned their keep on the **first** pass, when no
+labelled map existed to cross-tab against; once `old_map` is on the card the belt
+priors add nothing and only discard resolution.
+
+So: **do not reason from a compass sector when the cell has an `old_map`
+distribution** — that is reaching past the signal for its own summary. This was
+happening (k88xk22 c61 e2: *"NW casuarina belt favors young/rotational casuarina"*
+at conf 0.45, on a cell whose `old_map` was 99.8% casuarina).
+
+Nor are they the fallback for a nodata cell (c185 is 99.6% nodata). The old map is
+spatially continuous, so what surrounds a nodata cell's pixels says more than the
+sector does. Read the neighbours, not the compass.
+
+Kept below for provenance — how the classes came to be drawn, and what to expect
+when auditing the old map's own geography:
 
 - **Casuarina → west.** (Validated: all k22 casuarina clusters are NW.)
 - **Cashew → east & south.**
 - **Coconut → east & south.**
-- **Forest (planted) → broad central-ish belt incl. the SE**; soft prior, not dead-center.
-- **The geometric center (around Matrimandir) is GARDENS** — neither forest nor
-  field (managed garden/agroforestry/built mosaic). Don't default the center to forest.
-- **The Matrimandir itself is AT the center** (= `CENTER`), and no cluster cell
-  should be recorded as containing it without a coordinate check — a look-alike
-  white-roofed building ~1 km west has been mistaken for it before.
-- A "scrub" read in the middle of the east/south cashew belt is almost certainly cashew.
-- Apply per-exemplar, not per-cluster-centroid (scattered clusters have meaningless centroids).
+- **Forest (planted) → broad central-ish belt incl. the SE**; soft, not dead-center.
+- A "scrub" read in the east/south cashew belt is almost certainly cashew — the
+  lossy form of the hard rule above (**my "scrub" vs old map "cashew" ⇒ CASHEW**),
+  which consults the map directly and is the one to use.
+
+Two rules here are **not** map-compressions and stay operative:
+
+- **The Matrimandir is AT the center** (= `CENTER`). No cluster cell may be
+  recorded as containing it without a coordinate check — a look-alike white-roofed
+  building ~1 km west has been mistaken for it before.
+- **Don't default the geometric center to forest.** Around Matrimandir is a managed
+  garden/agroforestry/built mosaic — neither forest nor field. This guards a reader
+  default rather than asserting a belt.
+
+Geometry, when a compass bearing is genuinely needed: every exemplar has lon/lat →
+`brg=(90-deg(atan2(dLat,dLon)))%360`; idx=round(brg/45)%8 over
+[N,NE,E,SE,S,SW,W,NW]. Per-exemplar, never per-cluster-centroid (scattered clusters
+have meaningless centroids).
 
 ## Reference example crops
 
