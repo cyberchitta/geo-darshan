@@ -296,10 +296,30 @@ def main():
     print(f"{len(texts)} text fields scanned")
     for name in FORCED_FIT:
         print(f"  {name:<20}{len(hits.get(name, []))}")
-    print("\n  NOTE: a low count here is only meaningful if the judging schema "
-          "actually\n  offered a no-class-fits output. If it did not, absence of "
-          "complaint is\n  evidence about the schema, not about the hierarchy.")
     report["forced_fit"] = {k: v for k, v in hits.items()}
+
+    # The structured channel. Prose inference above is a fallback for passes run
+    # before the channel existed; this is the reader saying it outright.
+    declared = [{"cluster": v["cluster"], "exemplar": v["exemplar"],
+                 "label": v.get("label"), **v["no_class_fits"]}
+                for v in verdicts if isinstance(v.get("no_class_fits"), dict)]
+    offered = any("no_class_fits" in v for v in verdicts)
+    print("\n" + "-" * 74)
+    if not offered:
+        print("  no_class_fits: CHANNEL ABSENT from these verdicts.")
+        print("  A low forced-fit count above is therefore evidence about the")
+        print("  schema, not about the hierarchy -- readers had no way to report")
+        print("  a missing class. Do not read it as the hierarchy being adequate.")
+    else:
+        print(f"  no_class_fits: channel present; {len(declared)} of "
+              f"{len(verdicts)} verdicts declared a gap")
+        by_near = Counter(d.get("nearest") for d in declared)
+        for near, n in by_near.most_common(10):
+            print(f"    {n:3d}  nearest={near}")
+        for d in declared[:15]:
+            print(f"    c{d['cluster']}e{d['exemplar']} [{d.get('label')}] "
+                  f"{str(d.get('describes'))[:70]}")
+    report["no_class_fits"] = {"channel_offered": offered, "declared": declared}
 
     if a.json:
         a.json.write_text(json.dumps(report, indent=1))

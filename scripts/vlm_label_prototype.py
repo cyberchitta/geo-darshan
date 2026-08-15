@@ -185,11 +185,23 @@ canopy you cannot separate individuals — judge by overall texture and pattern 
 the parent node (e.g. 'agriculture.orchards') only when canopy is closed/merged and species is genuinely ambiguous. \
 Better a correct general label than a wrong specific one.
 - If the patch is genuinely mixed, give the dominant class and note it.
-- If you cannot tell at all, use label "uncertain".
+- TWO DIFFERENT FAILURES, and they are not the same — keep them apart:
+  (a) You cannot SEE well enough to decide — the crop is ambiguous, the crowns \
+merge, the light is bad. Use label "uncertain". This is a limit of the imagery.
+  (b) You CAN see the patch perfectly well, and NO class in the list above \
+describes it. This is a limit of the CLASS LIST, not of your eyes. Still give \
+your best label, and ALSO fill in "no_class_fits" — this is the only way a \
+missing class can ever be discovered, so use it whenever it is true. Do not \
+force a fit silently and do not downgrade to "uncertain" instead.
+- Forcing a bad fit is worse than reporting the gap. A wrong label is a false \
+claim about a piece of ground; a reported gap costs nothing.
 
 Respond with ONLY a JSON object, no markdown:
 {{"label": "<dotted.path or uncertain>", "level": "<leaf|interior>", "confidence": <0-1>, \
-"alternative": "<second-best dotted.path or null>", "reasoning": "<one sentence on the visual evidence>"}}"""
+"alternative": "<second-best dotted.path or null>", "reasoning": "<one sentence on the visual evidence>", \
+"no_class_fits": null OR {{"describes": "<what the patch actually is, in your own words>", \
+"nearest": "<closest dotted.path you were offered>", \
+"why_it_fails": "<which stated requirement of `nearest` this patch does not meet>"}}}}"""
 
 
 # ----------------------------------------------------------------------------
