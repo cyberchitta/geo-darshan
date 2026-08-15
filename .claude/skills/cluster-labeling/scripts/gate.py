@@ -116,6 +116,12 @@ def valid_label(label, hierarchy):
 
 # ---------------------------------------------------------------- gate
 
+# Verdict tokens, partitioned. "human" is the review page's stamp on a
+# maintainer ruling; it is provenance, not an outcome — the ruling's own
+# decision/label carries that.
+VERIFIED = ("upheld", "human")
+CONTESTED = ("refuted", "unclear")
+
 
 def gate_cluster(c, exs, ctx, a):
     """exs: list of per-exemplar dicts. -> ledger record."""
@@ -126,9 +132,14 @@ def gate_cluster(c, exs, ctx, a):
     seen_px = sum(int(e.get("size_px") or 0) for e in exs)
     coverage = (seen_px / total_px) if total_px else None
 
-    verified = [e for e in exs if e["verify"] == "upheld"]
-    contested = [e for e in exs if e["verify"] in ("refuted", "unclear")]
-    unexamined = [e for e in exs if e["verify"] == "unverified"]
+    # "human" is a maintainer ruling. It counts as verified by definition:
+    # verified is an adversarial check *or* a maintainer ruling, nothing else.
+    verified = [e for e in exs if e["verify"] in VERIFIED]
+    contested = [e for e in exs if e["verify"] in CONTESTED]
+    # Complement, not an equality test against "unverified": an unrecognised
+    # verdict has to land somewhere, or n_verified + n_contested + n_unexamined
+    # silently stops summing to n_exemplars.
+    unexamined = [e for e in exs if e["verify"] not in VERIFIED + CONTESTED]
 
     rec = {
         "cluster": c,
