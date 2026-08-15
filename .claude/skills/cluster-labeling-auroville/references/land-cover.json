@@ -1,16 +1,28 @@
 {
+  "_convention": "A node with no _status is assignable. _status:'not-assignable' means the class is real on the ground but cannot be assigned with current methodology; it must carry _why and _unlock. Pick-list surfaces (prompt.txt, review-page radios) MUST filter these out; the glossary and coverage analyses MUST NOT.",
+
   "forest": {
     "natural_forest": {
-      "_description": "Dry deciduous remnants"
+      "_description": "Dry deciduous remnants",
+      "_status": "not-assignable",
+      "_why": "Essentially absent in this AOI - everything wooded around Auroville was planted within living memory. Previously 'retired' in prose only, while remaining pickable here; 0 uses in 266 verdicts.",
+      "_unlock": "Evidence of a genuinely self-regenerating stand with no planting history"
     },
     "planted_forest": {
-      "_description": "Reforestation areas"
+      "_description": "Managed woody planting - trees established and tended by people, whatever the origin or purpose: forestry, ecological restoration, or amenity. Auroville's TDEF restoration blocks and its non-native plantings both land here. Species mix is not a criterion and neither is commercial intent."
     },
     "bamboo_groves": {
       "_description": "Bamboo plantations"
     },
     "tree_lines": {
       "_description": "Linear woody features outside forest blocks - roadside/avenue tree strips, canal and bund alignments, riparian green strips. Width <= 30 m, length >= 30 m (Copernicus Small Woody Features geometry; FSI Trees-Outside-Forests 'linear' stratum)."
+    },
+    "scattered_trees": {
+      "_description": "FSI Trees-Outside-Forests 'scattered' stratum - individual trees on farmland, homesteads and community land, not forming a block or a line. Palmyra (Borassus flabellifer) standing on field edges and bunds is the characteristic local case; tamarind and isolated farm trees are others.",
+      "_status": "not-assignable",
+      "_why": "The stratum is published and the ground is real, but it does not separate at a 10 m cell: 7 verdicts describe scattered or isolated trees and they land on 4 unrelated labels (sparse_scrub, maintained_grass, degraded_barren, fallow). A scattered-tree cell is mostly whatever the trees are scattered IN - the separability test's 'inconsistent mixture' mode. Species identification compounds it: at 0.58 m/px a 7 m crown is ~12 px, enough to see a palm but not to tell a fan crown from a feather one.",
+      "_unlock": "A cluster appears whose exemplars are majority scattered-tree; and/or z19 imagery (0.29 m/px, now available) resolving crown form.",
+      "_note": "This closes a half-import: the crosswalk cites FSI TOF's block/linear/scattered strata but only ever instantiated 'linear' (as tree_lines). 'block' needs no node - it is already covered by planted_forest and orchards.casuarina (verified: 6 woodlot/block-plantation mentions, all correctly homed)."
     }
   },
   "agriculture": {
@@ -42,15 +54,24 @@
         "_description": "Irrigated sugarcane"
       }
     },
+    "protected_cultivation": {
+      "_description": "Engineered growing structures - shade-net houses, polyhouses, nursery beds under cloth. FAO LCCS protected/greenhouse cultivation; CORINE permanent greenhouse cover."
+    },
     "agroforestry": {
+      "_status": "not-assignable",
+      "_why": "All four nodes: 0 uses in 266 verdicts. The definitions require TWO production layers visible at once, but at 0.58 m/px nadir the understorey is under the canopy - the crop layer cannot be seen through the trees. Candidates fall through to planted_forest. This is a sensor limit, not an absence: agroforestry is a defining Auroville land use.",
+      "_unlock": "Oblique or ground imagery, or a definition rewritten around canopy-structure cues that ARE visible from nadir",
       "permaculture": {
-        "_description": "Auroville systems"
+        "_description": "Auroville systems",
+        "_status": "not-assignable"
       },
       "food_forests": {
-        "_description": "Multi-story cultivation"
+        "_description": "Multi-story cultivation",
+        "_status": "not-assignable"
       },
       "mixed_cultivation": {
-        "_description": "Trees + crops"
+        "_description": "Trees + crops",
+        "_status": "not-assignable"
       }
     },
     "fallow": {
@@ -66,9 +87,6 @@
     },
     "forest_built": {
       "_description": "Buildings integrated within forested areas"
-    },
-    "infrastructure": {
-      "_description": "Roads, industrial facilities"
     }
   },
   "water": {
@@ -83,6 +101,12 @@
     }
   },
   "degraded_barren": {
+    "bare_ground": {
+      "_description": "Flat, smooth, undissected bare laterite - no channel dissection, no extraction, no construction activity. NRSC Level II 'Barren rocky'; NRSC wasteland stratum 'barren rocky / stony waste / sheet rock'."
+    },
+    "compacted_corridor": {
+      "_description": "Anthropogenic bare surfaces - track corridors, graded embankments, cleared service strips. Bare through traffic and grading rather than erosion; a surface, not a made road."
+    },
     "eroded_land": {
       "_description": "Severely eroded areas"
     },
@@ -101,12 +125,18 @@
       "_description": "Open shrubland"
     },
     "thorny_scrub": {
-      "_description": "Acacia and thorny vegetation"
+      "_description": "Acacia and Prosopis thorn scrub",
+      "_status": "not-assignable",
+      "_why": "0 uses and never once offered as an alternative, while sparse_scrub grew fastest at the lowest confidence of any major class (0.40). Prosopis juliflora is the dominant invasive on degraded land across Tamil Nadu and is very likely present, but it is not separable from native thorn scrub (Acacia planifrons, Ziziphus, Carissa) at 0.58 m/px nadir - same texture, same tone, same niche. Zero mentions across 482 texts is therefore unexplained, not reassuring.",
+      "_unlock": "z19 imagery (now available) or field survey confirming Prosopis presence and appearance"
     }
   },
   "grassland": {
     "grazing_land": {
-      "_description": "Livestock grazing areas"
+      "_description": "Livestock grazing areas",
+      "_status": "not-assignable",
+      "_why": "Retired earlier as a catch-all that absorbed any smooth open ground. Previously 'retired' in prose only while remaining pickable here - two verdicts still carry it.",
+      "_unlock": "Positive grazing evidence (stock, tracks, enclosure) distinguishable from mown or fallow ground"
     },
     "maintained_grass": {
       "_description": "Managed grassland"

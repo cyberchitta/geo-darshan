@@ -52,8 +52,17 @@ scrub, tree_lines, or trees riding along on another cover.
   their rows).
 
 ### `forest.planted_forest`
-- **Definition.** NRSC 3.3 *Forest Plantation* — "areas of tree species of
-  forestry importance, raised and managed". Includes the whole age range.
+- **Definition.** **Managed woody planting** — trees established and tended by
+  people, **whatever the origin or purpose**: forestry, ecological restoration,
+  or amenity. Includes the whole age range. Auroville's TDEF restoration blocks
+  and its non-native plantings **both** land here; **species mix is not a
+  criterion and neither is commercial intent.**
+  *(NRSC 3.3 *Forest Plantation* is the nearest published stratum, but its "of
+  forestry importance, raised and managed" qualifier is deliberately dropped — it
+  excludes restoration planting, which is most of this class in this AOI.
+  Auroville has planted >3 million trees of 185 TDEF species on formerly eroded
+  laterite; a 40-year-old restoration stand that now self-recruits is neither a
+  plantation crop nor virgin forest, and the old wording gave it no home.)*
 - **Diagnostic.** Two very different looks: **mature** = closed irregular canopy,
   crowns touching, no field geometry; **young** = light-green, smooth, almost
   grass-like, crowns not separable, sometimes faint planting rows. The young case
@@ -64,6 +73,11 @@ scrub, tree_lines, or trees riding along on another cover.
   discrete crowns → orchard; linear strip ≤30 m wide → `tree_lines`.
 - **Chronically under-called** under every neighbouring class name. When canopy
   sits in a forest matrix and isn't a clear orchard grid, lean here.
+- **On its size.** This is the largest class in the run (n=50) at 0.44
+  confidence. Some of that is genuine breadth — it now spans restoration and
+  production planting alike — and some of it is the two neighbouring subtrees
+  that cannot currently be assigned (`agroforestry`, `natural_forest`) draining
+  into it. Do not read its size as over-application without checking which.
 
 ### `forest.bamboo_groves`
 - **Definition.** Bamboo plantation. NRSC files bamboo under deciduous /
@@ -91,6 +105,24 @@ scrub, tree_lines, or trees riding along on another cover.
   sits under `forest` for tree convenience only.
 - **Covers:** the "green strips near roads/lakes" that had been defaulting to
   fallow.
+
+### `forest.scattered_trees`
+- **Definition.** FSI Trees-Outside-Forests **`scattered`** stratum — individual
+  trees on farmland, homesteads and community land, forming neither a block nor a
+  line. Palmyra (*Borassus flabellifer*) standing on field edges and bunds is the
+  characteristic local case; tamarind and isolated farm trees are others.
+- **⚠ NOT CURRENTLY ASSIGNABLE** — see "Classes that are real but not currently
+  assignable". The stratum is published and the ground is real, but it does not
+  separate at a 10 m cell: 7 verdicts describe scattered or isolated trees and
+  they land on **four unrelated labels** (`sparse_scrub`, `maintained_grass`,
+  `degraded_barren`, `fallow`). A scattered-tree cell is mostly whatever the
+  trees are scattered *in*.
+- **Caveat.** Same as `tree_lines` — FSI would call these trees outside forest,
+  not forest; the node sits under `forest` for tree convenience only.
+- **Why the node exists at all.** The crosswalk cites FSI TOF's
+  **block / linear / scattered** strata but only ever instantiated `linear` (as
+  `tree_lines`). `block` needs no node — it is already covered by
+  `planted_forest` and `orchards.casuarina`. `scattered` was the real gap.
 
 ---
 
@@ -149,11 +181,36 @@ a known species signature. Species split below NRSC's leaf is ours.
 
 ---
 
+## agriculture.protected_cultivation
+
+- **Definition.** FAO LCCS *protected / greenhouse cultivation* within Cultivated
+  Managed Terrestrial Areas; CORINE *permanent greenhouse cover*. Engineered
+  growing structures — shade-net spans, polyhouses, nursery beds under cloth.
+  (NRSC 2.2 *Plantations* covers horticulture but **not** protected structures,
+  which is why this had no home.)
+- **Requires.** A visible engineered structure — regular rectilinear spans,
+  straight-edged blocks, usually with a service yard or access.
+- **Diagnostic.** The give-away is regular rectilinear spans carrying a *fabric
+  or glazing tone* unlike any crop canopy.
+- **Covers:** the feature that was routing to four unrelated classes —
+  `infrastructure.industrial`, `field_crops`, `maintained_grass` and
+  `dense_scrub` — because nothing fitted. Auroville's TDEF nursery alone produces
+  ~50,000 seedlings/year.
+
+---
+
 ## agriculture.field_crops.*
 
 NRSC 2.1 *Cropland*: "areas with **standing crop** as on the date of satellite
 overpass". Standing crop is the requirement — bare cultivated ground is fallow,
 not cropland.
+
+**Bunds are a diagnostic here, not a class.** Bunded parcel geometry — tessellated
+boundaries, shared straight edges with active parcels — is positive evidence of
+*cultivation*, and is what separates `fallow` from `degraded_barren`. No governing
+scheme gives bunds a cover class; the woody crests are `forest.tree_lines` (whose
+definition names bund alignments) and bare crests are
+`degraded_barren.compacted_corridor`.
 
 ### `agriculture.field_crops.rice_paddies`
 - **Diagnostic.** Small level parcels with water-retaining bunds, often a wet or
@@ -253,12 +310,12 @@ two orthogonal axes that our flat list collapses. Apply them in order.
 - **Note.** Below ~20% artificial it is not a built class at all: label the matrix
   cover and let the buildings ride along.
 
-### `built_environment.infrastructure`
-- **Definition.** Non-habitation built land — large engineered facilities, campus
-  hardstanding, utilities.
-- **⚠ Structural duplicate.** Overlaps the top-level `infrastructure.*` family
-  below. Pick the top-level nodes for roads and industry; reserve this one for
-  built-up land that is neither habitation nor road, or retire it.
+### ~~`built_environment.infrastructure`~~ — RETIRED 2026-08-15
+Structural duplicate of the top-level `infrastructure.*` family: its own
+description was "Roads, industrial facilities", naming the same two things that
+family lists as children. Zero uses in 266 verdicts. **Removed from
+`land-cover.json`** — use `infrastructure.roads` / `infrastructure.industrial`.
+Tombstone kept so the deletion is not mistaken for the finding going missing.
 
 ---
 
@@ -291,6 +348,35 @@ recognising water in *new* cells only.
 
 Wastelands Atlas family. NRSC 5.0: degraded land, currently underutilised,
 deteriorating for lack of soil/water management or natural causes.
+
+### `degraded_barren.bare_ground`
+- **Definition.** NRSC Level II *Barren rocky*; Wastelands Atlas *barren rocky /
+  stony waste / sheet rock*. Flat, smooth, compacted bare laterite.
+- **Requires.** A bare mineral surface with **none** of the three sibling
+  triggers: no visible channel dissection (→ `eroded_land`), no extraction scars
+  or stockpiles (→ `quarries`), no foundations, trenches or machinery
+  (→ `construction_sites`).
+- **Diagnostic.** Orange-red laterite, undissected micro-relief, no branching
+  gully shadows. This is the honest leaf for what readers were calling the bare
+  `degraded_barren` **parent** — 8 of the 9 parent-level verdicts describe
+  exactly this, in almost the same words.
+- **Not this:** bare *because graded or trafficked* → `compacted_corridor`.
+
+### `degraded_barren.compacted_corridor`
+- **Definition.** Anthropogenic bare surfaces — track corridors, graded
+  embankments, cleared service strips. Bare through **traffic and grading**, not
+  through erosion: degraded in appearance, but not degraded *land*.
+- **Requires.** A corridor form (elongate, following a track, edge or alignment)
+  **and** a compacted or graded surface texture.
+- **Not this:** a made carriageway → `infrastructure.roads` (at 10 m these are
+  *surfaces*, not roads); natural bare laterite with no corridor form →
+  `bare_ground`.
+- **⚠ On probation.** Separability from `bare_ground` is **predicted, not
+  demonstrated** — both are bare red laterite and the difference is *cause*, not
+  colour, which may not survive into the embedding. Evidence at adoption: 9
+  exemplars across 8 clusters, none holding both types — consistent with
+  separation, far short of showing it. If these cells scatter into `bare_ground`
+  instead of clustering, that is the answer and the node should merge back.
 
 ### `degraded_barren.eroded_land`
 - **Definition.** Wastelands Atlas *Gullied / Ravinous Land* — terrain deformation
@@ -384,14 +470,47 @@ grasslands**.
 
 ---
 
-## Structural issues in the hierarchy (flagged, not fixed)
+## Classes that are real but not currently assignable
 
-1. **`built_environment.infrastructure` vs top-level `infrastructure`** —
-   two nodes for one concept. Needs a decision.
-2. **`grassland.grazing_land` is retired but still present** — a forbidden class
-   sitting in the tree invites re-use. Consider removing it from the JSON.
-3. **`forest.natural_forest` is likewise forbidden here** but present.
-4. **`orchards.casuarina` vs NRSC's Forest Plantation** — ours is defensible
+A class that exists on the ground **stays in the hierarchy** even when our
+methodology cannot assign it. Retiring it would bake a sensor limitation into an
+ontology meant to outlive it, and would discard the reasoning along with the
+node. Such nodes carry `_status: "not-assignable"` in `land-cover.json`, plus
+`_why` and `_unlock`.
+
+**What that means in practice:**
+
+- They are **never offered in a pick-list** — not in `prompt.txt`, not in the
+  review page's class inputs. Enforced by `scripts/check_pick_lists.py`, which
+  reads the **generated artifacts** rather than trusting the generators.
+- They **do** appear in the glossary, in coverage analyses and in missing-class
+  mining, all of which need the whole tree. You cannot rule on a class you cannot
+  see.
+- `_unlock` states what evidence would make the class assignable. It is a
+  commitment to revisit, not a graveyard.
+
+Currently flagged (8): `forest.natural_forest`, `forest.scattered_trees`,
+`scrubland.thorny_scrub`, `grassland.grazing_land`, `agriculture.agroforestry`
+and its three children.
+
+**Not the same thing: labelable-but-absent.** `degraded_barren.quarries` has zero
+uses *and* zero mentions of quarry/mining/excavation in 482 texts — that is a
+class the AOI does not contain, not one we cannot see. It stays **assignable**;
+if a quarry appears, use it. Conflating the two would empty the flag of meaning.
+
+**The failure this replaces.** `natural_forest`, `thorny_scrub` and `grazing_land`
+were already "retired" — in prose *here*, while sitting fully pickable in the
+JSON. All three were still being offered to the VLM readers in `prompt.txt`,
+`natural_forest` with a helpful "LOOKS LIKE" cue, and `grazing_land` was still
+being emitted. **Prose retirement does not retire anything.**
+
+---
+
+## Remaining structural notes (flagged, not fixed)
+
+1. **`orchards.casuarina` vs NRSC's Forest Plantation** — ours is defensible
    (farm cash crop) but is a deliberate divergence; note it when comparing.
-5. **Species-level orchard leaves are finer than any published scheme** —
+2. **Species-level orchard leaves are finer than any published scheme** —
    justified by sub-metre imagery, but they are our refinement, not a standard.
+3. **`eroded_land` conflates NRSC's *Gullied* and *Ravinous*** — 6 verdicts use
+   gully/ravine language. Real but minor; the class fell to 0.0% share this pass.

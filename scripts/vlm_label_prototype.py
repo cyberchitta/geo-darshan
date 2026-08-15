@@ -125,12 +125,19 @@ FIELD_GUIDE = {
 }
 
 
-def flatten_hierarchy(node: Dict[str, Any], prefix: str = "") -> List[Tuple[str, str]]:
+def flatten_hierarchy(node: Dict[str, Any], prefix: str = "",
+                      inherited_status: str = "") -> List[Tuple[str, str]]:
     """Walk the land-cover tree into (dotted_path, description) pairs.
 
     Both interior nodes and leaves are returned so the model can answer at
     whatever level the imagery supports (e.g. 'agriculture.orchards' when the
     species is ambiguous).
+
+    Nodes carrying `_status: "not-assignable"` -- classes that are real on the
+    ground but that our imagery cannot resolve -- are omitted, along with their
+    whole subtree. They stay in the hierarchy for the glossary and for coverage
+    analysis, but a reader must never be offered one. See class-definitions.md,
+    "Classes that are real but not currently assignable".
     """
     out: List[Tuple[str, str]] = []
     for key, value in node.items():
@@ -139,12 +146,16 @@ def flatten_hierarchy(node: Dict[str, Any], prefix: str = "") -> List[Tuple[str,
         path = f"{prefix}.{key}" if prefix else key
         desc = ""
         children = {}
+        status = inherited_status
         if isinstance(value, dict):
             desc = value.get("_description", "")
+            status = value.get("_status", "") or inherited_status
             children = {k: v for k, v in value.items() if not k.startswith("_")}
+        if status == "not-assignable":
+            continue
         out.append((path, desc))
         if children:
-            out.extend(flatten_hierarchy(children, path))
+            out.extend(flatten_hierarchy(children, path, status))
     return out
 
 
