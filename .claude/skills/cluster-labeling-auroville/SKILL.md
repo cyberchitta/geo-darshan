@@ -48,9 +48,18 @@ it belongs to.
 | **Cluster grid** | AlphaEarth embeddings over Sentinel | **~10 m** | what carries a label — 703 × 703 over a ~7 km AOI |
 
 Consequences worth holding onto: (a) you can *see* far more detail than you can
-*assign* — a feature narrower than ~10 m is visible but has no cell of its own;
+*assign* — a feature narrower than ~10 m never gets a cell **purely** to itself;
 (b) one cluster cell = ~100 m², so a 0.5 ha forest MMU is ~50 cells; (c) the AOI
 is **~7 km across, not 3.5** — the `av-3.5K` name is historical and misleads.
+
+**(a) does not mean narrow features are unlabelable** — corrected 2026-08-15, and
+it had been read that way. A cell that is consistently ~30% hedge still has a
+repeatable signature, and repeatable mixtures cluster: `forest.tree_lines` is
+built from features readers measure at **10–15 m** against a 10 m cell, and its
+clusters are real at 10–16 px. Mixed is not unmappable. When you are weighing
+whether a narrow feature earns a call, ask whether it **dominates this cell's
+signature**, not whether it is wider than a cell. Full rule — the separability
+test — is in the engine's `convergence-loop.md`.
 
 Producers (out of scope for labeling): ESRI imagery via `bun run download-tiles`/
 `stitch-tiles`; cluster rasters + hierarchy via the sibling **alpha-bhu** repo.

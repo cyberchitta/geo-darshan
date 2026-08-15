@@ -196,10 +196,55 @@ loop needs the channel:
 - **Look up the published scheme before inventing a node** — NRSC/FAO/CORINE
   strata are finer than what gets instantiated, and `tree_lines` came straight
   from FSI Trees-Outside-Forests plus Copernicus Small Woody Features.
-- A proposal must clear the **MMU test**: a feature narrower than one cluster cell
-  has no cell to carry it, so it is a resolution artifact, not a class.
+- A proposal must clear the **separability test** — see below.
 - Adding a class is a contract revision — it bumps `defs_version` and re-opens
   retirements. Batch proposals between passes; never mid-pass.
+
+### The separability test — what admits a proposed class
+
+> A candidate class must produce a **consistent, separable signature across enough
+> cells to form a cluster.** The failure modes are **rarity** — too few cells
+> anywhere in the AOI — and **inconsistent mixture** — its cells scatter into
+> other clusters instead of grouping. Ask both of the run's own clustering, not
+> of the feature's dimensions.
+
+**This replaces an earlier "MMU test" that keyed on width** (*a feature narrower
+than one cluster cell has no cell to carry it, so it is a resolution artifact*).
+That rule was wrong, and it forbade `forest.tree_lines` — the discovery cited four
+paragraphs above as this section's one success. Measured on k88∩k22 (2026-08-15):
+readers describe tree-line features at **10–15 m** against a **10 m** cell, one as
+a *"three-pixel patch [landing] squarely on the dense green hedge line"* where the
+hedge itself is 2–5 m of woody material, and its clusters are real and small —
+10 px, 13 px, 16 px. It was used 12 times and grew faster than all but three
+classes.
+
+The rule conflated two resolutions. **Judging resolution** is the imagery: on that
+run 0.58 m/px, ~0.26 m/px as displayed in the close crop, so narrow features are
+plainly visible and judgeable. **Labelling resolution** is the cluster cell: 10 m,
+so no cell is ever *purely* the narrow feature. But a cell that is consistently,
+say, 30% hedge has a repeatable signature, and repeatable mixtures cluster.
+**Mixed is not the same as unmappable** — which is exactly why a segmentation over
+learned embeddings can carry classes a per-pixel classifier could not.
+
+Two practical consequences:
+
+- **Never exclude a candidate on feature width.** Linear and interstitial features
+  — hedgerows, bund tops, verges, tree lines, narrow riparian strips — are
+  admissible, and on an agricultural AOI they are among the most-observed things
+  in the reader corpus. The same sweep that produced this correction had wrongly
+  excluded bunds, which turned out to be mentioned in **38 of 266 verdicts** and
+  scattered across eight labels.
+- **Test separability empirically, not by argument.** When two candidates are
+  suspected of being one class — the usual case is same appearance, different
+  cause — check whether their exemplars actually fall in different clusters. If
+  they never separate in the clustering, they are one class whatever the semantics
+  say.
+
+Being admissible is not being warranted: a feature can be visible, clusterable and
+still better handled as a **diagnostic** inside an existing class definition than
+as a node of its own. Bunds are the standing example — readers use them as
+evidence of cultivation, which is the right role. Ask what a reader *does* with
+the feature before adding a node for it.
 
 ## Human verdicts
 

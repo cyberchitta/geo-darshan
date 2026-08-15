@@ -81,9 +81,12 @@ scrub, tree_lines, or trees riding along on another cover.
 - **Diagnostic.** A continuous woody ribbon tracking a road, tank margin, canal
   or field bund. ~50 px wide in the imagery; ~3 cells on the cluster grid.
 - **Requires.** Linearity *and* a linear host feature to follow. Woody, not grass.
-- **Not this:** a strip narrower than one cell doesn't get its own label — it
-  belongs to the field/agroforestry mosaic it edges. A wide riparian belt that
-  stops being linear is `planted_forest` or `dense_scrub`.
+- **Not this:** a strip that does not dominate its cell's signature — the cell
+  belongs to the field/agroforestry mosaic it edges. Judge by **what fills the
+  cell**, not by whether the strip is wider than one: a ribbon narrower than a
+  cell can still carry the call when it is most of what the cell is made of.
+  A wide riparian belt that stops being linear is `planted_forest` or
+  `dense_scrub`.
 - **Caveat.** FSI would call these *trees outside forest*, not forest; the node
   sits under `forest` for tree convenience only.
 - **Covers:** the "green strips near roads/lakes" that had been defaulting to
