@@ -11,12 +11,24 @@ Three distinct uses for the output, in decreasing authority:
 
   1. FREEZE — for classes the prior map is known to get right (name them with
      --authoritative), a dominant share means inherit, do not re-judge.
-  2. EVIDENCE — for everything else, show the distribution to the reader as one
-     input among several. The prior map is usually weak overall; authority is
-     per-class, never blanket, or "the old map says X" becomes the next default.
+  2. EVIDENCE — for everything else, show the distribution to the reader as real
+     positional evidence: below what they can see in the crops, above any coarse
+     textual geography prior (which is usually this same map, eyeballed down to a
+     compass sector). Authority stays per-class, never blanket, or "the old map
+     says X" becomes the next default.
   3. SPLIT SIGNAL — a cell straddling two prior classes (e.g. 30% water / 70%
      plantation) is impure along a real boundary such as a shoreline, and wants a
      carve-out rather than one label.
+
+CELL SCALE IS LEAD, NOT AN IMPLEMENTATION DETAIL. Do not add a mode that
+aggregates over a window around an exemplar, or looks the prior label up at a
+single exemplar's footprint. What makes this cross-tab trustworthy is that a
+cell's pixels are scattered across the AOI, so it samples the old map at many
+near-independent locations and one bad polygon barely moves the distribution. A
+local window sits inside one or two polygons, and coarse-map error is spatially
+correlated — so a single mapping mistake comes back as a confident "local: 70% X"
+and reads as independent evidence. That converts the map's weakest property into
+its most persuasive output.
 
 Usage:
   python gen_prior_labels.py RUN_DIR --seg SEG.tif --old OLD.tif \\

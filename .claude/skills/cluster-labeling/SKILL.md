@@ -181,9 +181,25 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
   photographed dry looks like bare ground and nothing in a single-date image says
   otherwise. But authority is **per-class, never blanket**: the same map is usually weak
   overall (that's why it's being relabelled), so "the old map says X" must not become the
-  next default. Freeze the classes it's known to get right; treat the rest as one weak
-  input; and where a cell straddles two prior classes, read that as a split signal along a
-  real boundary rather than a label to pick between.
+  next default. Freeze the classes it's known to get right; pass the rest down as real
+  positional evidence — below what the reader can plainly see in the crops, but above any
+  coarse textual geography prior, which is typically just this same map summarised (see
+  next bullet); and where a cell straddles two prior classes, read that as a split signal
+  along a real boundary rather than a label to pick between.
+- **Cross-tab the prior map at CELL scale only — never over a window around an exemplar.**
+  A cell's pixels are scattered across the AOI, so the distribution samples the old map at
+  many near-independent locations and one mislabelled polygon barely moves it. A local
+  window sits inside one or two polygons, and error in a coarse map is *spatially
+  correlated* — so a single mapping mistake returns as a confident "local: 70% X" and reads
+  to the reader as independent evidence. Per-exemplar prior lookups fail the same way, more
+  sharply. The aggregation scale is what makes this signal trustworthy; don't shrink it.
+- **Textual geography priors are bootstrapping, and the prior map retires them.** Belt/
+  compass rules ("class C → the west") are almost always derived by eyeballing the same map
+  the cross-tab now reads directly: same source, summarised to a sector. They earn their
+  keep on the first pass, when nothing exists to cross-tab against. After that, a reader
+  citing a sector while `old_map` sits on the card has reached past the signal for its own
+  lossy summary — and they will, unless the AOI pack says outright which one outranks.
+  A nodata cell falls back to the prior map's *neighbours*, not to the sector.
 - **Light tint only.** A heavy patch fill flattens canopy/crown texture and
   causes misreads (it turned a coconut grove into "scrub"). Renderer default is
   12% yellow + magenta outline. Upscale small (~170 px) crops ~4× before reading.
