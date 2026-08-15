@@ -47,6 +47,14 @@ it belongs to.
 | **Imagery** | ESRI mosaic | **~0.58 m** (sub-metre) | what the VLM reads — individual tree crowns, roof outlines, plough lines are all resolved |
 | **Cluster grid** | AlphaEarth embeddings over Sentinel | **~10 m** | what carries a label — 703 × 703 over a ~7 km AOI |
 
+**0.58 m is the ceiling, not a starting point.** The close crops are rendered at
+native scale — the generator never upsamples — so no reader is ever looking at
+finer than ~0.58 m/px. A tree crown of 7 m is ~12 px: enough to see *that* it is
+a palm, not enough to tell a fan crown from a feather one. Species-level calls
+that need crown geometry are out of reach at z18. (ESRI began serving **z19,
+0.29 m/px**, over this AOI — verified 2026-08-15, centre and four corners. The
+current run predates it.)
+
 Consequences worth holding onto: (a) you can *see* far more detail than you can
 *assign* — a feature narrower than ~10 m never gets a cell **purely** to itself;
 (b) one cluster cell = ~100 m², so a 0.5 ha forest MMU is ~50 cells; (c) the AOI

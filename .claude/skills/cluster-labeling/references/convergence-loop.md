@@ -219,8 +219,11 @@ hedge itself is 2–5 m of woody material, and its clusters are real and small �
 classes.
 
 The rule conflated two resolutions. **Judging resolution** is the imagery: on that
-run 0.58 m/px, ~0.26 m/px as displayed in the close crop, so narrow features are
-plainly visible and judgeable. **Labelling resolution** is the cluster cell: 10 m,
+run 0.58 m/px, and the close crop displays it at native scale — the generator's
+`scale = min(1.0, max_px / max(h, w))` never upsamples, so the pixel cap is a
+ceiling that does not bind and buys no extra detail. Narrow features are still
+plainly visible and judgeable at 0.58 m/px; they are simply not *finer* than the
+source. **Labelling resolution** is the cluster cell: 10 m,
 so no cell is ever *purely* the narrow feature. But a cell that is consistently,
 say, 30% hedge has a repeatable signature, and repeatable mixtures cluster.
 **Mixed is not the same as unmappable** — which is exactly why a segmentation over
