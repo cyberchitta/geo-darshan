@@ -301,3 +301,15 @@ better than it found it. Two grades of learning, two speeds:
   cluster raster + parentage mapping JSON, consumable by all the other scripts.
 - Renderer is **reused** from the repo: `scripts/vlm_label_prototype.py`
   (`--dry-run` renders crops; the same script can also call an API model).
+- Imagery comes from the repo's tile pipeline, **not from this skill**:
+  `scripts/esri_tiles.py download` / `stitch` (AOI and zoom from `config.yaml`;
+  needs no GDAL CLI). The mosaic it writes is what every crop generator here
+  takes as `--base`.
+- `scripts/check_tile_upsampling.py` — **run this on every new tile pull before
+  anything cuts crops from it.** A tile server serves *something* for a zoom it
+  does not hold: the parent tile, resampled, unmarked. A mosaic that is real at
+  one edge and upsampled at the other is worse than a uniformly coarser one,
+  because readers cannot tell which they are looking at and will over-read the
+  fake detail — and every label resting on it is a false claim about ground.
+  Exits non-zero when a pull looks fake; the threshold is calibrated by
+  injection, so read the docstring before changing it.

@@ -3,11 +3,20 @@ from typing import Dict, Tuple, Any
 import yaml
 
 
-def load_config(project_root: Path) -> Dict[str, Any]:
+def load_config(project_root: Path, aoi_name: str | None = None) -> Dict[str, Any]:
+    """Load the global config and the selected AOI's config.
+
+    `aoi_name` overrides `aoi.current` for callers that select an AOI explicitly
+    (e.g. `esri_tiles.py --aoi`). Unknown names fail here rather than silently
+    falling back, which is what the retired JS entry points did.
+    """
     global_config_path = project_root / "config.yaml"
     with open(global_config_path) as f:
         global_config = yaml.safe_load(f)
-    aoi_name = global_config["aoi"]["current"]
+    aoi_name = aoi_name or global_config["aoi"]["current"]
+    if aoi_name not in global_config["aoi-paths"]:
+        known = ", ".join(global_config["aoi-paths"])
+        raise KeyError(f"unknown AOI '{aoi_name}'; known: {known}")
     aoi_path = project_root / global_config["aoi-paths"][aoi_name]
     aoi_config_path = aoi_path / "config.yaml"
     with open(aoi_config_path) as f:
