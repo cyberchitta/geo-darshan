@@ -17,12 +17,13 @@ Each class carries four things:
 | scheme | why it governs | used for |
 |---|---|---|
 | **NRSC/ISRO National LULC 50K** ([2011-12 doc](https://bhuvan-app1.nrsc.gov.in/2dresources/thematic/2LULC/lulc1112.pdf)) | India's national scheme; our hierarchy is essentially its tree | primary anchor for nearly every class |
-| **FAO** forest definition (via MoEF 2011, quoted in NRSC) | fixes what counts as forest at all | forest.* |
-| **FSI Trees Outside Forests** — block / linear / scattered | the Indian treatment of trees that aren't forest | tree_lines |
-| **Copernicus Small Woody Features** | usable geometry for linear woody features | tree_lines |
-| **CORINE** 111/112/141 · **NLCD** developed classes | built-up graded by impervious fraction | built_environment.* |
-| **Wastelands Atlas of India** (DoLR + NRSC) | gullied/ravinous, scrub, barren rocky | degraded_barren.*, scrubland.* |
-| **ICRAF / FAO agroforestry** typology | agrisilviculture, homegardens | agroforestry.* |
+| **FAO** forest definition ([FRA 2020 Terms and Definitions](https://openknowledge.fao.org/server/api/core/bitstreams/531a9e1b-596d-4b07-b9fd-3103fb4d0e72/content), via MoEF 2011, quoted in NRSC) | fixes what counts as forest at all | forest.* |
+| **FSI Trees Outside Forests** — block / linear / scattered ([TOF Resources in India, 2020](https://fsi.nic.in/fsi-result/technical-information-series-vol2-no1-2020.pdf); [TOF-Rural field manual](https://fsi.nic.in/documents/fieldmanual_tofrural.pdf)) | the Indian treatment of trees that aren't forest | tree_lines, scattered_trees |
+| **Copernicus Small Woody Features** ([SWF 2018 product user manual](https://land.copernicus.eu/en/technical-library/high-resolution-layer-small-woody-features-2018-product-user-manual/@@download/file)) | usable geometry for linear woody features | tree_lines |
+| **CORINE** 111/112/141 ([nomenclature](https://land.copernicus.eu/content/corine-land-cover-nomenclature-guidelines/html/)) · **NLCD** developed classes ([legend](https://www.mrlc.gov/data/legends/national-land-cover-database-class-legend-and-description)) | built-up graded by impervious fraction | built_environment.* |
+| **Wastelands Atlas of India** 2019 (DoLR + NRSC; [DoLR](https://dolr.gov.in/en/wasteland-atlas-of-india-2019/), [NRSC](https://www.nrsc.gov.in/Atlas_Wastelands?language_content_entity=en)) | gullied/ravinous, scrub, barren rocky | degraded_barren.*, scrubland.* |
+| **ICRAF / FAO agroforestry** typology (Nair 1985, [FAO Technical Paper 3](https://openknowledge.fao.org/server/api/core/bitstreams/b447cf68-d3f5-4733-940c-f33591e0588a/content/x5546e06.htm)) | agrisilviculture, homegardens | agroforestry.* |
+| **FAO LCCS** ([Di Gregorio & Jansen 2000](https://www.fao.org/4/x0596e/x0596e00.htm)) · CORINE 1.2 | protected / greenhouse cultivation | protected_cultivation |
 
 **How our tree relates to NRSC's.** Ours is NRSC's, with the `Plantation` node
 expanded to species (mango / coconut / cashew / casuarina / mixed fruit — finer
