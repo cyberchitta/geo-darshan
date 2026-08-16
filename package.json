@@ -19,7 +19,6 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@turf/bbox": "^7.2.0",
     "@turf/turf": "^7.2.0",
     "axios": "^1.12.2",
     "georaster": "^1.6.0",
@@ -29,9 +28,7 @@
     "jszip": "^3.10.1",
     "leaflet": "^1.9.4",
     "leaflet-draw": "^1.0.4",
-    "shapefile": "^0.6.6",
-    "shpjs": "^6.2.0",
-    "sphericalmercator": "^1.0.5"
+    "shpjs": "^6.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
