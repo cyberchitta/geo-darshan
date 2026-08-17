@@ -47,10 +47,17 @@ For cluster id N (filenames zero-pad to 3 digits, e.g. `c007`):
   numbered exemplars on the whole-area basemap. Whether the cell is compact or
   dispersed matters: a dispersed cell's exemplars may legitimately differ from
   one another, and a "largest patch" exemplar can be unrepresentative.
-- For each exemplar, read `crops/cNNN_eN.jpg`. The patch is **outlined in
-  magenta** and lightly yellow-tinted. **Judge only the outlined patch**; the
-  surroundings are context, and context is often decisive — the same texture
-  means different things in a canopy matrix vs an agricultural one.
+- For each exemplar, read `crops/cNNN_eN.jpg`. The patch is marked — older runs
+  burn a magenta outline and a yellow tint into the JPEG; newer ones ship the
+  marking as separate `_edge.png` / `_fill.png` layers over an untinted
+  `_raw.jpg`. Your round brief says which this run has. **Where an untinted
+  `_raw` exists, read it before committing to a texture or species call** — a
+  burned-in tint flattens crown texture and has turned a coconut grove into
+  "scrub". Bring the marked view back when the question is *where the cell is*
+  rather than *what it is*.
+- **Judge only the marked patch**; the surroundings are context, and context is
+  often decisive — the same texture means different things in a canopy matrix vs
+  an agricultural one.
 - **Then read `crops/cNNN_eN_ctx.jpg` if it exists** — the same centre at a wider
   window, with a 100 m scale bar. Use it to answer *what surrounds this patch*:
   is the matrix canopy, open ground, or roofs? Is this bare field one of several
@@ -83,10 +90,24 @@ Use it at three levels of authority, and do not confuse them:
 
 1. **Freeze** — for the classes your AOI pack names as reliable in the prior map,
    a dominant share settles the cell. Inherit it; don't re-litigate.
-2. **Evidence** — for every other class, it is one input among several, and
-   usually a weak one. Prior maps are frequently wrong; that is why they are being
-   relabelled. **Never let "the old map says X" become a new default** — that is
-   the same failure as any other class applied without positive evidence.
+2. **Evidence — and it is the strongest *positional* evidence you get.** A prior
+   map is weak *per polygon*, but a cell's pixels are scattered across the whole
+   area, so the distribution aggregates many near-independent looks at it and one
+   mislabelled polygon barely moves it. A dominant share is a real reason to look
+   again.
+
+   Rank it correctly, because both errors are common:
+   - It does **not** outrank what you can plainly see in the crops. "The old map
+     says X" must never become a new default — that is the same failure as any
+     other class applied without positive evidence.
+   - It **clearly outranks** compass and belt priors ("NW ⇒ the casuarina belt").
+     Those are usually this same map eyeballed down to a sector: the same source,
+     lossily summarised. **Where a card carries `old_map`, do not decide from a
+     compass sector** — reaching past the cross-tab for the sector is reaching
+     past the signal for its own summary.
+   - A near-empty or nodata distribution means there is **no positional evidence
+     for that cell**, not a licence to fall back on the sector. Judge the crops,
+     or fall back to the prior map's *neighbours*.
 3. **Split signal** — a cell straddling two prior classes (say 30% water, 70%
    plantation) is impure along a real boundary such as a shoreline. Say so in your
    reasoning; it is a carve-out candidate, not a single label.
