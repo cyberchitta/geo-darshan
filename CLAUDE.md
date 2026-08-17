@@ -20,6 +20,13 @@ Hybrid project with a Python data pipeline and a Svelte web frontend:
 - `app/` - Svelte frontend (cluster viewer + object detection UI)
 - `scripts/` - Python/JS scripts for tile downloading and stitching (ESRI imagery)
 - `data/` - Geospatial data (rasters, vectors) — gitignored, ~3 GB, not on GitHub
+  — **and it holds live operative code, not only data.** A run directory
+  (`data/av-3.5K/intermediates/vlm_label_k88xk22/`) carries that run's
+  `HANDOFF.md`, its generated review page, and `rejudge_workflow.js` — the
+  workflow the re-judge swarm actually executes. So a repo-scoped search that
+  excludes `data/` reports that a committed script is referenced *nowhere* when
+  its only caller lives there. Confident, wrong, and it looks like a finding.
+  Search `data/` explicitly before concluding anything is unused.
 - `output/` - Generated GeoTIFFs and mapping files — gitignored
 - `config.yaml` - Pipeline configuration (paths, parameters)
 - `_notes/` - working notes, gitignored — see below
