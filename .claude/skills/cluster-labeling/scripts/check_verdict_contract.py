@@ -60,8 +60,23 @@ def parse_contract(path):
         if req.strip().lower() == "yes":
             t["required"].append(name)
     channels = tables.get("channel", {}).get("all", [])
-    record = [n for n, _r, k in rows
-              if k.strip().strip("*").lower() not in ("flip", "verify")]
+    # RECORDS validates the PER-EXEMPLAR verdict record only. Every other table in
+    # the contract describes a different object with a different lifetime, and its
+    # kinds are listed here so they cannot leak in. This was not a hypothetical: on
+    # 2026-08-17 the label-record table was added with kinds provenance/basis/reader
+    # and, because the exclusion was a two-name blacklist, its per-CLUSTER fields
+    # were immediately reported missing from all 266 per-EXEMPLAR records.
+    NOT_EXEMPLAR = ("flip", "verify", "lkey", "lverdict",
+                    "provenance", "basis", "reader")
+    # dict.fromkeys = dedupe, order-preserving. A name declared in two tables
+    # (`cluster`, `label`) used to land here twice, and the SOURCES restatement
+    # heuristic counts one occurrence per list entry -- so a sentence naming
+    # `cluster` and `label` scored 4, not 2, and tipped three green files to WARN
+    # the moment a second table was added (2026-08-17). Latent since the flip and
+    # verify tables were written; only a third table made it bite.
+    record = list(dict.fromkeys(
+        n for n, _r, k in rows
+        if k.strip().strip("*").lower() not in NOT_EXEMPLAR))
     return record, channels, tables
 
 

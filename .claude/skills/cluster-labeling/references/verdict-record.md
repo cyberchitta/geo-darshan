@@ -30,6 +30,7 @@ one.
 | `reasoning` | yes | verdict | one sentence on the **visual evidence** |
 | `changed` | yes | round | true if `label` differs from `prev_label` |
 | `change_reason` | yes | round | when `changed`, the definition or correction that drove it; `""` otherwise |
+| `represents_cluster` | yes | verdict | `typical`, `atypical`, or `unsure` — is this fragment like the rest of its cluster, judged from the locator and context crops? |
 | `no_class_fits` | yes | **channel** | null, or `{describes, nearest, why_it_fails}` |
 | `mixed` | yes | **channel** | null, or `{describes, parts[], dominant_share}` |
 
@@ -69,6 +70,79 @@ executable schema, also checked for agreement rather than forbidden.
 `better_label` is what makes a refutation *contested* rather than a plain revert —
 see the intent doc: a contested refutation is not a revert, and is decided by a
 person.
+
+## The label record — the fourth object, and the one that leaves the run
+
+The three objects above are internal to a round. The **label record** is what a
+cluster's label carries when it travels — into `cluster_to_label.json`, into a
+merge against a prior map, into an exported raster. It is the only one a later
+round, or a person a year from now, will actually read.
+
+*Why it exists.* On 2026-08-17 a merge of the round-2 labels against the 2025 hand
+map found that **round 2 assigned a label to 100% of the AOI having inspected
+17.17% of it** — 6 exemplars per cluster, 200 m windows. That number was not
+recorded anywhere. It had to be re-derived from `results.jsonl` by re-projecting
+every exemplar centre, because `cluster_to_label.json` carries only
+`{label, confidence, agreement, n, votes}` and round 2 predates the gate, so it has
+no `ledger.json` either. **A label that does not carry its own evidential basis
+cannot be weighed against anything.** The gate computes most of these fields
+already (`gate.py:130-155`); they simply never leave the ledger.
+
+| field | required | kind | meaning |
+|---|---|---|---|
+| `cluster` | yes | lkey | integer cluster id |
+| `label` | yes | lverdict | the voted dotted class path |
+| `round_id` | yes | provenance | which round produced it (`k88`, `k88xk22`, …) |
+| `defs_version` | yes | provenance | the class-definition hash it was judged against |
+| `crop_rendering` | yes | provenance | which crop treatment the reader saw — e.g. `tinted`, `raw+edge+fill`; plus whether context and locator crops existed |
+| `inspected_coverage` | yes | basis | `exemplar_px / cluster_px` — the share of the cluster actually looked at |
+| `n_fragments` | yes | basis | connected components of the cluster |
+| `fragments_inspected` | yes | basis | how many of them an exemplar window reached |
+| `largest_fragment_share` | yes | basis | largest component as a share of the cluster |
+| `one_cover` | yes | reader | `yes`, `no`, or `unsure` — across **all** its exemplars, is this one cover or several? |
+| `prior_map_dist` | no | basis | the prior map's class distribution over this cluster, when a prior map exists |
+
+**A name declared in two tables must be counted once — the checker used to count
+it twice.** Adding this table turned all three consumer files from OK to WARN
+without a line of them changing. `cluster` and `label` appear in both the
+per-exemplar table and this one, `parse_contract` appended per row, and the
+SOURCES restatement heuristic counts one hit per list entry — so a sentence like
+*"per-exemplar correctness beats a tidy cluster label"* scored 5 instead of 3 and
+crossed the 4-field threshold. The bug was latent from the moment the flip and
+verify tables were written; a third table is simply what made it bite.
+`parse_contract` now dedupes, and this table's key and payload rows carry their
+own kinds (`lkey`, `lverdict`) so they never enter the per-exemplar list at all.
+**The lesson is about the checker, not about naming** — an early reading here
+blamed the new field names for being ordinary English words and renamed them,
+which changed nothing. Verify a diagnosis against the baseline before writing it
+down.
+
+**`crop_rendering` is provenance about the instrument, not the ground.** Round 2's crops
+carried a magenta outline and a yellow tint burned into the JPEG, and
+`vlm_label_prototype.py` blames that tint for a coconut→scrub misread. Every round-2
+label was produced through it, and there is no way to ask *which labels were made
+under a defective rendering* except by knowing which run directory they came from.
+Recording it makes a rendering defect a queryable requeue instead of an
+archaeology problem.
+
+**The three `basis` fields about fragments exist because coverage alone is not the
+question.** Measured on the k88 clusters the same day: median **342** disconnected
+fragments per cluster (max 1,104), largest fragment a median **8.2%** of its
+cluster, and six exemplars reached a median of **11 of those 342**. A compact
+cluster at 17% coverage is a reasonable extrapolation; a 342-fragment cluster at
+17% is a guess, and the two are indistinguishable if only `coverage` is written
+down.
+
+**`one_cover` is not `mixed` at a different scale.** `mixed` asks whether one
+*crop* holds two covers. `one_cover` asks whether the cluster's *fragments*
+resemble each other — the failure that dispersion makes likely and that no
+per-exemplar field can see. A cluster can have no mixed cells at all and still be
+two covers wearing one label.
+
+**`represents_cluster` is the per-exemplar half of the same question**, and it is the
+cheapest instrument available for the extrapolation problem: with 11 of 342
+fragments inspected, whether the sample generalises is otherwise unknowable. The
+reader already has the locator and context crops in front of it.
 
 ## Channel fields are required *as keys*, even when they do not apply
 
