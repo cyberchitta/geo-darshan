@@ -4,7 +4,6 @@ version = "0.1.0"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "alpha-bhu",
     "fiona>=1.10.1",
     "numpy>=2.3.2",
     "pyyaml>=6.0.3",
@@ -12,5 +11,11 @@ dependencies = [
     "shapely>=2.1.1",
 ]
 
-[tool.uv.sources]
-alpha-bhu = { path = "/Users/ad/GitHub/alpha-bhu", editable = true }
+# alpha-bhu is deliberately NOT a dependency here. Only
+# scripts/gen_cluster_hierarchy.py imports it (guarded by try/except), and that is
+# the upstream clustering step whose outputs (clusters/k*_s42.tif) are already on
+# disk. It is not on PyPI, so declaring it — even as an optional extra with a path
+# source — makes `uv sync` unresolvable on any machine without the checkout, which
+# is what it did until 2026-08-17. To run that one script, clone alpha-bhu as a
+# sibling and install it into this env by hand:
+#     uv pip install --editable ../alpha-bhu
