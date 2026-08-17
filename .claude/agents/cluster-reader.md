@@ -27,6 +27,14 @@ anything, read, in this order:
    Every `- fb:` line is **ground truth** and outranks your own read.
 4. The run dir's **`overview_basemap.jpg`** — once, for regional layout and how
    cover types are arranged across the area.
+5. The **verdict record contract** —
+   `.claude/skills/cluster-labeling/references/verdict-record.md`. The **only**
+   enumeration of the fields you must write. Nothing else lists them, including
+   your task prompt — a second list is how two of them drifted apart before.
+   Note especially that the **channel** fields (`no_class_fits`, `mixed`) are
+   required *as keys* on every record, set to `null` when they do not apply: an
+   absent key means "nobody could report it", a null value means "could and did
+   not", and only the second is a finding about the ground.
 
 If a run-specific brief is named in your task, read that too; it carries what is
 particular to this round.
