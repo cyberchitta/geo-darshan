@@ -95,7 +95,11 @@ scrub, tree_lines, or trees riding along on another cover.
   from Copernicus Small Woody Features: **≤ 30 m wide, ≥ 30 m long**.
 - **Diagnostic.** A continuous woody ribbon tracking a road, tank margin, canal
   or field bund. ~50 px wide in the imagery; ~3 cells on the cluster grid.
-- **Requires.** Linearity *and* a linear host feature to follow. Woody, not grass.
+- **Requires.** Linearity *and* a linear host feature to follow — road, canal,
+  tank margin, or **field/tank bund**. Woody, not grass. **Judge the width of the
+  woody ribbon, not of the landform it follows:** a tank foreshore or a hollow may
+  be hundreds of metres across while the ribbon riding it is 10-30 m. This cuts
+  both ways — it does not license the call on a strip that is not itself linear.
 - **Not this:** a strip that does not dominate its cell's signature — the cell
   belongs to the field/agroforestry mosaic it edges. Judge by **what fills the
   cell**, not by whether the strip is wider than one: a ribbon narrower than a
@@ -212,6 +216,12 @@ boundaries, shared straight edges with active parcels — is positive evidence o
 scheme gives bunds a cover class; the woody crests are `forest.tree_lines` (whose
 definition names bund alignments) and bare crests are
 `degraded_barren.compacted_corridor`.
+
+**A bund is a landform, not a cover: what covers it decides the class.** Woody
+crest -> `forest.tree_lines`. Bare compacted crest ->
+`degraded_barren.compacted_corridor`. The bunded parcel geometry itself is a
+**diagnostic** for cultivation, never a label. *(Ruled 2026-08-17; supersedes the
+`bunds`-node reversal in `_notes/missing-classes_candidates.md` §G.)*
 
 ### `agriculture.field_crops.rice_paddies`
 - **Diagnostic.** Small level parcels with water-retaining bunds, often a wet or
