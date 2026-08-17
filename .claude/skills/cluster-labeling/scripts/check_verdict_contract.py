@@ -105,12 +105,26 @@ def check_required_arrays(text, tables):
     return out
 
 
-def iter_records(run_dir, pattern):
+def iter_records(run_dir, pattern, key="cluster", rows_key="verdicts"):
+    """Yield (filename, record). `key` identifies a record; `rows_key` unwraps a
+    dict-shaped file. Both are parameters so a second contract — the reader
+    debrief, whose records are keyed by `batch`, not `cluster` — can reuse this
+    checker instead of growing a parallel one."""
     for p in sorted(glob.glob(str(run_dir / pattern))):
         blob = json.loads(Path(p).read_text())
-        rows = blob if isinstance(blob, list) else blob.get("verdicts", [])
+        if isinstance(blob, list):
+            rows = blob
+        elif rows_key in blob:
+            rows = blob[rows_key]
+        elif key in blob:
+            # A file holding ONE record as a bare object. Without this the
+            # checker reports "no records matched" and exits 0 — a green run
+            # that checked nothing, which is the worst thing a checker can do.
+            rows = [blob]
+        else:
+            rows = []
         for r in rows:
-            if isinstance(r, dict) and "cluster" in r:
+            if isinstance(r, dict) and key in r:
                 yield Path(p).name, r
 
 
@@ -123,6 +137,10 @@ def main():
                     help="files that should POINT at the contract, never restate it")
     ap.add_argument("--strict", action="store_true",
                     help="fail on SOURCES warnings too, not only on RECORDS")
+    ap.add_argument("--record-key", default="cluster",
+                    help="field that identifies a record (debrief records use 'batch')")
+    ap.add_argument("--rows-key", default="verdicts",
+                    help="key to unwrap when a verdicts file is a dict, not a list")
     a = ap.parse_args()
 
     fields, channels, tables = parse_contract(a.contract)
@@ -134,11 +152,13 @@ def main():
     print("\nRECORDS")
     missing = {}
     n = 0
-    for fname, rec in iter_records(a.run_dir, a.verdicts):
+    for fname, rec in iter_records(a.run_dir, a.verdicts, a.record_key, a.rows_key):
         n += 1
+        where = (f"c{rec['cluster']}e{rec.get('exemplar')}" if a.record_key == "cluster"
+                 else f"{a.record_key}={rec[a.record_key]}")
         for f in fields:
             if f not in rec:
-                missing.setdefault(f, []).append(f"{fname} c{rec['cluster']}e{rec.get('exemplar')}")
+                missing.setdefault(f, []).append(f"{fname} {where}")
     if not n:
         print(f"  no records matched {a.verdicts} -- nothing to check")
     elif not missing:
