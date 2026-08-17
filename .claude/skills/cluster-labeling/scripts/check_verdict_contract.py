@@ -6,12 +6,12 @@ the ONLY place the fields of a verdict record are enumerated. This checks that
 nothing has quietly grown a second list, and that written records match the one
 list.
 
-Why. On 2026-08-17 rejudge_workflow.js told readers to write nine fields while
-the round brief told them to write eleven; the two newest channels were missing
-from the operative list. A reader following it would have dropped them silently
-and the resulting zero count would have read as "nothing to report" rather than
-"nobody was asked". Discipline does not keep two hand-maintained lists in
-agreement -- a checker does.
+Why. On 2026-08-17 rejudge_workflow.js's task prompt enumerated nine fields while
+the round brief separately required two channel fields it omitted. No complete
+list existed anywhere -- that absence was the defect. A reader working from the
+enumeration would have dropped both channels, and the resulting zero would have
+read as "nothing to report" rather than "nobody was asked". Discipline does not
+keep two hand-maintained lists in agreement -- a checker does.
 
 Two checks, independent:
 

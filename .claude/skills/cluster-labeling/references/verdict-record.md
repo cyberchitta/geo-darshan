@@ -6,13 +6,16 @@ Everything else — the round brief, a workflow's task prompt, a miner, the gate
 that: it parses this table and fails if a written record is missing a field, and
 warns if any consumer re-enumerates a list of its own.
 
-*Why it exists.* On 2026-08-17 `rejudge_workflow.js` was found telling readers to
-write nine fields while the round brief told them to write eleven. The two
-channels the brief had just gained — `no_class_fits` and `mixed` — were absent
-from the operative list, so a reader following the task prompt would have dropped
-them silently, and the resulting zero count would have read as "nothing to
-report". Two hand-maintained lists cannot be kept in agreement by discipline.
-There is now one.
+*Why it exists.* On 2026-08-17 `rejudge_workflow.js`'s task prompt was found
+enumerating **nine** fields, while the round brief separately required two channel
+fields — `no_class_fits` and `mixed` — that the enumeration omitted. (The brief
+never gave a full list of its own; it described extras "beyond the standard
+verdict fields", and the standards were enumerated nowhere but the task prompt.
+That absence of a complete list *was* the defect.) A reader working from the
+prompt's enumeration would have dropped both channels, and the resulting zero
+would have read as "nothing to report" rather than "nobody was asked". Two
+hand-maintained lists cannot be kept in agreement by discipline. There is now
+one.
 
 ## Fields
 

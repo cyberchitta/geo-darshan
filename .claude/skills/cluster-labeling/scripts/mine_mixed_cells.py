@@ -9,8 +9,14 @@ The gap this closes. The gate can only infer spatial impurity from exemplars
 disagreeing WITH EACH OTHER (state SPLIT). It structurally cannot see a single
 crop that is itself half orchard and half scrub: the reader was told to "give
 the dominant class and note it", so the observation went into free-text
-`reasoning` where nothing mechanical reads it. Measured on k88xk22's 108 flips,
-11 described exactly that in prose. `mixed` is the structured channel.
+`reasoning` where nothing mechanical reads it. On k88xk22's 108 flips, 11 matched
+a mixing-language regex; reading them, **4 clearly describe one crop holding two
+covers with no common ancestor** (c78e2 laterite/scrub, c132e0 footpath/regrowth,
+c153e0 straddling a shoreline, c188e2 plantation/cashew ecotone), 5 are marginal,
+and 2 are false positives that matched contract language rather than an
+observation. The regex is why the count needs a channel: prose cannot be counted.
+One of the four -- c153e0 -- wrote "a carve-out candidate" unprompted, which is a
+reader asking for a split with no field to put it in.
 
 Three failures, kept apart (the prompt states them in the same order):
 
