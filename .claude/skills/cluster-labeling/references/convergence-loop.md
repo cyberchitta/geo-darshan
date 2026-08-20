@@ -265,10 +265,37 @@ correlated blind spot survives every pass by construction.
 
 ## Contract revisions invalidate retirements
 
-`ledger.json` stamps `defs_version` (sha of the AOI pack's class-definitions +
-hierarchy). When a class definition changes, every SETTLED cluster whose label
-touches that class returns to OPEN. The 2026-08-09 definition rewrite moved 41% of
-verdicts — retirements made under superseded definitions are not safe.
+`ledger.json` stamps `defs_version`. When a class definition changes, every
+SETTLED cluster whose label touches that class returns to OPEN. The 2026-08-09
+definition rewrite moved 41% of verdicts — retirements made under superseded
+definitions are not safe.
+
+**`defs_version` must hash everything a reader reads, not just the class list.**
+It began as a sha of class-definitions + hierarchy, and that was too narrow: five
+further files determined reader behaviour while being invisible to the stamp, so
+**two passes run under materially different contracts carried the same stamp and
+looked comparable when they were not.** Widened 2026-08-17 to also hash the AOI
+pack `SKILL.md`, the reader agent's definition, the round brief, the corrections
+log, and the swarm harness. Expect the stamp to move more often — that is the
+point, not a regression.
+
+**The gap is narrowed, not closed.** Anything a reader reads that is not in the
+hash still drifts silently. Test it the same way each time: change one word of
+guidance, re-run `--defs`, and confirm the stamp moves. If it does not, that file
+is outside the hash.
+
+**Do not fix this by hashing a generated prompt file.** That was tried and
+withdrawn: a `prompt.txt` emitted by a since-deleted generator had already drifted
+from the definitions it was built from, so adding it to the hash would have
+stamped the drift in rather than caught it. Hash the *sources*, never a rendered
+artifact of them.
+
+**Corollary — know which surface actually reaches your readers.** When the loop
+moved from an API-call path to agent readers, the standing instruction to mirror
+every class ruling into the API path's field guide silently became inert: agent
+readers load `class-definitions.md`, and the field guide reached nobody. The
+instruction stayed correct-looking and was dutifully followed for weeks. **When
+the reader mechanism changes, re-derive what the readers read.**
 
 ## Termination
 
@@ -306,7 +333,6 @@ change · the pass N→N+1 driver.
 - `retreat_min_depth = 2` sends `forest.planted_forest` vs `forest.natural_forest`
   to SPLIT. Defensible (a real spatial distinction) but worth revisiting.
 - How many exemplars does RESAMPLE add, and drawn from where?
-- Do split children inherit their parent's verification state, or reset to zero?
 - Does the exemplar manifest enter `defs_version`? (Argued yes above — but it
   means every promotion re-opens retirements, so promotion has to batch.)
 - Can gate-SETTLED ever promote an exemplar on its own, or is human confirmation
@@ -324,3 +350,35 @@ A green gate proves nothing until watched going red. Inject faults at the
 judgment labels, so injecting there is a silent no-op that reports SETTLED on
 data you believe you corrupted. Cover: cross-family disagreement, sibling
 disagreement, a non-hierarchy label, and a demoted verification.
+
+---
+
+## Splitting: when to split, and what the children inherit
+
+**Do split children inherit their parent's verification state? — NO. Decided
+2026-08-17 (geo-darshan, Auroville run); this replaces the open question that
+stood here.** Children reset to unverified; the parent's ruling is recorded as
+their **prior**, not as their verification. A split declares the parent's extent
+was not uniform, so inheriting a ruling made over that extent launders a claim
+the split just invalidated.
+
+**Split on spatial coherence, not on count.** `gate.py` and the SPLIT/RETREAT
+rule above already separate cross-family disagreement from same-family, and warn
+that splitting fixes only *spatial* impurity — definitional ambiguity just yields
+children straddling the same boundary. The added test, computable from the
+rulings themselves: **split when the exceptions are spatially COHERENT, not
+merely numerous.** Concentrated in particular fragments or localities → split.
+Scattered with no pattern → contract fix, or a parent-level label.
+
+**Mechanisms, cheapest first:**
+
+1. Intersect an existing k-level (`gen_intersection.py`, k88 × k22/k44) — the
+   established route.
+2. **Intersect the prior map** — cheap, and aimed at exactly this case. Where the
+   parent is largely pure against an *independent* map, the differing minority is
+   the sub-population you are trying to separate, and the prior map is already a
+   hypothesis about where the seam lies. **This is the default** for cells that
+   reached SPLIT through disagreement with a prior map.
+3. Group by fragment locality.
+4. Re-cluster at a higher k — retires the ledger and needs the embedding pipeline.
+   Last resort.
