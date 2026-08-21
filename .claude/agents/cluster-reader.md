@@ -57,14 +57,30 @@ For cluster id N (filenames zero-pad to 3 digits, e.g. `c007`):
   numbered exemplars on the whole-area basemap. Whether the cell is compact or
   dispersed matters: a dispersed cell's exemplars may legitimately differ from
   one another, and a "largest patch" exemplar can be unrepresentative.
-- For each exemplar, read `crops/cNNN_eN.jpg`. The patch is marked — older runs
-  burn a magenta outline and a yellow tint into the JPEG; newer ones ship the
-  marking as separate `_edge.png` / `_fill.png` layers over an untinted
-  `_raw.jpg`. Your round brief says which this run has. **Where an untinted
-  `_raw` exists, read it before committing to a texture or species call** — a
-  burned-in tint flattens crown texture and has turned a coconut grove into
-  "scrub". Bring the marked view back when the question is *where the cell is*
-  rather than *what it is*.
+- For each exemplar, **decide what it is on `crops/cNNN_eN_patch.jpg`.** This is
+  the view that is about the cell: the window is sized to the patch itself, the
+  magenta boundary is burned in at full resolution, and there is no tint over the
+  interior, so texture and boundary are legible in the same image. Its caption
+  carries two numbers you must actually use — **the cell's share of the frame**
+  and, where the window was blown up past native resolution, **the upscale
+  factor**. A small share or a large upscale means the evidence is thin: lower
+  your confidence or say `uncertain`, rather than reading detail into an
+  interpolated image.
+- **Then place it.** `crops/cNNN_eN.jpg` is a fixed 200 m window with the patch
+  marked — use it for *where the cell sits in the landscape*, not for what it is.
+  In that frame the cell is a median **5.2%** of the image (65% of exemplars are
+  under 10%), so a call made from it is mostly a call about everything except the
+  cell. That is exactly the error this ordering exists to prevent, and it was
+  measured on a real run, not supposed.
+- `crops/cNNN_eN_raw.jpg` — untinted, sharper, and carrying **no boundary at
+  all**. Earlier versions of this card sent the texture call here, which meant
+  deciding *what the cell is* on an image where the cell cannot be located. Use
+  it only to check texture inside a boundary you have already fixed from the
+  patch view, and never to choose a label on its own.
+- **If `_patch.jpg` is missing for an exemplar, say so in your notes and judge
+  from the marked 200 m crop** — flag the reduced confidence. Do not rebuild the
+  view yourself: readers who did that produced per-reader images nobody else saw,
+  which makes agreement between readers unmeasurable.
 - **Judge only the marked patch**; the surroundings are context, and context is
   often decisive — the same texture means different things in a canopy matrix vs
   an agricultural one.
