@@ -106,6 +106,16 @@ def defs_version(paths):
 
 
 def valid_label(label, hierarchy):
+    """Is this a path the hierarchy contains? Deliberately NOT "may a reader emit
+    it": a `_status: not-assignable` node is a real class and stays valid here.
+
+    Enforcing the flag at this seam was considered 2026-08-21 and rejected. The
+    gate runs over verdicts already on disk, so rejecting here would silently
+    move existing clusters' ledger states -- changing what a past round concluded
+    rather than stopping a bad verdict being written. Enforcement belongs at the
+    contract check, which reads records before anything consumes them:
+    `check_verdict_contract.py --hierarchy`. Leave this one structural.
+    """
     node = hierarchy
     for p in parts(label):
         if not isinstance(node, dict) or p not in node:
