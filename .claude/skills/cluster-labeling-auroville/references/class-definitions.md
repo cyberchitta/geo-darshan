@@ -116,10 +116,17 @@ scrub, tree_lines, or trees riding along on another cover.
   trees on farmland, homesteads and community land, forming neither a block nor a
   line. Palmyra (*Borassus flabellifer*) standing on field edges and bunds is the
   characteristic local case; tamarind and isolated farm trees are others.
-- **⚠ NOT CURRENTLY ASSIGNABLE** — see "Classes that are real but not currently
-  assignable". The stratum is published and the ground is real, but it does not
-  separate at a 10 m cell: a scattered-tree cell is mostly whatever the trees are
-  scattered *in*.
+- **ASSIGNABLE — unlocked 2026-08-21 on the maintainer's T43 ruling.** It was
+  blocked because a scattered-tree cell is mostly whatever the trees are
+  scattered *in*; the ruling accepts that and unlocks anyway, because **the
+  label is legitimate** and a real stratum should not stay unreachable for the
+  convenience of the cell geometry.
+- **⚠ Use it for the trees, not for the matrix.** The maintainer's own words on
+  the evidence that unlocked it: *"only c115e0 actually has scattered trees in
+  the selected area."* Four of the five round-4 cells whose prose said
+  "scattered trees" were describing the surroundings, not the cell. So before
+  choosing this, check that the **outlined patch** is the scattered-tree ground —
+  if the trees are beside it or around it, label what is inside the outline.
 - **Caveat.** Same as `tree_lines` — FSI would call these trees outside forest,
   not forest; the node sits under `forest` for tree convenience only.
 - **Why the node exists at all.** The crosswalk cites FSI TOF's
@@ -524,9 +531,26 @@ node. Such nodes carry `_status: "not-assignable"` in `land-cover.json`, plus
 - `_unlock` states what evidence would make the class assignable. It is a
   commitment to revisit, not a graveyard.
 
-Currently flagged (8): `forest.natural_forest`, `forest.scattered_trees`,
-`scrubland.thorny_scrub`, `grassland.grazing_land`, `agriculture.agroforestry`
-and its three children.
+Currently flagged (7): `forest.natural_forest`, `scrubland.thorny_scrub`,
+`grassland.grazing_land`, `agriculture.agroforestry` and its three children.
+
+**Ruled on 2026-08-21 (T43), against each class's own `_unlock` condition rather
+than against a general impression — the surface was `t43_review.html` in the
+round-4 run dir, and the export is `t43_rulings.json` beside it.**
+
+| class | ruling | the maintainer's reason |
+|---|---|---|
+| `forest.scattered_trees` | **unlocked** | *"only c115e0 actually has scattered trees in the selected area. but this is a legitimate label"* |
+| `grassland.grazing_land` | kept | *"parts of some of these look like grassland. but the full selections do not"* — the four round-4 cells argued for it, and looking at them refuted it |
+| `agriculture.agroforestry` | kept | no reason given; the round offered one two-layer observation (c187e2) |
+| `agriculture.agroforestry.food_forests` | kept | no reason given |
+
+**The other four were not ruled on, and stay blocked by default** —
+`forest.natural_forest`, `scrubland.thorny_scrub`,
+`agriculture.agroforestry.permaculture`, `agriculture.agroforestry.mixed_cultivation`.
+Round 4 produced **no evidence of any kind** for any of them, so there was
+nothing to rule against; the page said so and they were left alone. Absence of a
+ruling is not a ruling — do not read these four as re-affirmed.
 
 **Not the same thing: labelable-but-absent.** `degraded_barren.quarries` has zero
 uses *and* zero mentions of quarry/mining/excavation in 482 texts — that is a

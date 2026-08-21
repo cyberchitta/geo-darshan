@@ -18,11 +18,25 @@ the blocked ones -- so it cannot be checked here.
 
 *Corrected at session close, same session that wrote the paragraph above: it
 first said a blocked class is "kept out of a reader's hands by how the definition
-is written". That was asserted, not checked, and checking it says otherwise --
-**6 of the 8 blocked classes carry no marking at all** in class-definitions.md
-(`scattered_trees`, `thorny_scrub`, and the whole `agroforestry` subtree). They
-read as ordinary assignable classes, `Requires` clauses and all. So nothing at
-all is keeping those out of a verdict.* Worklist T43.
+is written". That was asserted, not checked, and checking it said otherwise --
+most of the blocked classes carried no marking at all and read as ordinary
+assignable ones, `Requires` clauses and all. So nothing was keeping them out of a
+verdict.* Worklist T43.
+
+**Both halves of that are now closed (2026-08-21).** Every blocked class is
+marked in `class-definitions.md`, and `check_verdict_contract.py --hierarchy`
+checks the verdicts rather than trusting the prose. Two phrasings are in use --
+the standard "⚠ NOT CURRENTLY ASSIGNABLE" and, on `forest.natural_forest` and
+`grassland.grazing_land`, "RETIRED FOR THIS AOI -- never emit". **A grep-based
+audit that knows only one of them undercounts**, which is exactly how the
+original 6-vs-5 miscount happened. Count `_status` in the hierarchy instead; it
+is the only authority, and it is what this script reads.
+
+The blocked set is **7**, not 8: `forest.scattered_trees` was unlocked on the
+maintainer's T43 ruling. Note what this script does and does not assert -- it
+fails a pick-list that OFFERS a blocked class, and says nothing about one that
+OMITS a newly-unlocked class. A surface generated before an unlock stays stale
+and still passes.
 
   check_pick_lists.py --hierarchy land-cover.json RUN_DIR
 

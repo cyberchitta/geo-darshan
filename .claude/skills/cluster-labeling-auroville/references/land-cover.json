@@ -19,9 +19,6 @@
     },
     "scattered_trees": {
       "_description": "FSI Trees-Outside-Forests 'scattered' stratum - individual trees on farmland, homesteads and community land, not forming a block or a line. Palmyra (Borassus flabellifer) standing on field edges and bunds is the characteristic local case; tamarind and isolated farm trees are others.",
-      "_status": "not-assignable",
-      "_why": "The stratum is published and the ground is real, but it does not separate at a 10 m cell: 7 verdicts describe scattered or isolated trees and they land on 4 unrelated labels (sparse_scrub, maintained_grass, degraded_barren, fallow). A scattered-tree cell is mostly whatever the trees are scattered IN - the separability test's 'inconsistent mixture' mode. Species identification compounds it: at 0.58 m/px a 7 m crown is ~12 px, enough to see a palm but not to tell a fan crown from a feather one.",
-      "_unlock": "A cluster appears whose exemplars are majority scattered-tree; and/or z19 imagery (0.29 m/px, now available) resolving crown form.",
       "_note": "This closes a half-import: the crosswalk cites FSI TOF's block/linear/scattered strata but only ever instantiated 'linear' (as tree_lines). 'block' needs no node - it is already covered by planted_forest and orchards.casuarina (verified: 6 woodlot/block-plantation mentions, all correctly homed)."
     }
   },

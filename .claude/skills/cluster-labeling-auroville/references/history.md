@@ -171,6 +171,38 @@ What moved:
   readers in `prompt.txt`, `natural_forest` with a helpful "LOOKS LIKE" cue, and
   `grazing_land` was still being emitted.
 
+## `forest.scattered_trees` unlocked — 2026-08-21 (T43)
+
+The node carried `_status: not-assignable` from 2026-08-17 to 2026-08-21. Its
+`_why`, now discharged and kept here because the node no longer carries it:
+
+> The stratum is published and the ground is real, but it does not separate at a
+> 10 m cell: 7 verdicts describe scattered or isolated trees and they land on 4
+> unrelated labels (sparse_scrub, maintained_grass, degraded_barren, fallow). A
+> scattered-tree cell is mostly whatever the trees are scattered IN — the
+> separability test's "inconsistent mixture" mode. Species identification
+> compounds it: at 0.58 m/px a 7 m crown is ~12 px, enough to see a palm but not
+> to tell a fan crown from a feather one.
+
+Its `_unlock` asked for *"a cluster appears whose exemplars are majority
+scattered-tree; and/or z19 imagery (0.29 m/px, now available) resolving crown
+form."* **Neither was met.** Round 4's five scattered-tree mentions dispersed
+across three labels exactly as before, and the maintainer, looking at them at
+z19, found only one (c115e0) where the outlined patch was actually
+scattered-tree ground.
+
+**It was unlocked anyway, and that is the interesting part.** The ruling was not
+"the evidence arrived" but *"this is a legitimate label"* — a published FSI
+stratum should not stay unreachable because our cell geometry is awkward. So the
+`_unlock` mechanism did its job as a **commitment to revisit** rather than as a
+test that had to pass: it forced the class back in front of a person, and the
+person overrode it. Worth remembering the next time an `_unlock` condition is
+written as though it were a gate. It is a trigger.
+
+The risk the `_why` named is real and did not go away; it moved into the class
+entry as a usage caveat (*use it for the trees, not for the matrix*) instead of
+being enforced by a block.
+
 ## Open threads
 
 - **(a) Stratified exemplar selection.** `patch_exemplars` picks the N *largest*
