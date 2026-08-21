@@ -36,14 +36,19 @@ downloading/embedding/clustering here.
 Let `AOI`, `SEG` (cluster raster), `BASE` (basemap), `CENTER` (lon lat landmark)
 come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
 
-1. **Render exemplar crops** (reuses the repo renderer, light tint by default):
+1. **Render exemplar crops** (light tint by default):
    ```
-   python scripts/vlm_label_prototype.py --aoi AOI --seg-key SEG_KEY \
-     --clusters N --exemplars E --window-m 200 --dry-run --out RUN_DIR
+   python .claude/skills/cluster-labeling/scripts/gen_exemplars.py RUN_DIR \
+     --seg SEG --base BASE --cluster-ids ID... --exemplars E --window-m 200
    ```
-   → `RUN_DIR/{crops/,prompt.txt,results.jsonl}`. More exemplars (5–6) for
-   coverage; bump only as needed for uniform clusters. Use `--cluster-ids` to
-   target specific clusters; `--window-m 100` + 4× upscale for fine crown/species.
+   → `RUN_DIR/{crops/,results.jsonl}`, each record carrying `"result": {}` for
+   the in-harness reader to fill. More exemplars (5–6) for coverage; bump only as
+   needed for uniform clusters. `--clusters N` takes the N largest instead of
+   explicit ids; `--window-m 100` + 4× upscale for fine crown/species.
+
+   **It will not overwrite an existing `results.jsonl`** — that file is what the
+   run's cards, ledger and verdicts are keyed to. Render an additional batch into
+   a run with `--results results_bN.jsonl`.
 
 2. **Locator maps** (where each cluster sits — essential for dispersed clusters):
    ```
@@ -265,12 +270,15 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
   exemplar's coordinates against the landmark's — a look-alike building 1 km away got
   logged as the AOI's central monument and the error propagated for rounds.
 - **The cues the readers actually consume must be the same artifact you maintain.**
-  Class knowledge ends up in three places — the renderer's `FIELD_GUIDE` (which
-  builds `prompt.txt`), the AOI pack's class definitions, and each round's
-  hand-written `BRIEF.md`. Only the first reaches an ordinary reader, and it is the
-  one nobody thinks to edit; a pack can absorb rounds of corrections while readers
-  are still served the original wording. When feedback updates a class, update the
-  cue the model sees, not only the doc you read.
+  Class knowledge ends up in two places now — the AOI pack's class definitions and
+  each round's hand-written brief — and the reader agent reads the class
+  definitions *directly*, so that document IS the cue surface. It was not always:
+  the renderer's `FIELD_GUIDE` used to build a `prompt.txt` that was the only thing
+  an ordinary reader saw, and a pack could absorb rounds of corrections while
+  readers were still served the original wording. That indirection is gone with the
+  Gemini path, which removes the drift but creates the opposite hazard — see the
+  not-assignable note below. When feedback updates a class, check that the reader's
+  entry point carries it, not only the doc you read.
 - **Write cues as REQUIREMENTS, not appearances.** Every systematic error this
   pipeline produced came from a class applied on *absence* of evidence — "smooth
   green, nothing obviously growing". A cue that only describes a look can always be
@@ -352,8 +360,9 @@ better than it found it. Two grades of learning, two speeds:
   with other k-level rasters (kA ∩ kB): minority cells get new ids, the largest
   cell keeps the parent id, slivers (< --min-px) fold into it. Output is a normal
   cluster raster + parentage mapping JSON, consumable by all the other scripts.
-- Renderer is **reused** from the repo: `scripts/vlm_label_prototype.py`
-  (`--dry-run` renders crops; the same script can also call an API model).
+- `scripts/gen_exemplars.py` — selects each cluster's largest connected patches
+  and renders the judged crops + `results.jsonl`. Lifted from the repo's deleted
+  `scripts/vlm_label_prototype.py`; the API path did not come with it.
 - Imagery comes from the repo's tile pipeline, **not from this skill**:
   `scripts/esri_tiles.py download` / `stitch` (AOI and zoom from `config.yaml`;
   needs no GDAL CLI). The mosaic it writes is what every crop generator here

@@ -8,6 +8,16 @@ picks from. This checks the generated artifacts, not the generators -- the
 observed failure mode is a correctly-generated artifact going stale, which no
 amount of correct generator code prevents.
 
+**One generated surface is left, not two.** `RUN_DIR/prompt.txt` was the other;
+its generator went with the Gemini path in `a20a78f` and the file is retired, so
+the arm that read it could never fire again and was removed rather than left to
+report SKIP forever. What replaced it is NOT a generated artifact: the
+`cluster-reader` agent reads the AOI pack's `class-definitions.md` directly. That
+document is the glossary, which by the rule above must show every class including
+the blocked ones -- so it cannot be checked here, and a blocked class is now kept
+out of a reader's hands by how the definition is written, not by a filter this
+script can assert. That gap is real and is not this script's to close.
+
   check_pick_lists.py --hierarchy land-cover.json RUN_DIR
 
 Exit 1 on any violation.
@@ -45,11 +55,7 @@ def main():
     print(f"{len(blocked)} not-assignable class(es): {', '.join(sorted(blocked))}\n")
 
     # Each surface: (label, path, regex extracting every offered class path).
-    # prompt.txt lists one class per line as "  - dotted.path — description".
-    # The review page emits radios as value="dotted.path".
     surfaces = [
-        ("prompt.txt", a.run_dir / "prompt.txt",
-         re.compile(r"^\s*-\s+([a-z_]+(?:\.[a-z_]+)*)", re.M)),
         # The review page's radio VALUES are role tokens (prior/verifier/...),
         # not class paths. Its actual pick-list is the <datalist id="labels">
         # backing the "Other" and class-contract inputs, built from LABELS.

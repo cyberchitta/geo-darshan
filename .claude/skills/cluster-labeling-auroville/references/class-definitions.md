@@ -491,9 +491,16 @@ node. Such nodes carry `_status: "not-assignable"` in `land-cover.json`, plus
 
 **What that means in practice:**
 
-- They are **never offered in a pick-list** — not in `prompt.txt`, not in the
-  review page's class inputs. Enforced by `scripts/check_pick_lists.py`, which
-  reads the **generated artifacts** rather than trusting the generators.
+- They are **never offered in a pick-list** — not in the review page's class
+  inputs. Enforced by `scripts/check_pick_lists.py`, which reads the **generated
+  artifacts** rather than trusting the generators. It now checks **one** surface,
+  not two: `prompt.txt` is retired and its arm was removed.
+- ⚠ **The remaining route to a reader is not enforced by anything.** Readers now
+  read *this document* directly, and by the rule above the glossary must show
+  every class including these. So the only thing keeping a blocked class out of a
+  verdict is the wording of its own entry — prose again, which is precisely the
+  failure recorded at the end of this section. Not fixed; recorded so it is not
+  mistaken for covered.
 - They **do** appear in the glossary, in coverage analyses and in missing-class
   mining, all of which need the whole tree. You cannot rule on a class you cannot
   see.

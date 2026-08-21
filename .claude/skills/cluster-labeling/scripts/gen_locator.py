@@ -10,7 +10,7 @@ Usage:
   gen_locator.py RUN_DIR --seg SEG.tif --base BASEMAP.tif \
                  [--center LON LAT] [--base-width 900] [CLUSTER_ID ...]
 
-RUN_DIR must contain results.jsonl (from vlm_label_prototype.py --dry-run) and a
+RUN_DIR must contain results.jsonl (from gen_exemplars.py) and a
 crops/ subdir; locator images are written to crops/cNNN_locator.jpg.
 """
 import argparse

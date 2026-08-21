@@ -1,5 +1,5 @@
 {
-  "_convention": "A node with no _status is assignable. _status:'not-assignable' means the class is real on the ground but cannot be assigned with current methodology; it must carry _why and _unlock. Pick-list surfaces (prompt.txt, review-page radios) MUST filter these out; the glossary and coverage analyses MUST NOT.",
+  "_convention": "A node with no _status is assignable. _status:'not-assignable' means the class is real on the ground but cannot be assigned with current methodology; it must carry _why and _unlock. Pick-list surfaces (the review page's class inputs) MUST filter these out; the glossary and coverage analyses MUST NOT. Note the reader agent now reads the glossary directly, so filtering alone no longer keeps a blocked class away from a reader -- see class-definitions.md.",
 
   "forest": {
     "natural_forest": {

@@ -82,10 +82,13 @@ and the closest match to our tree), FAO forest + LCCS, CORINE, NLCD, the
 Wastelands Atlas, FSI Trees-Outside-Forests, ICRAF agroforestry. **Read it before
 judging**; do not restate its per-class rules here, they drift.
 
-**Any change there must also land in `FIELD_GUIDE`** in
-`scripts/vlm_label_prototype.py` — that dict builds `prompt.txt` and is the only
-class description an ordinary reader sees. A correction that lands only in the
-docs does not reach the readers.
+**A change there reaches the readers directly — and nothing else does.** The
+`cluster-reader` agent reads `class-definitions.md` itself, so that file is the
+class description an ordinary reader sees. There is no second copy to mirror
+into: the `FIELD_GUIDE` dict in `scripts/vlm_label_prototype.py` that used to
+build `prompt.txt` went with the Gemini path in `a20a78f`, and any instruction to
+update it is stale. What still holds is the rule underneath it — a correction
+that lands only in a document readers are not pointed at does not reach them.
 
 Every class states the positive evidence it **requires**, because the standing
 failure mode here is a class applied on *absence* of evidence — most sharply
@@ -226,9 +229,10 @@ in; `judgments.json` not yet revised. Session handoff lives in
 
 ```
 RUN=data/av-3.5K/intermediates/vlm_label_k88
-python scripts/vlm_label_prototype.py --aoi data/av-3.5K --seg-key k88_s42 \
-  --hierarchy .claude/skills/cluster-labeling-auroville/references/land-cover.json \
-  --clusters 88 --exemplars 6 --dry-run --out $RUN
+python .claude/skills/cluster-labeling/scripts/gen_exemplars.py $RUN \
+  --seg data/av-3.5K/intermediates/clusters/k88_s42.tif \
+  --base data/av-3.5K/intermediates/esri_3.5k_roi_cog.tif \
+  --clusters 88 --exemplars 6
 python .claude/skills/cluster-labeling/scripts/gen_locator.py $RUN \
   --seg data/av-3.5K/intermediates/clusters/k88_s42.tif \
   --base data/av-3.5K/intermediates/esri_3.5k_roi_cog.tif --center 79.8106 12.0058
