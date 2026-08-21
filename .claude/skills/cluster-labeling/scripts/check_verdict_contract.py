@@ -25,11 +25,16 @@ FAILED, or NOT CHECKED. A check that could not run is not a check that passed:
             Needs --hierarchy; says NOT CHECKED, loudly, without it.
 
 Why three states. ASSIGNABLE alone had them; RECORDS and SOURCES reported
-"nothing to check" / "(none given)" and then PASSED. On 2026-08-21, while
-probing an enforcement change, a --verdicts glob that matched nothing printed
-exactly that and read as a clean contract run -- twice, in the pair of probes
-meant to VERIFY the change. A typo'd pattern, a wrong round prefix, a renamed
-batch file and a mistyped --sources path are all this shape (worklist T46).
+"nothing to check" / "(none given)" and then PASSED. A typo'd pattern, a wrong
+round prefix, a renamed batch file and a mistyped --sources path are all this
+shape, and each was watched printing NOT CHECKED here before this text was
+written.
+
+The incident that filed it -- a --verdicts glob matching nothing and reading as
+a clean run twice, in the pair of probes meant to VERIFY an enforcement change,
+2026-08-21 -- is REPORTED BY worklist T46 and session-log session 21, not
+re-measured here. Said plainly because the first draft of this paragraph asserted
+it flatly among measured facts, where the surrounding rigour did the vouching.
 NOT CHECKED is a warning: it exits 0 on its own and 1 under --strict, same as
 the ASSIGNABLE precedent it copies.
 
