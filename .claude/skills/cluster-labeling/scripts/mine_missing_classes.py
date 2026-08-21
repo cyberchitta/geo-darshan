@@ -29,6 +29,13 @@ Usage
       [--verdicts 'rejudge_batch_*.json'] [--flips rejudge_flips.json]
       [--ledger ledger.json] [--conf-max FLOAT] [--json OUT]
 
+--flips supplies signal A's `before` labels and takes EITHER shape: a flips list
+(records carrying `prev_label`) or a round baseline (`{"records": [...]}`, whose
+`label` IS the prior). Pass the file belonging to the round you are mining --
+`r4_baseline.json` for round 4, not the earlier pass's `rejudge_flips.json`,
+which loads happily and covers a third of the verdicts. The header line reports
+the coverage for exactly that reason.
+
 Read-only: writes nothing into RUN_DIR unless --json names a path.
 """
 import argparse
@@ -124,11 +131,19 @@ def main():
     if not verdicts:
         raise SystemExit(f"no verdicts matched {a.run_dir / a.verdicts}")
 
-    flips = []
+    flips, priors_src = [], None
     fp = a.run_dir / a.flips
     if fp.exists():
         raw = json.loads(fp.read_text())
-        flips = raw.get("flips", raw) if isinstance(raw, dict) else raw
+        if isinstance(raw, dict) and "records" in raw:
+            # a per-round BASELINE: the label every exemplar carried ENTERING
+            # the round, one record per exemplar. A flips file lists only the
+            # exemplars that moved, so it leaves the rest with no prior and
+            # signal A silently reads `before == after` for them.
+            flips = [dict(r, prev_label=r.get("label")) for r in raw["records"]]
+        else:
+            flips = raw.get("flips", raw) if isinstance(raw, dict) else raw
+        priors_src = fp.name
 
     # exemplar px, so share is by area rather than by count
     weight = {}
@@ -139,13 +154,30 @@ def main():
             if n:
                 weight[int(c)] = (rec.get("exemplar_px") or 0) / n
 
-    report = {"n_verdicts": len(verdicts), "n_flips": len(flips),
-              "n_nodes": len(nodes)}
-    print(f"verdicts {len(verdicts)}   flips {len(flips)}   "
-          f"hierarchy nodes {len(nodes)}")
-
     # ------------------------------------------------------------ A
     prev_of = {(f["cluster"], f["exemplar"]): f["prev_label"] for f in flips}
+
+    # Signal A is a BEFORE/AFTER comparison, so a verdict with no prior is not
+    # neutral: it falls back to `before = after` and reads as "did not move".
+    # A prior file from a DIFFERENT round exists, loads, and covers only part of
+    # the verdict set -- silently flattening the deltas it is meant to measure.
+    # State the coverage so that cannot pass unnoticed.
+    covered = sum(1 for v in verdicts if (v["cluster"], v["exemplar"]) in prev_of)
+    report = {"n_verdicts": len(verdicts), "n_flips": len(flips),
+              "n_nodes": len(nodes), "priors_src": priors_src,
+              "priors_covered": covered}
+    print(f"verdicts {len(verdicts)}   flips {len(flips)}   "
+          f"hierarchy nodes {len(nodes)}")
+    if priors_src is None:
+        print(f"  !! NO PRIOR LABELS ({a.flips} not found) -- signal A's `before`"
+              f" column is a copy of `after` and every delta is 0")
+    else:
+        pct = 100.0 * covered / len(verdicts)
+        flag = "" if covered == len(verdicts) else "   <== PARTIAL, deltas understated"
+        print(f"  priors from {priors_src}: {covered}/{len(verdicts)} verdicts"
+              f" have a prior ({pct:.0f}%){flag}")
+        if covered == 0:
+            print("  !! no verdict matched a prior -- wrong round's file?")
     before, after, confs = defaultdict(float), defaultdict(float), defaultdict(list)
     total = 0.0
     for v in verdicts:
