@@ -13,7 +13,8 @@ enumeration would have dropped both channels, and the resulting zero would have
 read as "nothing to report" rather than "nobody was asked". Discipline does not
 keep two hand-maintained lists in agreement -- a checker does.
 
-Two checks, independent:
+Three checks, independent, and each reports one of THREE states -- OK,
+FAILED, or NOT CHECKED. A check that could not run is not a check that passed:
 
   RECORDS   every written verdict record carries every field in the table,
             channel fields included and present-as-key even when null
@@ -22,6 +23,15 @@ Two checks, independent:
             instead of pointing at it, and will drift
   ASSIGNABLE  no record names a class the hierarchy marks not-assignable.
             Needs --hierarchy; says NOT CHECKED, loudly, without it.
+
+Why three states. ASSIGNABLE alone had them; RECORDS and SOURCES reported
+"nothing to check" / "(none given)" and then PASSED. On 2026-08-21, while
+probing an enforcement change, a --verdicts glob that matched nothing printed
+exactly that and read as a clean contract run -- twice, in the pair of probes
+meant to VERIFY the change. A typo'd pattern, a wrong round prefix, a renamed
+batch file and a mistyped --sources path are all this shape (worklist T46).
+NOT CHECKED is a warning: it exits 0 on its own and 1 under --strict, same as
+the ASSIGNABLE precedent it copies.
 
 Why ASSIGNABLE. `_status: "not-assignable"` was enforced only on pick-lists. Once
 readers began reading the glossary directly -- which by its own rule lists every
@@ -56,6 +66,10 @@ CLASS_FIELDS = ("label", "alternative", "prev_label", "better_label")
 
 # A source naming this many of the contract's fields in one place is restating it.
 RESTATE_MIN = 4
+
+# Every arm reports OK / FAILED / NOT CHECKED, and the summary names all three so
+# a missing arm cannot be missing from the output too.
+ARMS = ("RECORDS", "SOURCES", "ASSIGNABLE")
 
 
 def parse_contract(path):
@@ -121,12 +135,19 @@ def check_required_arrays(text, tables):
     return out
 
 
+def matched_files(run_dir, pattern):
+    """The files a --verdicts glob actually reached. Split out of iter_records so
+    RECORDS can tell "the glob matched nothing" from "the matched files held no
+    records" -- different typos, and both used to print the same line."""
+    return sorted(glob.glob(str(run_dir / pattern)))
+
+
 def iter_records(run_dir, pattern, key="cluster", rows_key="verdicts"):
     """Yield (filename, record). `key` identifies a record; `rows_key` unwraps a
     dict-shaped file. Both are parameters so a second contract — the reader
     debrief, whose records are keyed by `batch`, not `cluster` — can reuse this
     checker instead of growing a parallel one."""
-    for p in sorted(glob.glob(str(run_dir / pattern))):
+    for p in matched_files(run_dir, pattern):
         blob = json.loads(Path(p).read_text())
         if isinstance(blob, list):
             rows = blob
@@ -165,9 +186,21 @@ def main():
     print(f"contract: {a.contract}")
     print(f"  {len(fields)} fields, {len(channels)} channel(s): {', '.join(channels)}")
     failed = warned = False
+    state = {}
+
+    def not_checked(arm, *lines):
+        """Record an arm that could not run. NOT the same as OK, and the whole
+        point of T46: the caller must be able to see that nothing was examined."""
+        nonlocal warned
+        state[arm] = "NOT CHECKED"
+        warned = True
+        print(f"  NOT CHECKED -- {lines[0]}")
+        for extra in lines[1:]:
+            print(f"  {extra}")
 
     # ---- RECORDS
     print("\nRECORDS")
+    files = matched_files(a.run_dir, a.verdicts)
     missing = {}
     n = 0
     for fname, rec in iter_records(a.run_dir, a.verdicts, a.record_key, a.rows_key):
@@ -177,11 +210,22 @@ def main():
         for f in fields:
             if f not in rec:
                 missing.setdefault(f, []).append(f"{fname} {where}")
-    if not n:
-        print(f"  no records matched {a.verdicts} -- nothing to check")
+    if not files:
+        not_checked("RECORDS",
+                    f"--verdicts {a.verdicts!r} matched no file under {a.run_dir}.",
+                    "No record was examined. A typo'd pattern, a wrong round prefix",
+                    "and a renamed batch file all look exactly like this.")
+    elif not n:
+        not_checked("RECORDS",
+                    f"--verdicts {a.verdicts!r} matched {len(files)} file(s), none of",
+                    f"which held a record keyed by `{a.record_key}`"
+                    f" (--rows-key {a.rows_key!r}).",
+                    "The files were read; nothing in them was a record.")
     elif not missing:
+        state["RECORDS"] = "OK"
         print(f"  OK: {n} records carry all {len(fields)} fields")
     else:
+        state["RECORDS"] = "FAILED"
         failed = True
         print(f"  FAIL: {n} records checked")
         for f, where in sorted(missing.items(), key=lambda kv: -len(kv[1])):
@@ -199,19 +243,28 @@ def main():
 
     # ---- SOURCES
     print("\nSOURCES")
+    src_failed = False
+    src_read = src_absent = 0
     if not a.sources:
-        print("  (none given)")
+        not_checked("SOURCES",
+                    "no --sources given, so a consumer that restates the field list",
+                    "would pass unnoticed. Half of what this script claims to cover",
+                    "is uncovered -- name the consumers explicitly.")
     for src in a.sources:
         p = Path(src)
         if not p.exists():
-            print(f"  SKIP {src} (not found)")
+            src_absent += 1
+            warned = True
+            print(f"  NOT CHECKED {src} -- not found. A mistyped path reads as a")
+            print(f"       clean source; it is an unread one.")
             continue
+        src_read += 1
         text = p.read_text(encoding="utf-8", errors="replace")
 
         # (i) executable schemas MUST restate -- check them for agreement instead
         for got, kind, extra, absent in check_required_arrays(text, tables):
             if extra or absent:
-                failed = True
+                failed = src_failed = True
                 print(f"  FAIL {src}: `required:` array does not match the "
                       f"'{kind}' table")
                 if extra:
@@ -251,14 +304,21 @@ def main():
             print(f"       {worst_line[:110]}")
         else:
             print(f"  OK   {src}: no restatement ({worst} field name(s) at most)")
+    if a.sources:
+        if not src_read:
+            not_checked("SOURCES",
+                        f"none of the {len(a.sources)} named source(s) exists, so no",
+                        "consumer was read at all.")
+        else:
+            state["SOURCES"] = "FAILED" if src_failed else "OK"
 
     # ---- ASSIGNABLE
     print("\nASSIGNABLE")
     if not a.hierarchy:
-        warned = True
-        print("  NOT CHECKED -- no --hierarchy given, so a verdict naming a")
-        print("  not-assignable class would pass unnoticed. This is not a clean")
-        print("  result; it is an unchecked one.")
+        not_checked("ASSIGNABLE",
+                    "no --hierarchy given, so a verdict naming a not-assignable",
+                    "class would pass unnoticed. This is not a clean result;",
+                    "it is an unchecked one.")
     else:
         hier = json.loads(a.hierarchy.read_text())
         blocked = {path for path, status in walk_hierarchy(hier)
@@ -272,13 +332,20 @@ def main():
                     where = f"{fname} c{rec.get('cluster')}e{rec.get('exemplar')}"
                     hits.setdefault((f, v), []).append(where)
         if not blocked:
-            print("  no not-assignable classes in the hierarchy; nothing to enforce")
+            not_checked("ASSIGNABLE",
+                        f"{a.hierarchy} declares no not-assignable class, so this arm",
+                        "cannot bite on any record. Confirm it is the intended",
+                        "hierarchy before reading the run as enforced.")
         elif not seen:
-            print(f"  no records matched {a.verdicts} -- nothing to check")
+            not_checked("ASSIGNABLE",
+                        f"--verdicts {a.verdicts!r} reached no record, so none of the",
+                        f"{len(blocked)} blocked class(es) was enforced. See RECORDS.")
         elif not hits:
+            state["ASSIGNABLE"] = "OK"
             print(f"  OK: {seen} records, none names any of the "
                   f"{len(blocked)} blocked class(es)")
         else:
+            state["ASSIGNABLE"] = "FAILED"
             failed = True
             n = sum(len(w) for w in hits.values())
             print(f"  FAIL: {n} record field(s) name a not-assignable class")
@@ -291,10 +358,20 @@ def main():
             print("  that keeps the evidence for the unlock decision. Re-read these.")
 
     print()
+    print("  ".join(f"{arm}: {state.get(arm, 'NOT CHECKED')}" for arm in ARMS))
+    unchecked = [arm for arm in ARMS if state.get(arm, "NOT CHECKED") == "NOT CHECKED"]
     if failed or (warned and a.strict):
         print("FAILED")
         sys.exit(1)
-    print("PASSED" + (" (with warnings)" if warned else ""))
+    if unchecked:
+        # Exits 0, deliberately: --hierarchy has always been optional and the
+        # recorded invocations omit it. --strict is the switch that makes an
+        # unrun arm fatal. What changed in T46 is that the line can no longer
+        # be read as a clean run.
+        print(f"PASSED -- but {len(unchecked)} of {len(ARMS)} arms NOT CHECKED "
+              f"({', '.join(unchecked)}); not a clean run")
+    else:
+        print("PASSED" + (" (with warnings)" if warned else ""))
 
 
 if __name__ == "__main__":

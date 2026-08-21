@@ -23,18 +23,21 @@ Disagreement triage
 
 Usage
   gate.py RUN_DIR --judgments judgments.json --hierarchy land-cover.json
-          [--verify rejudge_flips.json] [--apply-verified]
+          [--verify FILE ...] [--apply-verified]
           [--prior prior_labels.json] [--nbr nbr_flags.json]
           [--restrict cards.json] [--defs FILE ...]
 
 Writes RUN_DIR/ledger.json and prints a summary. Reads nothing it can mutate;
---apply-verified folds upheld flips in MEMORY only, leaving judgments.json alone.
+--apply-verified folds upheld flips and maintainer rulings in MEMORY only,
+leaving judgments.json alone.
 """
 import argparse
 import collections
+import glob
 import hashlib
 import json
 import statistics as st
+import sys
 from pathlib import Path
 
 # ---------------------------------------------------------------- label paths
@@ -81,21 +84,76 @@ def triage(labels, retreat_min_depth):
 # ---------------------------------------------------------------- inputs
 
 
-def load_verify(path):
-    """-> {(cluster, exemplar): {verdict, label, prev_label, better_label}}."""
-    if not path:
+# The key holding a verdict differs by producer, and BOTH are contract-legal:
+#   `verdict`  the VERIFY RESULT record (verdict-record.md, "The verify result")
+#              -- what round_workflow.js's Verify phase writes, one file per batch
+#   `verify`   a flips file with verdicts merged back in -- round 3's shape, and
+#              the stamp the adjudication surface puts on a maintainer ruling
+# Read both, and NEVER default a missing one to "unverified". Round 4's 321
+# verify records carry `verdict`; this function read `verify` alone, so every one
+# of them became unverified in silence. Measured 2026-08-21 on the real round-4
+# artifacts: 0/320 verified, criterion 3 -- the binding one -- blocking all 120
+# clusters, nothing SETTLED. That reads as "the gate is too strict" and is
+# actually "the gate cannot read its evidence".
+VERDICT_KEYS = ("verdict", "verify")
+
+
+def verify_files(paths):
+    """Expand --verify into real files. round_workflow.js writes one per batch
+    (`${PREFIX}_verify_${i}.json`), so a single-path --verify forced somebody to
+    hand-merge them first -- which is how round 4's verify pass came to exist only
+    as a hand-assembled file. A shell glob expands before argparse sees it; a
+    quoted one is expanded here."""
+    out = []
+    for p in paths or []:
+        p = str(p)
+        hits = sorted(glob.glob(p))
+        if not hits:
+            sys.exit(f"--verify {p}: no such file")
+        out.extend(hits)
+    return out
+
+
+def load_verify(paths):
+    """-> {(cluster, exemplar): {verdict, label, prev_label, better_label}},
+    merged across every --verify file."""
+    files = verify_files(paths)
+    if not files:
         return {}
-    d = json.loads(Path(path).read_text())
-    rows = d["flips"] if isinstance(d, dict) and "flips" in d else d
-    return {
-        (r["cluster"], r["exemplar"]): {
-            "verdict": r.get("verify", "unverified"),
-            "label": r.get("label"),
-            "prev_label": r.get("prev_label"),
-            "better_label": r.get("better_label", ""),
-        }
-        for r in rows
-    }
+    out, unkeyed = {}, []
+    for path in files:
+        d = json.loads(Path(path).read_text())
+        rows = d
+        if isinstance(d, dict):
+            # `flips` (round-3 shape) or `results` (what the round workflow
+            # returns, and how round 4's verify pass was saved).
+            for k in ("flips", "results"):
+                if k in d:
+                    rows = d[k]
+                    break
+            else:
+                sys.exit(f"--verify {path}: dict with no `flips` or `results` "
+                         f"array. A maintainer export (`exemplar_rulings`) does "
+                         f"not load here yet -- that is worklist T62.")
+        for r in rows:
+            verdict = next((r[k] for k in VERDICT_KEYS if k in r), None)
+            if verdict is None:
+                unkeyed.append(f"{Path(path).name} c{r.get('cluster')}e{r.get('exemplar')}")
+                continue
+            out[(r["cluster"], r["exemplar"])] = {
+                "verdict": verdict,
+                "label": r.get("label"),
+                "prev_label": r.get("prev_label"),
+                "better_label": r.get("better_label", ""),
+            }
+    if unkeyed:
+        sys.exit(f"--verify: {len(unkeyed)} record(s) carry neither "
+                 f"{' nor '.join('`%s`' % k for k in VERDICT_KEYS)}, e.g. "
+                 f"{', '.join(unkeyed[:3])}.\n"
+                 f"Refusing to read them as unverified: a gate that silently "
+                 f"downgrades evidence it cannot parse reports a stricter result "
+                 f"and looks like a working gate.")
+    return out
 
 
 def defs_version(paths):
@@ -131,6 +189,10 @@ def valid_label(label, hierarchy):
 # decision/label carries that.
 VERIFIED = ("upheld", "human")
 CONTESTED = ("refuted", "unclear")
+# Verdicts whose own label supersedes the reader's under --apply-verified. NOT
+# `refuted`: a refutation naming a better_label is *contested*, and the intent
+# doc makes that a person's call, not an automatic substitution.
+APPLIED = ("upheld", "human")
 
 
 def gate_cluster(c, exs, ctx, a):
@@ -237,9 +299,12 @@ def main():
     ap.add_argument("run_dir", type=Path)
     ap.add_argument("--judgments", type=Path, required=True)
     ap.add_argument("--hierarchy", type=Path)
-    ap.add_argument("--verify", type=Path)
+    ap.add_argument("--verify", type=Path, nargs="*", default=[],
+                    help="verify files: flips-shaped or verify-result-shaped, "
+                         "one per reader batch; globs accepted")
     ap.add_argument("--apply-verified", action="store_true",
-                    help="fold upheld flips into the labels in memory (judgments.json untouched)")
+                    help="fold an upheld flip's or a maintainer ruling's label into "
+                         "the labels in memory (judgments.json untouched)")
     ap.add_argument("--prior", type=Path)
     ap.add_argument("--nbr", type=Path)
     ap.add_argument("--restrict", type=Path,
@@ -290,8 +355,28 @@ def main():
         verdict = "unverified"
         if v:
             verdict = v["verdict"]
-            if a.apply_verified and verdict == "upheld":
-                label, conf = v["label"], v.get("confidence", conf)
+            # A maintainer ruling carries the label the gate must judge, not just
+            # a vote: counting `human` toward criterion 3 while still gating the
+            # READER's label is worse than not counting it -- the cluster settles
+            # on a label the maintainer rejected. `upheld` on a flip likewise
+            # carries the flip's new label.
+            #
+            # The `v["label"] and` guard is load-bearing. A verify-RESULT record
+            # has no `label` field at all (only `better_label`), so an unguarded
+            # assignment wrote None over every upheld label, and criterion 8 then
+            # failed the cluster for a label that is not in the hierarchy --
+            # blaming the reader for the gate's own overwrite.
+            # The LABEL moves; the confidence does not. main() used to read
+            # `v.get("confidence", conf)`, which looked like it took the verify
+            # record's own confidence and never could -- load_verify did not carry
+            # the field, so the fallback fired every time. Carrying it moves
+            # `mean_confidence` on 41 of round 3's 102 clusters (measured
+            # 2026-08-21), i.e. it changes criterion 4. Whether the verifier's
+            # confidence should feed that criterion is criterion 4's own question
+            # and it is already slated for replacement by concurrence (T52) --
+            # so this stays a label-only fold, and the decoy expression is gone.
+            if a.apply_verified and verdict in APPLIED and v["label"]:
+                label = v["label"]
         by[c].append({
             "exemplar": e, "label": label, "confidence": conf,
             "size_px": size.get((c, e)), "verify": verdict,

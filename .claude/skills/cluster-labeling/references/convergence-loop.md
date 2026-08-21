@@ -319,7 +319,10 @@ the retreat label rather than splitting further.
 
 **Built:** `gate.py` (ledger + gate + triage) · `gen_intersection.py` (finer-k
 split) · `gen_prior_labels.py` (cross-tab) · `gen_review_html.py` (neighbour
-flags) · `aggregate.py` (vote).
+flags) · `aggregate.py` (vote) · **verify-all-exemplars** (`round_workflow.js`,
+Verify phase — every exemplar, not only the changed ones) · **`gate.py` honouring
+`verify: "human"`** — counted toward criterion 3 *and* its label folded by
+`--apply-verified`.
 
 **Prototyped, not promoted** (round-3 run dir, `gen_decisions_review.py`): the
 human adjudication surface — cluster cards, refuted triage, inline contract +
@@ -328,14 +331,14 @@ missing-class channels. First use; graduates to `scripts/` if round 4 wants it.
 The *contract* it emits (the `human` verdict value, the export schema, the
 clean/contested/unclear triage) is AOI-agnostic and belongs here regardless.
 
-**Not built:** verify-all-exemplars in the re-judge workflow · **exemplar
-promotion into the AOI pack** (confirmed crops → pack, with provenance + per-class
-coverage report) · concurrence criterion replacing confidence · stratified/novel
-re-sampling · connected-component carve (the non-finer-k split path) ·
-`gate.py` honouring `verify: "human"` (currently counts only `upheld`, so a
-maintainer ruling cannot satisfy criterion 3) · missing-class signal mining ·
-held-out calibration + precision scoring · re-opening SETTLED on `defs_version`
-change · the pass N→N+1 driver.
+**Not built:** **exemplar promotion into the AOI pack** (confirmed crops → pack,
+with provenance + per-class coverage report) · concurrence criterion replacing
+confidence · stratified/novel re-sampling · connected-component carve (the
+non-finer-k split path) · **converting a maintainer export into something the
+gate reads** (`human_verdicts.json`'s `exemplar_rulings` must be reshaped by hand
+today; `gate.py` refuses it by name rather than crashing) · missing-class signal
+mining · held-out calibration + precision scoring · re-opening SETTLED on
+`defs_version` change · the pass N→N+1 driver.
 
 ## Open decisions
 
@@ -354,6 +357,27 @@ change · the pass N→N+1 driver.
 - Does a maintainer's self-rated "guess" carry the same authority as "sure"? If
   not, a low-confidence human call is evidence, not ground truth — and the
   authority levels stop being binary.
+
+## The verify pass and the gate must agree on a key name
+
+`round_workflow.js`'s Verify phase writes the **verify-result** record of
+`verdict-record.md`, whose verdict field is `verdict`. `gate.py` was written
+against the older shape — a flips file with the verdicts merged back in, where the
+field is `verify`. It read `verify` with a `"unverified"` default, so every
+verify-result record parsed cleanly and arrived **unverified**.
+
+Measured 2026-08-21 on round 4's real artifacts: 321 verify records (249 upheld)
+in, **0 of 320 exemplars verified** out, criterion 3 blocking all 120 clusters,
+nothing SETTLED. Nothing errored. The output is indistinguishable from a gate
+that is simply strict, and criterion 3 is the one the loop is expected to bind
+on — so the natural next move is to loosen a threshold that was never the
+problem.
+
+`load_verify` now reads either key, takes several `--verify` files (the workflow
+writes one per batch), and **exits rather than defaulting** when a record carries
+neither. The general rule, worth more than the fix: *a gate that cannot parse its
+evidence must fail, not downgrade it.* Downgrading produces a stricter,
+plausible, wrong answer; failing produces a question.
 
 ## Verifying the gate
 
