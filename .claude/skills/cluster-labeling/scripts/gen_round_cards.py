@@ -80,6 +80,82 @@ def read_json(p: Path, default):
     return json.loads(p.read_text()) if p.exists() else default
 
 
+
+LABEL_BEARING = {"prev_label", "prev_conf", "prev_reasoning", "current_vote",
+                 "cover", "label", "alternative", "voted_label"}
+
+
+def _class_names(hierarchy: Path) -> set:
+    """Every dotted path and leaf name in the AOI hierarchy."""
+    names, stack = set(), [("", json.loads(hierarchy.read_text()))]
+    while stack:
+        prefix, node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        for k, v in node.items():
+            if k.startswith("_"):
+                continue
+            path = f"{prefix}.{k}" if prefix else k
+            names.add(path)
+            names.add(k)
+            stack.append((path, v))
+    return names
+
+
+def blind_leak(cards, hierarchy, blind: bool) -> bool:
+    """Does anything on these cards state a previous verdict?
+
+    The check this replaces was `"prev_label" in json.dumps(cards)` -- one
+    spelling of the failure. It passed round 4's cards, which carry
+    `nbr_pair_verdict[].cover` (a full dotted class), its `confidence`, and a
+    `note` arguing the call, on 33 of 120 cells. A reader reported it, unprompted,
+    on 2026-08-22; the round had asserted it was blind.
+
+    `old_map` is deliberately exempt: a prior-map distribution IS the sanctioned
+    positional evidence and is keyed by class name by design. Everything else is
+    walked, and a label-shaped string anywhere in it counts.
+    """
+    if not blind:
+        return False
+    if hierarchy is None:
+        # Third state, not a pass: say the check could not run.
+        print("blind check: NOT CHECKED — no --hierarchy given, so a previous "
+              "label on these cards would pass unnoticed. This is not a clean "
+              "result; it is an unchecked one.")
+        return False
+    known = _class_names(hierarchy)
+    # A set, not a list: the key rule and the value rule both fire on the same
+    # `cover`/`label` string, and a doubled count would overstate the leak.
+    hits = set()
+
+    def walk(node, path, cluster):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k == "old_map":
+                    continue          # sanctioned prior-map evidence
+                if k in LABEL_BEARING and isinstance(v, str) and v:
+                    hits.add((cluster, f"{path}.{k}", v))
+                walk(v, f"{path}.{k}", cluster)
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, f"{path}[{i}]", cluster)
+        elif isinstance(node, str) and node in known and "." in node:
+            hits.add((cluster, path, node))
+
+    for c in cards:
+        walk(c, "", c.get("cluster"))
+    if hits:
+        cells = sorted({h[0] for h in hits})
+        print(f"BLIND LEAK: {len(hits)} previous-label value(s) on "
+              f"{len(cells)} of {len(cards)} cards — the round is NOT blind.")
+        for cl, where, val in sorted(hits, key=lambda h: (h[0] or 0, h[1]))[:6]:
+            print(f"    c{cl}{where} = {val!r}")
+        if len(hits) > 6:
+            print(f"    ... and {len(hits) - 6} more")
+        print(f"    cells: {cells}")
+    return bool(hits)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("run_dir", type=Path)
@@ -88,6 +164,9 @@ def main() -> None:
     ap.add_argument("--initial", default="judgments.json")
     ap.add_argument("--prev-verdicts", default="rejudge_batch_*.json")
     ap.add_argument("--blind", action=argparse.BooleanOptionalAction, default=True)
+    ap.add_argument("--hierarchy", type=Path,
+                    help="AOI land-cover.json; without it the blind check reports "
+                         "NOT CHECKED instead of passing")
     ap.add_argument("--batches", default="",
                     help="semicolon-separated batches of comma-separated cluster ids, "
                          "e.g. '2,78,103;35,90,109' -> also writes cards_b0.json, cards_b1.json")
@@ -167,7 +246,7 @@ def main() -> None:
     for v in base.values():
         src[v["source"]] += 1
     n_ex = sum(len(c["exemplars"]) for c in cards)
-    leaked = "prev_label" in json.dumps(cards)
+    leaked = blind_leak(cards, a.hierarchy, a.blind)
     print(f"blind={a.blind}")
     print(f"cards:    {len(cards)} cells, {n_ex} exemplars -> {a.out}")
     print(f"baseline: {len(base)} exemplar labels -> {a.baseline}")
