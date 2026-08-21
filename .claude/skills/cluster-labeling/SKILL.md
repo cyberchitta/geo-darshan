@@ -84,13 +84,60 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
    reliable. Feed the distribution to the readers as evidence and hold the frozen
    cells out of judging entirely.
 
-3. **Judge.** Read `prompt.txt`, the AOI pack's reference example crops, then for
-   each cluster read its exemplar crops, its context crops **and** its locator map. Emit a verdict
-   per exemplar into `RUN_DIR/judgments.json` — a JSON array of
-   `{cluster, exemplar, label, level, confidence, alternative, reasoning}`,
-   following `prompt.txt` exactly. Apply the AOI pack's signatures + geography
-   priors. Hierarchy-aware fallback: most specific label you're confident in,
-   else the parent; allow `uncertain`.
+3. **Judge.** For each cluster read its exemplar crops, its context crops **and**
+   its locator map, plus the AOI pack's reference example crops. Apply the AOI
+   pack's signatures + geography priors. Hierarchy-aware fallback: most specific
+   label you're confident in, else the parent; allow `uncertain`.
+
+   **The verdict fields are in `references/verdict-record.md` and nowhere else.**
+   Read them from there; this step deliberately does not list them, because the
+   copy that used to stand here went stale (it predated `changed`,
+   `represents_cluster`, `no_class_fits` and `mixed`). Validate before anything
+   consumes the verdicts:
+   ```
+   uv run --no-project python .claude/skills/cluster-labeling/scripts/check_verdict_contract.py \
+     RUN_DIR --contract .claude/skills/cluster-labeling/references/verdict-record.md
+   ```
+   *(There is no `prompt.txt`. Its generator went with the Gemini path in
+   `a20a78f` and cannot be regenerated; the round brief in `RUN_DIR` is what
+   readers read.)*
+
+3a. **Pick the harness — and know what the choice forecloses.** Two paths, and
+   the difference is not cosmetic:
+
+   | | `Workflow` + `scripts/round_workflow.js` | `Agent` + `SendMessage` |
+   |---|---|---|
+   | readers | one-shot `agent()`, deterministic, resumable | live sessions you can come back to |
+   | debrief | **impossible** — no continuation to quiz | available (step 3b) |
+   | use when | the contract is settled and you want throughput | the process itself is under test |
+
+   ```
+   Workflow({scriptPath: '.claude/skills/cluster-labeling/scripts/round_workflow.js',
+             args: {runDir: RUN_DIR, cards: 'cards.json', brief: 'BRIEF.md',
+                    batchPrefix: 'batch', batches: [[...ids...], ...]}})
+   ```
+   **A reader's session ends the moment its `agent()` returns**, so choosing
+   `Workflow` decides step 3b before you get there and cannot be undone by
+   noticing later. Round 4 lost its debrief exactly this way, with the rule
+   written down — at the destination, not here.
+
+3b. **Debrief the readers** — only on the `Agent` path, and only as a **second
+   turn after the verdict files are on disk**. Contract, fields and the fixed
+   question template: `references/reader-debrief.md`. Generate the prompts
+   mechanically (never hand-word them per reader — frequency across readers is
+   the filter, and it only measures the process if everyone was asked the same
+   thing):
+   ```
+   uv run --no-project python .claude/skills/cluster-labeling/scripts/gen_debrief_prompts.py \
+     RUN_DIR --verdicts 'batch_*.json' --out-prefix debrief
+   ```
+   `SendMessage` each filled prompt to the reader that produced that batch, then
+   mine the tally:
+   ```
+   uv run --no-project python .claude/skills/cluster-labeling/scripts/mine_debrief.py RUN_DIR
+   ```
+   Reader self-report is the **weakest** evidence class here — it produces signal
+   to adjudicate, never findings to adopt. Same standing as `no_class_fits`.
 
 4. **Aggregate** (confidence-weighted vote → one label + agreement per cluster):
    ```
@@ -280,6 +327,12 @@ better than it found it. Two grades of learning, two speeds:
 
 ## Files
 
+- `references/verdict-record.md` — the verdict record's fields and their meaning,
+  single-sourced. Step 3 and every harness read them from here; nothing restates
+  them. `scripts/check_verdict_contract.py --contract` validates against it.
+- `references/reader-debrief.md` — the reader debrief: its four channels, the two
+  hard rules about when and who, and the fixed question template. Reachable only
+  from the `Agent` + `SendMessage` harness (step 3a).
 - `references/convergence-loop.md` — the multi-pass settle/split loop that wraps
   this procedure: per-cluster state machine, the settle gate and its criteria,
   disagreement triage, what is built vs not, and the open decisions. Load it when
