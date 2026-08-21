@@ -30,6 +30,33 @@ out a workflow's one-shot `agent()`, which has no continuation — use `Agent` +
 `SendMessage` and accept the loss of workflow determinism. That trade is
 deliberate.
 
+**Quiz each reader the moment it returns — before the contract check, before
+the next reader lands, before anything else.** A reader becomes unreachable a few
+minutes after it goes idle, and the bigger its transcript the sooner. Measured
+2026-08-22 on this harness, resuming at ~11-12 minutes idle:
+
+| transcript | idle | resumes |
+|---|---|---|
+| 24 KB | ~50 min | yes |
+| 2.8 MB | 12 min | yes |
+| 5.3 MB | 11 min | **no** |
+| 9.7 MB | ~14 min | **no** |
+| 15.1 MB | 11 min | **no** — though it resumed twice when asked immediately |
+
+A real reader lands at 20-25 MB, so its window is short. This is what cost the
+first attempt at running this channel (the `d1_` swarm, 2026-08-22 — a debrief
+calibration, not a numbered round): three readers finished, and by the time their
+prompts were generated and the contract check had run, the first had been idle
+nine minutes and none of the three could be reached. Nothing was wrong with the channel; it was asked too
+late.
+
+So the order is per-reader, not per-swarm: **reader returns -> generate its prompt
+-> send it -> only then move on.** Batch size is not the lever and does not need
+to shrink. Generating prompts one at a time does weaken
+`gen_debrief_prompts.py`'s uniformity proof, which compares the prompts produced
+in a single invocation — so re-run it across all batches afterwards and confirm
+they still fullmatch, rather than trusting that they must.
+
 ## Fields
 
 | field | required | kind | meaning |

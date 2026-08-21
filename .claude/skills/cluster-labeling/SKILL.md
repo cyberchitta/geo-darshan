@@ -167,8 +167,12 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
    uv run --no-project python .claude/skills/cluster-labeling/scripts/gen_debrief_prompts.py \
      RUN_DIR --verdicts 'batch_*.json' --out-prefix debrief
    ```
-   `SendMessage` each filled prompt to the reader that produced that batch, then
-   mine the tally:
+   `SendMessage` each filled prompt to the reader that produced that batch — **the
+   moment that reader returns, before the contract check and before waiting for
+   the others.** A reader goes unreachable a few minutes after it falls idle, and
+   the larger its transcript the faster; a real reader's is 20-25 MB. The measured
+   ladder and what it cost is in `references/reader-debrief.md`. Then mine the
+   tally:
    ```
    uv run --no-project python .claude/skills/cluster-labeling/scripts/mine_debrief.py RUN_DIR
    ```
