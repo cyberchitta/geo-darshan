@@ -284,6 +284,15 @@ hash still drifts silently. Test it the same way each time: change one word of
 guidance, re-run `--defs`, and confirm the stamp moves. If it does not, that file
 is outside the hash.
 
+**Run 2026-08-21, and it found one: `verdict-record.md` is outside the hash.** It
+is item 5 on the reader's standing list in `.claude/agents/cluster-reader.md` and
+the only enumeration of the verdict fields, so a change to the *verdict contract*
+does not move the stamp — the paragraph above understates the gap. It joined that
+list twenty minutes after the widening was stamped and `--defs` never followed.
+Closing it re-opens SETTLED, so it is a maintainer call, carried as worklist
+**T44**. The same run cleared the rest: all seven listed inputs do move the stamp,
+and no entry is dead.
+
 **Do not fix this by hashing a generated prompt file.** That was tried and
 withdrawn: a `prompt.txt` emitted by a since-deleted generator had already drifted
 from the definitions it was built from, so adding it to the hash would have
