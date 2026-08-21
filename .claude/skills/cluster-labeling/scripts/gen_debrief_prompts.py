@@ -35,6 +35,21 @@ def load_template(contract: Path) -> str:
     return blocks[-1].rstrip()
 
 
+def out_path(run_dir: Path, prefix: str, batch: int) -> str:
+    """Where the reader is told to write its debrief — inside the run dir.
+
+    A bare `debrief_0.json` here is not a naming detail: the reader answers from
+    the repo root, so the file lands beside `CLAUDE.md` while `mine_debrief.py`
+    and the contract checker glob `RUN_DIR/debrief_*.json` and find nothing —
+    a debrief that was written, then silently not counted. A prefix that already
+    carries a directory is left alone, so the path-prefix workaround people used
+    before this fix does not turn into `RUN_DIR/RUN_DIR/...`.
+    """
+    name = f"{prefix}_{batch}.json"
+    p = Path(name)
+    return name if p.is_absolute() or p.parent != Path(".") else str(run_dir / name)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("run_dir", type=Path)
@@ -64,7 +79,7 @@ def main() -> None:
             "uncertain_ids": ", ".join(unc) if unc else "none",
             "n_no_class_fits": sum(1 for r in rows if r.get("no_class_fits")),
             "n_mixed": sum(1 for r in rows if r.get("mixed")),
-            "out_file": f"{a.out_prefix}_{batch}.json",
+            "out_file": out_path(a.run_dir, a.out_prefix, batch),
         }
         prompts.append({"batch": batch, "batch_file": Path(p).name,
                         "out_file": slots["out_file"], "slots": slots,
