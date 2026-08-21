@@ -276,7 +276,8 @@ further files determined reader behaviour while being invisible to the stamp, so
 **two passes run under materially different contracts carried the same stamp and
 looked comparable when they were not.** Widened 2026-08-17 to also hash the AOI
 pack `SKILL.md`, the reader agent's definition, the round brief, the corrections
-log, and the swarm harness. Expect the stamp to move more often — that is the
+log, and the swarm harness — and again 2026-08-21 to the verdict record contract,
+making eight (see below). Expect the stamp to move more often — that is the
 point, not a regression.
 
 **The gap is narrowed, not closed.** Anything a reader reads that is not in the
@@ -284,14 +285,16 @@ hash still drifts silently. Test it the same way each time: change one word of
 guidance, re-run `--defs`, and confirm the stamp moves. If it does not, that file
 is outside the hash.
 
-**Run 2026-08-21, and it found one: `verdict-record.md` is outside the hash.** It
-is item 5 on the reader's standing list in `.claude/agents/cluster-reader.md` and
-the only enumeration of the verdict fields, so a change to the *verdict contract*
-does not move the stamp — the paragraph above understates the gap. It joined that
-list twenty minutes after the widening was stamped and `--defs` never followed.
-Closing it re-opens SETTLED, so it is a maintainer call, carried as worklist
-**T44**. The same run cleared the rest: all seven listed inputs do move the stamp,
-and no entry is dead.
+**Run 2026-08-21, and it found one — since closed.** `verdict-record.md` is item
+5 on the reader's standing list in `.claude/agents/cluster-reader.md` and the only
+enumeration of the verdict fields, yet it sat outside the hash: it joined that
+list twenty minutes after the 08-17 widening was stamped and `--defs` never
+followed, so a change to the *verdict contract* did not move the stamp. **Added
+2026-08-21 on a maintainer ruling** — round 4 had no ledger, so nothing was
+invalidated by the move; the same fix costs a live stamp once a round is gated.
+The run cleared the rest: all seven prior inputs move the stamp, no entry is dead.
+The exact eight-file list and the before/after stamps live with the invocation, in
+the run dir's `HANDOFF.md`; this file deliberately does not carry a second copy.
 
 **Do not fix this by hashing a generated prompt file.** That was tried and
 withdrawn: a `prompt.txt` emitted by a since-deleted generator had already drifted
