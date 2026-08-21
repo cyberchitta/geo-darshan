@@ -117,6 +117,60 @@ white-roofed building ~1 km west (user-corrected 2026-07-24). The generalised ru
 — check a landmark claim against the exemplar's lon/lat before recording it — is
 in the engine skill.
 
+## Case citations and tallies moved out of `class-definitions.md` (2026-08-21)
+
+The glossary had accumulated eleven sites of provenance: cluster-case citations,
+verdict tallies, and dated ruling notes. Each was moved here and the *rule* it
+justified left in place. Three reasons, the last of which is new:
+
+1. It contradicted `cluster-reader.md`'s own instruction not to anchor on a
+   previous label — and did it in the direction that suppresses a class, by
+   implying whoever picked it was wrong.
+2. For a not-assignable class it corrupted the very signal `_unlock` waits on.
+   Telling readers a class "became a soft landing" biases the frequency that
+   would eventually unblock it.
+3. `class-definitions.md` is inside `--defs`, so from 2026-08-17 every anecdote
+   edit moved `defs_version` and re-opened SETTLED clusters. Narrative churn had
+   become contract churn.
+
+**The line used:** does it tell you how to judge the thing in front of you, or
+does it tell you about a past judgment? The first stays; the second moves. Where
+a concrete case genuinely calibrates the eye, the reference example crops table
+does it better — confirmed imagery rather than an asserted past vote.
+
+What moved:
+
+- `forest.tree_lines` was **added 2026-08-09**; the heading carried the date.
+- `forest.scattered_trees` — 7 verdicts described scattered or isolated trees and
+  landed on **four unrelated labels** (`sparse_scrub`, `maintained_grass`,
+  `degraded_barren`, `fallow`). That tally is the evidence for the
+  not-assignable flag; `_why` in `land-cover.json` is where it belongs.
+- `agriculture.orchards.mixed_fruit` — **c6** was voted `mixed_fruit` and is
+  actually coconut + casuarina.
+- The bund ruling was **made 2026-08-17** and **supersedes the `bunds`-node
+  reversal in `_notes/missing-classes_candidates.md` §G**. (§G already carries its
+  own `SUPERSEDED 2026-08-17` marker pointing at the ruling; an earlier draft of
+  this line called it stale without opening it.)
+- `agriculture.agroforestry.mixed_cultivation` — became a soft landing for "trees
+  and something else"; **c42** was voted here and is `planted_forest`.
+- The `fallow` checklist's "young coconut or ground within a young planting" came
+  from the maintainer, on **c89**.
+- `built_environment.infrastructure` was **retired 2026-08-15** with **zero uses
+  in 266 verdicts**.
+- `degraded_barren.eroded_land`'s laterite leaf — **8 of the 9** parent-level
+  `degraded_barren` verdicts described exactly it, in almost the same words.
+- The forest-blank rule resolved the "bare clearing amid canopy" cases
+  **c150/c1, c163, c168**, which no label then fit.
+- The not-assignable flag was marked into every entry on **2026-08-21**; five
+  carried no marking until then (`thorny_scrub` and the whole `agroforestry`
+  subtree), `scattered_trees` was already marked, and `natural_forest` /
+  `grazing_land` said "never emit".
+- **The failure the flag replaces.** `natural_forest`, `thorny_scrub` and
+  `grazing_land` were already "retired" — in prose in the glossary, while sitting
+  fully pickable in the JSON. All three were still being offered to the VLM
+  readers in `prompt.txt`, `natural_forest` with a helpful "LOOKS LIKE" cue, and
+  `grazing_land` was still being emitted.
+
 ## Open threads
 
 - **(a) Stratified exemplar selection.** `patch_exemplars` picks the N *largest*

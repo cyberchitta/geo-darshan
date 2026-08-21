@@ -45,8 +45,9 @@ hierarchy must outlive the sensor limitation, so a complete-looking entry is not
 permission to use it. **If what you see really is one, fire `no_class_fits` and
 name it there.** Reaching for the nearest assignable label instead destroys the
 evidence that would eventually unblock the class, and does it silently. The
-contract checker fails a round that emits one, so a blocked label costs the round,
-not just your card.
+contract checker fails on a blocked label, so it does not pass quietly -- but the
+round is not aborted and your verdict still lands on disk. Nobody downstream is
+protected from it. That is why this is your call to get right, not a net's.
 
 ## How to judge a card
 

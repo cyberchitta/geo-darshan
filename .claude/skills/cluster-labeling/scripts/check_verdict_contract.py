@@ -25,8 +25,9 @@ Two checks, independent:
 
 Why ASSIGNABLE. `_status: "not-assignable"` was enforced only on pick-lists. Once
 readers began reading the glossary directly -- which by its own rule lists every
-class -- nothing stopped a blocked class reaching a verdict, and 6 of the 8 were
-not even marked in prose (worklist T43). A declared contract that nothing checks
+class -- nothing stopped a blocked class reaching a verdict, and 5 of the 8 were
+not even marked in prose (worklist T43, whose own count of 6 was off: it grepped
+the phrase "never emit" and missed `scattered_trees`, marked in other words). A declared contract that nothing checks
 is the failure this whole file exists to answer, one layer down.
 
 Usage

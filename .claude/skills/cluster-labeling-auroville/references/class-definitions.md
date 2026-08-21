@@ -89,7 +89,7 @@ scrub, tree_lines, or trees riding along on another cover.
   blocks. Bamboo has not yet been confirmed anywhere in this AOI — treat a
   bamboo call as a claim needing evidence.
 
-### `forest.tree_lines`  *(added 2026-08-09)*
+### `forest.tree_lines`
 - **Definition.** Linear woody features outside forest blocks. FSI *Trees Outside
   Forests*, **linear** stratum — trees along roads, canals and bunds. Geometry
   from Copernicus Small Woody Features: **≤ 30 m wide, ≥ 30 m long**.
@@ -118,10 +118,8 @@ scrub, tree_lines, or trees riding along on another cover.
   characteristic local case; tamarind and isolated farm trees are others.
 - **⚠ NOT CURRENTLY ASSIGNABLE** — see "Classes that are real but not currently
   assignable". The stratum is published and the ground is real, but it does not
-  separate at a 10 m cell: 7 verdicts describe scattered or isolated trees and
-  they land on **four unrelated labels** (`sparse_scrub`, `maintained_grass`,
-  `degraded_barren`, `fallow`). A scattered-tree cell is mostly whatever the
-  trees are scattered *in*.
+  separate at a 10 m cell: a scattered-tree cell is mostly whatever the trees are
+  scattered *in*.
 - **Caveat.** Same as `tree_lines` — FSI would call these trees outside forest,
   not forest; the node sits under `forest` for tree convenience only.
 - **Why the node exists at all.** The crosswalk cites FSI TOF's
@@ -181,8 +179,7 @@ a known species signature. Species split below NRSC's leaf is ours.
   under orchard management.
 - **Requires.** Evidence of *multiple* crown types under one planting geometry.
 - **Not this:** the default when an orchard's species is unclear. If you can't name
-  the mix, use the parent `agriculture.orchards`. c6 was voted mixed_fruit and is
-  actually coconut + casuarina.
+  the mix, use the parent `agriculture.orchards`.
 
 ---
 
@@ -220,8 +217,7 @@ definition names bund alignments) and bare crests are
 **A bund is a landform, not a cover: what covers it decides the class.** Woody
 crest -> `forest.tree_lines`. Bare compacted crest ->
 `degraded_barren.compacted_corridor`. The bunded parcel geometry itself is a
-**diagnostic** for cultivation, never a label. *(Ruled 2026-08-17; supersedes the
-`bunds`-node reversal in `_notes/missing-classes_candidates.md` §G.)*
+**diagnostic** for cultivation, never a label.
 
 ### `agriculture.field_crops.rice_paddies`
 - **Diagnostic.** Small level parcels with water-retaining bunds, often a wet or
@@ -280,9 +276,7 @@ see. The definitions say what the class *is*, not that you may assign it.
 - **Definition.** ICRAF *agrisilviculture* — trees and crops interspersed on the
   same parcel; bund tree-lines around cropped fields are the classic case.
 - **Requires.** Both layers visible in one parcel.
-- **Not this:** became a soft landing for "trees and something else" — c42 was
-  voted here and is planted_forest. If you can't see the crop layer, it isn't
-  agroforestry.
+- **Not this:** if you can't see the crop layer, it isn't agroforestry.
 - **⚠ NOT CURRENTLY ASSIGNABLE** — see "Classes that are real but not currently
   assignable". Do not emit it; if you believe you are looking at one, fire
   `no_class_fits` naming it.
@@ -299,7 +293,7 @@ see. The definitions say what the class *is*, not that you may assign it.
   role `grazing_land` and then `maintained_grass` played before it. Before
   writing `fallow`, ask which of these it really is:
   - harvested **casuarina** (geometric field amid casuarina — west),
-  - young **coconut** or ground within a young planting (user, c89),
+  - young **coconut** or ground within a young planting,
   - young **planted_forest** (light-green, smooth, forest matrix),
   - roadside/waterside **tree_lines** (linear, woody),
   - **eroded_land** (bare, gullied, no cultivation geometry),
@@ -336,10 +330,8 @@ two orthogonal axes that our flat list collapses. Apply them in order.
 - **Note.** Below ~20% artificial it is not a built class at all: label the matrix
   cover and let the buildings ride along.
 
-### ~~`built_environment.infrastructure`~~ — RETIRED 2026-08-15
-Structural duplicate of the top-level `infrastructure.*` family: its own
-description was "Roads, industrial facilities", naming the same two things that
-family lists as children. Zero uses in 266 verdicts. **Removed from
+### ~~`built_environment.infrastructure`~~ — RETIRED
+Structural duplicate of the top-level `infrastructure.*` family. **Removed from
 `land-cover.json`** — use `infrastructure.roads` / `infrastructure.industrial`.
 Tombstone kept so the deletion is not mistaken for the finding going missing.
 
@@ -383,9 +375,8 @@ deteriorating for lack of soil/water management or natural causes.
   or stockpiles (→ `quarries`), no foundations, trenches or machinery
   (→ `construction_sites`).
 - **Diagnostic.** Orange-red laterite, undissected micro-relief, no branching
-  gully shadows. This is the honest leaf for what readers were calling the bare
-  `degraded_barren` **parent** — 8 of the 9 parent-level verdicts describe
-  exactly this, in almost the same words.
+  gully shadows. This is the honest leaf for a bare `degraded_barren` cell that is
+  neither gullied nor trafficked.
 - **Not this:** bare *because graded or trafficked* → `compacted_corridor`.
 
 ### `degraded_barren.compacted_corridor`
@@ -440,8 +431,8 @@ eroded or subjected to excessive aridity with scrubs dominating". **Scrub Forest
 "forest blanks" — openings amid forest devoid of tree cover*.
 
 **Consequence worth applying:** an opening or clearing inside a canopy matrix is,
-per NRSC, part of the **forest**, not fallow and not barren. That resolves the
-"bare clearing amid canopy" cases (c150/c1, c163, c168) that no current label fit.
+per NRSC, part of the **forest**, not fallow and not barren. That is the answer
+for a "bare clearing amid canopy" that no other label fits.
 
 ### `scrubland.dense_scrub`
 - **Diagnostic.** Continuous shrub cover, crowns merging, no tree-height canopy,
@@ -526,9 +517,7 @@ node. Such nodes carry `_status: "not-assignable"` in `land-cover.json`, plus
   evidence for the `_unlock` decision into a wrong verdict, silently, which is
   worse than the gap it papers over. A rejected reading is recoverable; a
   plausible substitute is not.
-- Marked in every entry as of 2026-08-21. Five carried no marking at all until
-  then (`thorny_scrub` and the whole `agroforestry` subtree); `scattered_trees`
-  was already marked and `natural_forest` / `grazing_land` say "never emit".
+- Every blocked class is marked in its own entry.
 - They **do** appear in the glossary, in coverage analyses and in missing-class
   mining, all of which need the whole tree. You cannot rule on a class you cannot
   see.
@@ -544,11 +533,8 @@ uses *and* zero mentions of quarry/mining/excavation in 482 texts — that is a
 class the AOI does not contain, not one we cannot see. It stays **assignable**;
 if a quarry appears, use it. Conflating the two would empty the flag of meaning.
 
-**The failure this replaces.** `natural_forest`, `thorny_scrub` and `grazing_land`
-were already "retired" — in prose *here*, while sitting fully pickable in the
-JSON. All three were still being offered to the VLM readers in `prompt.txt`,
-`natural_forest` with a helpful "LOOKS LIKE" cue, and `grazing_land` was still
-being emitted. **Prose retirement does not retire anything.**
+**Prose retirement does not retire anything** — which is why the rule above is a
+checked one. What happened when it was only prose is in `history.md`.
 
 ---
 
