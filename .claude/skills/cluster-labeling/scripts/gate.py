@@ -302,6 +302,13 @@ def main():
     out = a.run_dir / a.out
     out.write_text(json.dumps({
         "defs_version": ctx["defs_version"],
+        # The paths the stamp was computed over, AS PASSED -- cwd-relative and in
+        # argument order. Recorded so a ledger can say what it was stamped
+        # against: defs_version() sorts these strings, so re-deriving the hash
+        # needs the exact strings, not a resolved or tidied form. Round 3's stamp
+        # went unreproducible precisely because this list lived only in a
+        # gitignored handoff. Read back by check_defs_drift.py.
+        "defs": [str(d) for d in a.defs],
         "thresholds": {
             "min_exemplars": a.min_exemplars, "min_confidence": a.min_confidence,
             "min_coverage": a.min_coverage, "small_px": a.small_px,

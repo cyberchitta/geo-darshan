@@ -346,7 +346,13 @@ better than it found it. Two grades of learning, two speeds:
   disagreement triage, what is built vs not, and the open decisions. Load it when
   running a pass after the first, or tuning the gate.
 - `scripts/gate.py` — ledger + settle gate: judgments (+ verify, prior, neighbour)
-  → `ledger.json` with a state per cluster, stamped with `defs_version`.
+  → `ledger.json` with a state per cluster, stamped with `defs_version` **and the
+  `--defs` paths that stamp was computed over**.
+- `scripts/check_defs_drift.py` — recomputes a ledger's `defs_version` from its own
+  recorded `--defs` and reports drift. Exit 0 matches / 1 drifted / **2 no defs
+  recorded** (a ledger written before gate.py stored them cannot be checked, and
+  that is not the same as clean). Run it before trusting any ledger you did not
+  just write; it reports and never re-stamps.
 - `scripts/gen_locator.py` — per-cluster locator maps.
 - `scripts/gen_overview.py` — whole-area basemap overview + label choropleth (macro-QA).
 - `scripts/gen_context.py` — mid-scale context crop per exemplar (same centre, wider
