@@ -20,6 +20,14 @@ Two checks, independent:
   SOURCES   no consumer re-enumerates the field list. A file that names >=
             RESTATE_MIN of the fields in one place is quoting the contract
             instead of pointing at it, and will drift
+  ASSIGNABLE  no record names a class the hierarchy marks not-assignable.
+            Needs --hierarchy; says NOT CHECKED, loudly, without it.
+
+Why ASSIGNABLE. `_status: "not-assignable"` was enforced only on pick-lists. Once
+readers began reading the glossary directly -- which by its own rule lists every
+class -- nothing stopped a blocked class reaching a verdict, and 6 of the 8 were
+not even marked in prose (worklist T43). A declared contract that nothing checks
+is the failure this whole file exists to answer, one layer down.
 
 Usage
   check_verdict_contract.py RUN_DIR [--contract PATH] [--verdicts GLOB]
@@ -36,7 +44,14 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from check_pick_lists import walk as walk_hierarchy  # noqa: E402 -- one status walker
+
 DEFAULT_CONTRACT = HERE.parent / "references" / "verdict-record.md"
+
+# Record fields whose value is a dotted class path, across all three tables in
+# the contract. `uncertain`, "" and null are legal values and are not classes.
+CLASS_FIELDS = ("label", "alternative", "prev_label", "better_label")
 
 # A source naming this many of the contract's fields in one place is restating it.
 RESTATE_MIN = 4
@@ -139,6 +154,8 @@ def main():
                     help="fail on SOURCES warnings too, not only on RECORDS")
     ap.add_argument("--record-key", default="cluster",
                     help="field that identifies a record (debrief records use 'batch')")
+    ap.add_argument("--hierarchy", type=Path,
+                    help="land-cover.json; enables the ASSIGNABLE check")
     ap.add_argument("--rows-key", default="verdicts",
                     help="key to unwrap when a verdicts file is a dict, not a list")
     a = ap.parse_args()
@@ -233,6 +250,44 @@ def main():
             print(f"       {worst_line[:110]}")
         else:
             print(f"  OK   {src}: no restatement ({worst} field name(s) at most)")
+
+    # ---- ASSIGNABLE
+    print("\nASSIGNABLE")
+    if not a.hierarchy:
+        warned = True
+        print("  NOT CHECKED -- no --hierarchy given, so a verdict naming a")
+        print("  not-assignable class would pass unnoticed. This is not a clean")
+        print("  result; it is an unchecked one.")
+    else:
+        hier = json.loads(a.hierarchy.read_text())
+        blocked = {path for path, status in walk_hierarchy(hier)
+                   if status == "not-assignable"}
+        hits, seen = {}, 0
+        for fname, rec in iter_records(a.run_dir, a.verdicts, a.record_key, a.rows_key):
+            seen += 1
+            for f in CLASS_FIELDS:
+                v = rec.get(f)
+                if isinstance(v, str) and v in blocked:
+                    where = f"{fname} c{rec.get('cluster')}e{rec.get('exemplar')}"
+                    hits.setdefault((f, v), []).append(where)
+        if not blocked:
+            print("  no not-assignable classes in the hierarchy; nothing to enforce")
+        elif not seen:
+            print(f"  no records matched {a.verdicts} -- nothing to check")
+        elif not hits:
+            print(f"  OK: {seen} records, none names any of the "
+                  f"{len(blocked)} blocked class(es)")
+        else:
+            failed = True
+            n = sum(len(w) for w in hits.values())
+            print(f"  FAIL: {n} record field(s) name a not-assignable class")
+            for (f, v), where in sorted(hits.items(), key=lambda kv: -len(kv[1])):
+                print(f"    `{f}` = {v}  x{len(where)}")
+                for w in where[:3]:
+                    print(f"        e.g. {w}")
+            print("  A blocked class is real on the ground but unassignable by this")
+            print("  method. The reader should have fired `no_class_fits` naming it --")
+            print("  that keeps the evidence for the unlock decision. Re-read these.")
 
     print()
     if failed or (warned and a.strict):

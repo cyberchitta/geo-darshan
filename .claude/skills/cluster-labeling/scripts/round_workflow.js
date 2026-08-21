@@ -21,6 +21,9 @@ export const meta = {
 //   brief:       round brief filename inside runDir
 //   batchPrefix: verdict files are `${batchPrefix}_${i}.json`
 //   batches:     array of arrays of cluster ids, one per reader
+//   hierarchy:   repo-relative land-cover.json -- the AOI pack's. Required: it
+//                is what the contract gate reads `_status: not-assignable` from,
+//                and this engine is AOI-agnostic so it cannot default to one.
 // }
 // ---------------------------------------------------------------------------
 const A = typeof args === 'string' ? JSON.parse(args) : args
@@ -29,7 +32,13 @@ const CARDS = A.cards || 'cards.json'
 const BRIEF = A.brief
 const PREFIX = A.batchPrefix || 'batch'
 const batches = A.batches
+const HIERARCHY = A.hierarchy
 const SELF = '.claude/skills/cluster-labeling/scripts/round_workflow.js'
+
+// Fail here, not four phases later. Without the hierarchy the contract gate
+// reports NOT CHECKED and a blocked class rides through unnoticed -- the exact
+// silent pass this gate was widened to stop.
+if (!HIERARCHY) throw new Error('args.hierarchy is required (AOI pack land-cover.json)')
 const CONTRACT = '.claude/skills/cluster-labeling/references/verdict-record.md'
 
 // The reader's structured return carries NO record-shaped array. The full
@@ -124,7 +133,8 @@ Do not fix anything, do not edit any file — this is a measurement.
 From the repo root (/Users/cyberchitta/GitHub/geo-darshan):
 
     uv run --no-project python .claude/skills/cluster-labeling/scripts/check_verdict_contract.py \\
-      ${RUN} --verdicts '${PREFIX}_*.json' --sources ${SELF} ${RUN}/${BRIEF}
+      ${RUN} --verdicts '${PREFIX}_*.json' --sources ${SELF} ${RUN}/${BRIEF} \\
+      --hierarchy ${HIERARCHY}
 
 Set \`passed\` true only if it exits 0.
 

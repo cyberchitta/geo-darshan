@@ -39,6 +39,15 @@ anything, read, in this order:
 If a run-specific brief is named in your task, read that too; it carries what is
 particular to this round.
 
+**Some classes are marked NOT CURRENTLY ASSIGNABLE. Never emit one** — not as
+`label`, not as `alternative`. They keep their full definitions because the
+hierarchy must outlive the sensor limitation, so a complete-looking entry is not
+permission to use it. **If what you see really is one, fire `no_class_fits` and
+name it there.** Reaching for the nearest assignable label instead destroys the
+evidence that would eventually unblock the class, and does it silently. The
+contract checker fails a round that emits one, so a blocked label costs the round,
+not just your card.
+
 ## How to judge a card
 
 For cluster id N (filenames zero-pad to 3 digits, e.g. `c007`):

@@ -251,11 +251,20 @@ ICRAF/FAO: woody perennials *deliberately combined with crops* on the same
 management unit. The distinguishing feature is **two production layers at once**,
 not merely "trees near fields".
 
+**⚠ THIS WHOLE SUBTREE IS NOT CURRENTLY ASSIGNABLE — the parent and all three
+children.** Do not emit any of them; if you believe you are looking at one, fire
+`no_class_fits` naming it. Each entry below keeps its full definition on purpose:
+`_unlock` is a commitment to revisit, and you cannot rule on a class you cannot
+see. The definitions say what the class *is*, not that you may assign it.
+
 ### `agriculture.agroforestry.permaculture`
 - **Definition.** Auroville's designed multi-layer systems — swales, contour
   planting, mixed species by design.
 - **Requires.** Visible design geometry (contour bunds, swales, keyline patterning)
   plus mixed vegetation. Near communities.
+- **⚠ NOT CURRENTLY ASSIGNABLE** — see "Classes that are real but not currently
+  assignable". Do not emit it; if you believe you are looking at one, fire
+  `no_class_fits` naming it.
 
 ### `agriculture.agroforestry.food_forests`
 - **Definition.** ICRAF *homegarden* / forest-farming — multi-storey edible
@@ -263,6 +272,9 @@ not merely "trees near fields".
 - **Requires.** Multi-storey structure **and** proximity to habitation.
 - **Not this:** any dense mixed canopy. Without the habitation link it is
   planted_forest.
+- **⚠ NOT CURRENTLY ASSIGNABLE** — see "Classes that are real but not currently
+  assignable". Do not emit it; if you believe you are looking at one, fire
+  `no_class_fits` naming it.
 
 ### `agriculture.agroforestry.mixed_cultivation`
 - **Definition.** ICRAF *agrisilviculture* — trees and crops interspersed on the
@@ -271,6 +283,9 @@ not merely "trees near fields".
 - **Not this:** became a soft landing for "trees and something else" — c42 was
   voted here and is planted_forest. If you can't see the crop layer, it isn't
   agroforestry.
+- **⚠ NOT CURRENTLY ASSIGNABLE** — see "Classes that are real but not currently
+  assignable". Do not emit it; if you believe you are looking at one, fire
+  `no_class_fits` naming it.
 
 ### `agriculture.fallow`
 - **Definition — the one to memorise.** NRSC 2.3: land **taken up for
@@ -442,6 +457,9 @@ per NRSC, part of the **forest**, not fallow and not barren. That resolves the
 - **Definition.** Acacia / *Prosopis* thorn scrub.
 - **Diagnostic.** Fine grey-green open crowns, irregular spacing, on poor dry ground.
 - **Requires.** The distinctive grey-green tone; otherwise use dense/sparse.
+- **⚠ NOT CURRENTLY ASSIGNABLE** — see "Classes that are real but not currently
+  assignable". Do not emit it; if you believe you are looking at one, fire
+  `no_class_fits` naming it.
 
 ---
 
@@ -497,10 +515,20 @@ node. Such nodes carry `_status: "not-assignable"` in `land-cover.json`, plus
   not two: `prompt.txt` is retired and its arm was removed.
 - ⚠ **The remaining route to a reader is not enforced by anything.** Readers now
   read *this document* directly, and by the rule above the glossary must show
-  every class including these. So the only thing keeping a blocked class out of a
-  verdict is the wording of its own entry — prose again, which is precisely the
-  failure recorded at the end of this section. Not fixed; recorded so it is not
-  mistaken for covered.
+  every class including these. Prose in its own entry is what a reader sees, and
+  prose is what failed before — so **the verdicts are now checked instead of
+  trusted.** `check_verdict_contract.py --hierarchy land-cover.json` fails a round
+  whose records name a blocked class in `label`, `alternative`, `prev_label` or
+  `better_label`, reading `_status` from the hierarchy rather than from any list
+  it keeps itself. Without `--hierarchy` it reports **NOT CHECKED**, not OK.
+- **If you believe you are looking at a blocked class, fire `no_class_fits` and
+  name it.** Do not reach for the nearest assignable label — that converts the
+  evidence for the `_unlock` decision into a wrong verdict, silently, which is
+  worse than the gap it papers over. A rejected reading is recoverable; a
+  plausible substitute is not.
+- Marked in every entry as of 2026-08-21. Five carried no marking at all until
+  then (`thorny_scrub` and the whole `agroforestry` subtree); `scattered_trees`
+  was already marked and `natural_forest` / `grazing_land` say "never emit".
 - They **do** appear in the glossary, in coverage analyses and in missing-class
   mining, all of which need the whole tree. You cannot rule on a class you cannot
   see.
