@@ -58,10 +58,22 @@ bun run type-check
 Tracked separately in the private `working-notes` repo, symlinked at `_notes/`;
 invisible to the `Grep`/`Glob` tools (global `CLAUDE.md` has the `rg` forms).
 
-- **`_notes/worklist.md` — start here.** Central "what's next to work on": the
-  current task, what's queued, and which document holds the detail for each.
-  Not speculative — it is the live index. Read it at the start of a session that
-  has no other stated goal, and keep it current when the next action changes.
+**Authority is split between two documents, and routing to the wrong one is how
+the worklist stopped being a worklist.** Pending work goes in the first; accounts
+of work done go in the second. Never the reverse.
+
+- **`_notes/worklist.md` — start here. It is a TASK LIST, nothing else.** One
+  line per pending task, each pointing at the document holding the detail, plus a
+  START HERE block for a cold session. Read it at the start of any session with no
+  other stated goal, and delete a task from it when that task lands. **If what you
+  are writing is an account of work done, it is not a task and it does not belong
+  here** — for seventeen sessions this file absorbed session records instead,
+  reached 1,900 lines, and could no longer answer "what is left?".
+- `_notes/session-log.md` — the session records that used to crowd it out
+  (sessions 1–17), moved out 2026-08-21. **History only; no pending work.** Read
+  it to find out *why* something was decided, never what to do next. Pendings were
+  compiled out of it by hand — a reading, not a check — so it is still the place
+  to look if something you expect to be pending is missing from the worklist.
 - `_notes/cluster-relabeling_handoff.md` — how VLM-based cluster relabeling
   replaced the original hand-labeling. **Historical narrative only:** that
   workflow is now a skill, and
