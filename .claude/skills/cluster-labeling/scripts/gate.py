@@ -133,8 +133,13 @@ def load_verify(paths):
                     break
             else:
                 sys.exit(f"--verify {path}: dict with no `flips` or `results` "
-                         f"array. A maintainer export (`exemplar_rulings`) does "
-                         f"not load here yet -- that is worklist T62.")
+                         f"array. A maintainer export (`exemplar_rulings`) is not "
+                         f"this shape -- convert it first:\n"
+                         f"  human_verify.py {path} --out FILE --judgments ... "
+                         f"--run ... --defs ...\n"
+                         f"and pass the converted file here. Deliberately not done "
+                         f"inline: the conversion drops every cluster-wide ruling, "
+                         f"which is a thing to be told about, not to have happen.")
         for r in rows:
             verdict = next((r[k] for k in VERDICT_KEYS if k in r), None)
             if verdict is None:

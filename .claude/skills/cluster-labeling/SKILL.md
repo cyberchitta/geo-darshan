@@ -348,6 +348,12 @@ better than it found it. Two grades of learning, two speeds:
 - `scripts/gate.py` — ledger + settle gate: judgments (+ verify, prior, neighbour)
   → `ledger.json` with a state per cluster, stamped with `defs_version` **and the
   `--defs` paths that stamp was computed over**.
+- `scripts/human_verify.py` — the adjudication surface's export → a file
+  `gate.py --verify` can read. **Exemplar rulings only**: a cluster-wide ruling is
+  reported by id and left for the router, never folded in silently. Reports what it
+  refused to convert, whether the export's `defs_version` still matches the contract
+  on disk, and any ruling naming a cell the round never judged; `--strict` turns
+  every such report into exit 1.
 - `scripts/check_defs_drift.py` — recomputes a ledger's `defs_version` from its own
   recorded `--defs` and reports drift. Exit 0 matches / 1 drifted / **2 no defs
   recorded** (a ledger written before gate.py stored them cannot be checked, and
