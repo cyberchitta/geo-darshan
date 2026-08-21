@@ -54,9 +54,32 @@ def contract_channels(contract: Path) -> list[str]:
     return [n for n, _req, kind in rows if kind.strip().strip("*").lower() == "channel"]
 
 
-def norm(s: str) -> str:
-    """Loose key for grouping the same complaint worded differently."""
-    return " ".join(sorted(set(re.findall(r"[a-z]{4,}", (s or "").lower()))))[:120]
+STOP = {"that", "this", "with", "from", "were", "them", "they", "than", "then",
+        "when", "what", "which", "have", "been", "some", "also", "into", "over",
+        "very", "much", "more", "most", "same", "such", "only", "just", "versus",
+        "between", "against", "would", "could", "there", "these", "those"}
+
+
+def tokens(s: str) -> set:
+    """Content words of a complaint, for comparing two wordings of one thing."""
+    return {w for w in re.findall(r"[a-z]{4,}", (s or "").lower())} - STOP
+
+
+def similar(a: set, b: set, thresh: float) -> bool:
+    """Jaccard over content words.
+
+    Exact-key matching was the bug this replaces: it keyed on the sorted token
+    set, so "scrub vs planted_forest" and "planted forest versus scrub boundary"
+    -- one friction, two readers -- split into two 1-reader items and never
+    earned the RAISED INDEPENDENTLY mark. Frequency across readers is the only
+    filter this channel has, so under-merging silently disarms it. Two shared
+    words are required as well as the ratio, so two short unrelated strings
+    cannot merge on a single coincidence.
+    """
+    if not a or not b:
+        return False
+    inter = a & b
+    return len(inter) >= 2 and len(inter) / len(a | b) >= thresh
 
 
 def main() -> None:
@@ -67,6 +90,8 @@ def main() -> None:
     ap.add_argument("--min-readers", type=int, default=2,
                     help="report items raised independently by at least this many readers")
     ap.add_argument("--json", type=Path)
+    ap.add_argument("--similarity", type=float, default=0.4,
+                    help="Jaccard threshold for treating two wordings as one item")
     ap.add_argument("--strict", action="store_true",
                     help="exit 1 if any channel is missing from any debrief")
     a = ap.parse_args()
@@ -122,18 +147,35 @@ def main() -> None:
             continue
 
         # count READERS per distinct item, not items
-        by_item: dict[str, set] = defaultdict(set)
-        examples: dict[str, str] = {}
-        anchors: dict[str, Counter] = defaultdict(Counter)
+        # Greedy agglomeration: an item joins the first group it is similar to,
+        # otherwise it starts one. Groups are keyed by an integer so two wordings
+        # of one complaint land together instead of keying apart.
+        # Members are kept separately and an item joins if it matches ANY of them.
+        # Merging into one growing set instead makes each merge dilute the ratio,
+        # so a third wording of the same complaint fails to join a group its own
+        # two predecessors formed -- under-merging again, one level up.
+        groups: list[list] = []         # per group: list of member token sets
+        by_item: dict[int, set] = defaultdict(set)
+        examples: dict[int, str] = {}
+        variants: dict[int, set] = defaultdict(set)
+        anchors: dict[int, Counter] = defaultdict(Counter)
         for d in fired:
             items = d[ch] if isinstance(d[ch], list) else [d[ch]]
             for it in items:
                 if not isinstance(it, dict):
                     continue
                 text = it.get("describes") or it.get("why") or json.dumps(it)
-                k = norm(text) or json.dumps(it)[:80]
+                tk = tokens(text)
+                k = next((i for i, g in enumerate(groups)
+                          if any(similar(tk, m, a.similarity) for m in g)), None)
+                if k is None:
+                    k = len(groups)
+                    groups.append([set(tk)])
+                    examples[k] = text
+                else:
+                    groups[k].append(set(tk))
                 by_item[k].add(str(d.get("batch")))
-                examples.setdefault(k, text)
+                variants[k].add(text)
                 for e in (it.get("exemplars") or []):
                     anchors[k][e] += 1
         ranked = sorted(by_item.items(), key=lambda kv: -len(kv[1]))
@@ -145,6 +187,11 @@ def main() -> None:
             mark = "  <-- RAISED INDEPENDENTLY" if len(readers) >= a.min_readers else ""
             print(f"  [{len(readers)}/{len(present)} readers]{mark}")
             print(f"      {examples[k][:200]}")
+            others = sorted(v for v in variants[k] if v != examples[k])
+            for v in others[:3]:
+                # merges are shown, never silent: a wrong merge inflates the
+                # reader count, which is the number this channel is read for
+                print(f"      + also worded: {v[:150]}")
             if anchors[k]:
                 print(f"      anchored: {', '.join(e for e, _ in anchors[k].most_common(6))}")
         report[ch] = {
@@ -152,6 +199,7 @@ def main() -> None:
             "n_absent": len(missing), "absent_batches": missing,
             "items": [{"describes": examples[k], "n_readers": len(readers),
                        "readers": sorted(readers),
+                       "wordings": sorted(variants[k]),
                        "anchors": [e for e, _ in anchors[k].most_common()]}
                       for k, readers in ranked]}
         print()
