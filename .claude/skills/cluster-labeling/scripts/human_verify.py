@@ -16,6 +16,14 @@ ruling is REPORTED, loudly and by id, and never silently folded in. A converter
 that quietly dropped seven of them would look exactly like a converter that had
 nothing to drop.
 
+An opt-in `--expand-cluster-rulings` flag was considered and REJECTED, so that the
+next reader of the loud REPORTED line does not re-derive it: the expansion rule is
+decided (a cluster ruling claims that cluster's exemplars and stops), but the
+router's other decision -- whether a `leaning` ruling is terminal -- chooses WHICH
+rulings carry the stamp at all, upstream of any expansion. A flag here would be
+half a router, in a second place, obeying one of its two rules. Build the router;
+do not grow this.
+
 Everything this refuses to convert is counted and named on stdout for the same
 reason: the failure mode all over this run is a zero that reads as "nothing to
 report" instead of "nobody was asked".
