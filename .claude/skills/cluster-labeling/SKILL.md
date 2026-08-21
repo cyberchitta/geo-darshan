@@ -141,6 +141,17 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
              args: {runDir: RUN_DIR, cards: 'cards.json', brief: 'BRIEF.md',
                     batchPrefix: 'batch', batches: [[...ids...], ...]}})
    ```
+   **Generate the cards with the same batches first** — the workflow hands reader
+   *i* `cards_bN.json`, not the whole file:
+   ```
+   python .claude/skills/cluster-labeling/scripts/gen_round_cards.py RUN_DIR \
+     --batches '2,78,103;35,90,109'
+   ```
+   A reader has no shell (see its tool list), so it cannot narrow the full file
+   down itself, and handing it every cell loads its context with the whole round
+   rather than its batch — which is what puts a reader past the size where it can
+   be reached for step 3b. Pass `cardsPerBatch: false` only for a run whose cards
+   were never split.
    **A reader's session ends the moment its `agent()` returns**, so choosing
    `Workflow` decides step 3b before you get there and cannot be undone by
    noticing later. Round 4 lost its debrief exactly this way, with the rule
@@ -399,6 +410,11 @@ better than it found it. Two grades of learning, two speeds:
 - `scripts/gen_exemplars.py` — selects each cluster's largest connected patches
   and renders the judged crops + `results.jsonl`. Lifted from the repo's deleted
   `scripts/vlm_label_prototype.py`; the API path did not come with it.
+- `scripts/gen_round_cards.py` — reader cards + the baseline they are diffed
+  against, kept apart on purpose (`--blind`, the default, omits the previous
+  label). `--batches '1,2;3,4'` also writes `cards_b0.json`, `cards_b1.json` … so
+  each reader gets only its own cells; a requested id with no card is reported,
+  never dropped quietly.
 - `scripts/gen_patch_crops.py` — the patch-scaled crop (step 1b): window sized to
   the component, aspect-matched so a ribbon is not framed as a square, boundary
   burned in at full resolution, **no tint**, captioned with the cell's share of

@@ -88,6 +88,9 @@ def main() -> None:
     ap.add_argument("--initial", default="judgments.json")
     ap.add_argument("--prev-verdicts", default="rejudge_batch_*.json")
     ap.add_argument("--blind", action=argparse.BooleanOptionalAction, default=True)
+    ap.add_argument("--batches", default="",
+                    help="semicolon-separated batches of comma-separated cluster ids, "
+                         "e.g. '2,78,103;35,90,109' -> also writes cards_b0.json, cards_b1.json")
     a = ap.parse_args()
     run = a.run_dir
 
@@ -137,6 +140,23 @@ def main() -> None:
         cards.append(card)
 
     (run / a.out).write_text(json.dumps(cards, indent=1))
+
+    # Per-batch card files: hand each reader ITS cards, not all of them.
+    # A reader given the whole file has to narrow it down itself, and the readers
+    # who did that spent tool calls re-deriving a slice the orchestrator already
+    # knew -- 10 of 39 non-image shell calls in the 2026-08-22 swarm. It also
+    # loads every reader's context with every other reader's cells, which scales
+    # with the round rather than with the batch, and transcript size is what puts
+    # a reader beyond reach for a debrief. Same principle as the patch crop:
+    # render the right input once, rather than shipping the tools to make it.
+    batch_out = []
+    for i, spec in enumerate(b for b in a.batches.split(";") if b.strip()):
+        ids = {int(x) for x in spec.split(",") if x.strip()}
+        sub = [c for c in cards if c["cluster"] in ids]
+        missing = ids - {c["cluster"] for c in sub}
+        name = f"{Path(a.out).stem}_b{i}.json"
+        (run / name).write_text(json.dumps(sub, indent=1))
+        batch_out.append((name, len(sub), sum(len(c["exemplars"]) for c in sub), sorted(missing)))
     (run / a.baseline).write_text(json.dumps(
         {"run": run.name, "blind": a.blind,
          "note": "label per exemplar entering this round; what the round is diffed against",
@@ -153,6 +173,12 @@ def main() -> None:
     print(f"baseline: {len(base)} exemplar labels -> {a.baseline}")
     print(f"  by source: {dict(src)}")
     print(f"frozen cells skipped: {len(skipped)} {skipped}")
+    for name, n_cells, n_exs, missing in batch_out:
+        # A requested id with no card is reported, never dropped quietly: it means
+        # that cell is frozen or absent, and the reader would otherwise be blamed
+        # for not covering it.
+        warn = f"  MISSING (frozen or absent): {missing}" if missing else ""
+        print(f"batch:    {n_cells} cells, {n_exs} exemplars -> {name}{warn}")
     print(f"prev_label present on cards: {'YES -- NOT BLIND' if leaked else 'no'}")
     if a.blind and leaked:
         raise SystemExit("BLIND VIOLATED: prev_label leaked onto the cards")

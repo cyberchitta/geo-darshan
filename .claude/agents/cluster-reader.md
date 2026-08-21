@@ -1,7 +1,7 @@
 ---
 name: cluster-reader
 description: Judges land-cover cluster cells from satellite exemplar crops. Use when a labeling round needs per-exemplar verdicts against the land-cover hierarchy — initial judging, re-judging after a definition change, or auditing an existing pass. Reads the AOI pack's class definitions itself; give it cluster ids and a run dir.
-tools: Read, Grep, Glob, Bash, Write
+tools: Read, Grep, Glob, Write
 model: opus
 ---
 
