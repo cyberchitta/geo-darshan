@@ -14,9 +14,15 @@ the arm that read it could never fire again and was removed rather than left to
 report SKIP forever. What replaced it is NOT a generated artifact: the
 `cluster-reader` agent reads the AOI pack's `class-definitions.md` directly. That
 document is the glossary, which by the rule above must show every class including
-the blocked ones -- so it cannot be checked here, and a blocked class is now kept
-out of a reader's hands by how the definition is written, not by a filter this
-script can assert. That gap is real and is not this script's to close.
+the blocked ones -- so it cannot be checked here.
+
+*Corrected at session close, same session that wrote the paragraph above: it
+first said a blocked class is "kept out of a reader's hands by how the definition
+is written". That was asserted, not checked, and checking it says otherwise --
+**6 of the 8 blocked classes carry no marking at all** in class-definitions.md
+(`scattered_trees`, `thorny_scrub`, and the whole `agroforestry` subtree). They
+read as ordinary assignable classes, `Requires` clauses and all. So nothing at
+all is keeping those out of a verdict.* Worklist T43.
 
   check_pick_lists.py --hierarchy land-cover.json RUN_DIR
 
