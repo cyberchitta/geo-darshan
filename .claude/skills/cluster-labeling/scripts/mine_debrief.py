@@ -90,6 +90,9 @@ def main() -> None:
     ap.add_argument("--min-readers", type=int, default=2,
                     help="report items raised independently by at least this many readers")
     ap.add_argument("--json", type=Path)
+    ap.add_argument("--candidate-overlap", type=float, default=0.25,
+                    help="report cross-reader pairs at or above this overlap as "
+                         "possibly one finding; they are still counted separately")
     ap.add_argument("--similarity", type=float, default=0.4,
                     help="Jaccard threshold for treating two wordings as one item")
     ap.add_argument("--strict", action="store_true",
@@ -202,6 +205,41 @@ def main() -> None:
                        "wordings": sorted(variants[k]),
                        "anchors": [e for e, _ in anchors[k].most_common()]}
                       for k, readers in ranked]}
+        print()
+
+    # Long descriptions defeat automatic grouping, and no threshold rescues it.
+    # Measured on the first real debrief set (2026-08-22, 14 items, median 29
+    # content words): three wordings of ONE finding scored 0.29-0.33 overlap while
+    # an unrelated pair scored 0.25, and two wordings of another finding fell
+    # below both. Auto-merging there would fit the sample and inflate reader
+    # counts -- the single number this channel is read for. So the grouping above
+    # stays conservative and the near-misses are printed instead: under-merging is
+    # visible and correctable, over-merging is neither.
+    cands = []
+    for ch in channels:
+        items = [(str(d.get("batch")), it.get("describes") or "")
+                 for d in debriefs
+                 for it in (d.get(ch) if isinstance(d.get(ch), list) else [])
+                 if isinstance(it, dict)]
+        for i in range(len(items)):
+            for j in range(i + 1, len(items)):
+                (b1, t1), (b2, t2) = items[i], items[j]
+                if b1 == b2:
+                    continue
+                x, y = tokens(t1), tokens(t2)
+                if not x or not y:
+                    continue
+                ovl = len(x & y) / min(len(x), len(y))
+                if ovl >= a.candidate_overlap:
+                    cands.append((ovl, ch, b1, t1, b2, t2))
+    if cands:
+        print("POSSIBLE SAME FINDING ACROSS READERS — counted SEPARATELY above.")
+        print("  The tally cannot merge these itself; decide by reading them. If two")
+        print("  are one finding, its true reader count is higher than printed.")
+        for ovl, ch, b1, t1, b2, t2 in sorted(cands, reverse=True)[:12]:
+            print(f"  [{ovl:.2f} {ch}] b{b1} / b{b2}")
+            print(f"      {t1[:110]}")
+            print(f"      {t2[:110]}")
         print()
 
     unanchored = sum(
