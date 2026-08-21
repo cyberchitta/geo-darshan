@@ -134,9 +134,18 @@ From the repo root (/Users/cyberchitta/GitHub/geo-darshan):
 
     uv run --no-project python .claude/skills/cluster-labeling/scripts/check_verdict_contract.py \\
       ${RUN} --verdicts '${PREFIX}_*.json' --sources ${SELF} ${RUN}/${BRIEF} \\
-      --hierarchy ${HIERARCHY}
+      --hierarchy ${HIERARCHY} --strict
 
 Set \`passed\` true only if it exits 0.
+
+\`--strict\` is load-bearing. Without it a check that could not run still exits 0,
+so this phase would log "contract check passed" about a run that examined nothing.
+Both measured against this run dir: a typo'd \`--verdicts\` glob prints
+\`RECORDS: NOT CHECKED\` and exits 0; a mistyped \`--sources\` path prints
+NOT CHECKED on its own line while the arm summary still reads \`SOURCES: OK\`, and
+also exits 0. \`--strict\` turns both into exit 1. Do not drop the flag to make a
+run go green -- and do not read the summary line instead of the exit code, which
+is what the second case is about.
 
 One reading note that inverts the script's own hedge: it prints CHANNEL ABSENT as
 "expected if this pass predates the channel". **This pass did not.** The readers
