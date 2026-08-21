@@ -302,6 +302,13 @@ def gate_cluster(c, exs, ctx, a):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("run_dir", type=Path)
+    # WHAT THIS FILE HOLDS IS NOT AUTOMATICALLY THE LATEST ROUND'S READING.
+    # A round's readers write per-batch files; something has to merge them here,
+    # and on this project that merge is a deliberate later pass. So a gate run can
+    # pair THIS round's verify records with the PREVIOUS round's labels and print
+    # a perfectly sensible summary -- criteria move, nothing errors, and the
+    # numbers describe a state no round ever produced. Check the file's provenance
+    # before quoting a ledger built on it.
     ap.add_argument("--judgments", type=Path, required=True)
     ap.add_argument("--hierarchy", type=Path)
     ap.add_argument("--verify", type=Path, nargs="*", default=[],
