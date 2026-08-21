@@ -50,6 +50,26 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
    run's cards, ledger and verdicts are keyed to. Render an additional batch into
    a run with `--results results_bN.jsonl`.
 
+1b. **Render the patch crop — the view that is about the cell**, once
+   `results.jsonl` exists:
+   ```
+   python .claude/skills/cluster-labeling/scripts/gen_patch_crops.py RUN_DIR \
+     --seg SEG --base BASE
+   ```
+   → `RUN_DIR/crops/cNNN_eN_patch.jpg`, window sized to the patch, boundary
+   burned in, no tint, captioned with the cell's share of the frame and any
+   upscale factor.
+
+   **Not optional, and not a nicety.** In the fixed 200 m crop the cell is a
+   median 5.2% of the frame and 65% of exemplars sit under 10% — so the image a
+   reader judges is ~95% not the thing being judged. Measured over the same 332
+   exemplars, this view takes the median to 20.7% and the under-10% share to 2%.
+   Readers worked this out on their own before it existed: three of them spent 25
+   resize, 21 crop and 6 composite calls per pass rebuilding it by hand, which
+   inflated transcripts past the point where they could be resumed **and left
+   each reader judging different images**. Render it once for everyone, then keep
+   the reader off image tooling so concurrence means what it claims to.
+
 2. **Locator maps** (where each cluster sits — essential for dispersed clusters):
    ```
    python .claude/skills/cluster-labeling/scripts/gen_locator.py RUN_DIR \
@@ -379,6 +399,11 @@ better than it found it. Two grades of learning, two speeds:
 - `scripts/gen_exemplars.py` — selects each cluster's largest connected patches
   and renders the judged crops + `results.jsonl`. Lifted from the repo's deleted
   `scripts/vlm_label_prototype.py`; the API path did not come with it.
+- `scripts/gen_patch_crops.py` — the patch-scaled crop (step 1b): window sized to
+  the component, aspect-matched so a ribbon is not framed as a square, boundary
+  burned in at full resolution, **no tint**, captioned with the cell's share of
+  the frame. Reads geometry from `results.jsonl`; reports any exemplar whose
+  patch it could not find rather than skipping it silently.
 - Imagery comes from the repo's tile pipeline, **not from this skill**:
   `scripts/esri_tiles.py download` / `stitch` (AOI and zoom from `config.yaml`;
   needs no GDAL CLI). The mosaic it writes is what every crop generator here
