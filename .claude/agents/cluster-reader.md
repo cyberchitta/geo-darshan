@@ -70,17 +70,15 @@ For cluster id N (filenames zero-pad to 3 digits, e.g. `c007`):
   marked — use it for *where the cell sits in the landscape*, not for what it is.
   In that frame the cell is a median **5.2%** of the image (65% of exemplars are
   under 10%), so a call made from it is mostly a call about everything except the
-  cell. That is exactly the error this ordering exists to prevent, and it was
-  measured on a real run, not supposed.
-- `crops/cNNN_eN_raw.jpg` — untinted, sharper, and carrying **no boundary at
-  all**. Earlier versions of this card sent the texture call here, which meant
-  deciding *what the cell is* on an image where the cell cannot be located. Use
-  it only to check texture inside a boundary you have already fixed from the
-  patch view, and never to choose a label on its own.
+  cell.
+- `crops/cNNN_eN_raw.jpg` — untinted and sharper, but carrying **no boundary at
+  all**, so it cannot tell you which pixels are the cell's. Use it only to check
+  texture inside a boundary you have already fixed from the patch view; never to
+  choose a label on its own.
 - **If `_patch.jpg` is missing for an exemplar, say so in your notes and judge
-  from the marked 200 m crop** — flag the reduced confidence. Do not rebuild the
-  view yourself: readers who did that produced per-reader images nobody else saw,
-  which makes agreement between readers unmeasurable.
+  from the marked 200 m crop**, at reduced confidence. Do not build a better view
+  yourself — an image only you have seen makes your verdict incomparable with
+  every other reader's, which costs more than the one call it buys.
 - **Judge only the marked patch**; the surroundings are context, and context is
   often decisive — the same texture means different things in a canopy matrix vs
   an agricultural one.
