@@ -360,6 +360,10 @@ better than it found it. Two grades of learning, two speeds:
   with other k-level rasters (kA ∩ kB): minority cells get new ids, the largest
   cell keeps the parent id, slivers (< --min-px) fold into it. Output is a normal
   cluster raster + parentage mapping JSON, consumable by all the other scripts.
+- `scripts/measure_coverage.py` — per-cell exemplar coverage against the gate's
+  `min_coverage`, i.e. what a pass would cost before it is rendered. Calibrate the
+  window convention against figures already on record before quoting it; centring
+  vs tiling swings the answer 6×.
 - `scripts/gen_exemplars.py` — selects each cluster's largest connected patches
   and renders the judged crops + `results.jsonl`. Lifted from the repo's deleted
   `scripts/vlm_label_prototype.py`; the API path did not come with it.
