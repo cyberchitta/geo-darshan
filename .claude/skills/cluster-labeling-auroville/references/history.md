@@ -187,9 +187,13 @@ The node carried `_status: not-assignable` from 2026-08-17 to 2026-08-21. Its
 Its `_unlock` asked for *"a cluster appears whose exemplars are majority
 scattered-tree; and/or z19 imagery (0.29 m/px, now available) resolving crown
 form."* **Neither was met.** Round 4's five scattered-tree mentions dispersed
-across three labels exactly as before, and the maintainer, looking at them at
-z19, found only one (c115e0) where the outlined patch was actually
-scattered-tree ground.
+across three labels (`grassland` x2, `planted_forest` x2, `sparse_built`) — the
+same *kind* of dispersion the `_why` described, not the same figures, which were
+7 mentions across 4 labels. *(Corrected at session close: this first read
+"across three labels exactly as before", which asserts a match the two counts do
+not make. The pattern recurred; the numbers are not the same numbers.)* And the
+maintainer, looking at them at z19, found only one (c115e0) where the outlined
+patch was actually scattered-tree ground.
 
 **It was unlocked anyway, and that is the interesting part.** The ruling was not
 "the evidence arrived" but *"this is a legitimate label"* — a published FSI

@@ -123,8 +123,11 @@ scrub, tree_lines, or trees riding along on another cover.
   convenience of the cell geometry.
 - **⚠ Use it for the trees, not for the matrix.** The maintainer's own words on
   the evidence that unlocked it: *"only c115e0 actually has scattered trees in
-  the selected area."* Four of the five round-4 cells whose prose said
-  "scattered trees" were describing the surroundings, not the cell. So before
+  the selected area."* Five round-4 cells carried scattered-tree prose; on that
+  ruling one of them held it inside the outline. *(The "so the other four
+  described the surroundings" reading is an inference from the maintainer's
+  sentence, not something they said cell by cell — corrected at session close,
+  where it had been written as a finding.)* So before
   choosing this, check that the **outlined patch** is the scattered-tree ground —
   if the trees are beside it or around it, label what is inside the outline.
 - **Caveat.** Same as `tree_lines` — FSI would call these trees outside forest,
