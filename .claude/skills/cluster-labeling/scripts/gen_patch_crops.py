@@ -170,7 +170,10 @@ def render(esri, seg, center, cluster_id, bounds, out_px, min_window_m, margin):
     # pixel size -- are DATA, and they ride in the card next to the filename
     # (`patch_metrics.json` -> gen_round_cards.py). Drawn on the pixels they cost
     # image area, force font-width arithmetic against the frame (at native the
-    # median frame is 288 px, narrower than the line of text), and cannot be
+    # median frame is 403 px and 48% are under 400, narrower than the line of
+    # text -- figures re-measured from patch_metrics.json at session close; the
+    # first version said "288 px, 60%", which was the native *width* mislabelled
+    # as the long side), and cannot be
     # corrected without re-rendering every JPEG.
     #
     # The scale bar stays: it is read visually, and it is a claim about these

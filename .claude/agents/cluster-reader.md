@@ -78,10 +78,13 @@ For cluster id N (filenames zero-pad to 3 digits, e.g. `c007`):
   say how thin the evidence was. Small cells are not a nuisance in this task,
   they are much of the task.
 - **What you must not do is read detail that is not there.** Three readers in a
-  previous round confidently read crown texture, spacing and shadow off frames
-  that had been blown up past the imagery's resolution, where every one of those
-  cues had been manufactured by the interpolator. The crops no longer upscale, so
-  what you see is real — but a 40 m frame at 0.3 m/px is 133 pixels, and a small
+  previous round were shown frames blown up x3.3-x5.7 past the imagery's
+  resolution, where the fine texture was partly interpolator output rather than
+  ground. To their credit they felt it and said so — the cost showed up as one
+  `uncertain` at 0.2 and several verdicts capped at 0.4-0.6 — but they were
+  reading a picture that implied detail it did not carry. The crops no longer
+  upscale, so what you see is real; the floor is now honest instead of hidden.
+  A 40 m frame at this imagery's resolution is about **135 pixels**, and a small
   cell inside it will not resolve into crowns however hard you look. `uncertain`
   is a real verdict and a low confidence is a real answer.
 - **Then place it.** `crops/cNNN_eN.jpg` is a fixed 200 m window with the patch
