@@ -24,9 +24,16 @@ labeling Auroville. Update it every session with new durable learnings.
 - AOI dir: `data/av-3.5K`
 - Cluster rasters (`SEG`): `data/av-3.5K/intermediates/clusters/{k22,k44,k88}_s42.tif`
   — 703×703, EPSG:4326, int16, nodata −1. `SEG_KEY` = e.g. `k88_s42`.
-- Basemap (`BASE`): `data/av-3.5K/intermediates/esri_3.5k_roi_cog.tif`
-  — ESRI mosaic, ~1 m effective (grid ~0.58 m, oversampled), 11906×12151, EPSG:4326,
-  same bounds as the cluster rasters.
+- Basemap (`BASE`): `data/av-3.5K/intermediates/esri_3.5k_roi_z19_cog.tif`
+  — ESRI mosaic at **z19, 0.2986 m/px**, 24078×24311, EPSG:4326, covering the
+  cluster rasters' full extent. Verified real imagery, not an upsampled parent
+  (`scripts/check_tile_upsampling.py`), and registered to the z18 mosaic at
+  **0 px shift on both axes**, measured by phase correlation over 64 crop pairs.
+  The older `esri_3.5k_roi_cog.tif` (z18, 0.58 m/px, 11906×12151) is kept and
+  **the two coexist by design** — a run in flight keeps its own imagery. Use z19
+  for anything new: it is what `cluster-reader.md`'s "a 40 m frame is about 135
+  pixels" is stated against, and pointing a fresh run at z18 halves every crop's
+  linear resolution with no error and a picture that looks fine.
 - Hierarchy: **`references/land-cover.json`, here in this pack** (44 nodes
   flattened). The label tree is Auroville-specific, not general, so it belongs to
   the AOI pack and not to the engine or to `data/` — which is gitignored, where it
@@ -44,16 +51,19 @@ it belongs to.
 
 | | source | cell | role |
 |---|---|---|---|
-| **Imagery** | ESRI mosaic | **~0.58 m** (sub-metre) | what the VLM reads — individual tree crowns, roof outlines, plough lines are all resolved |
+| **Imagery** | ESRI mosaic, z19 | **0.30 m** (sub-metre) | what the VLM reads — individual tree crowns, roof outlines, plough lines are all resolved |
 | **Cluster grid** | AlphaEarth embeddings over Sentinel | **~10 m** | what carries a label — 703 × 703 over a ~7 km AOI |
 
-**0.58 m is the ceiling, not a starting point.** The close crops are rendered at
+**0.30 m is the ceiling, not a starting point.** The close crops are rendered at
 native scale — the generator never upsamples — so no reader is ever looking at
-finer than ~0.58 m/px. A tree crown of 7 m is ~12 px: enough to see *that* it is
-a palm, not enough to tell a fan crown from a feather one. Species-level calls
-that need crown geometry are out of reach at z18. (ESRI began serving **z19,
-0.29 m/px**, over this AOI — verified 2026-08-15, centre and four corners. The
-current run predates it.)
+finer than ~0.30 m/px. A tree crown of 7 m is **~23 px**, up from ~12 px at z18.
+**Whether that is enough to separate a fan crown from a feather one is untested
+and must not be assumed either way**: the claim on record ("out of reach") was
+measured at z18, and z19 doubles the linear resolution rather than settling the
+question. A species call still needs the crown geometry to be visible in the
+crop you are looking at — say what you can see, and let confidence carry the
+rest. z19 is the stated `_unlock` candidate for palmyra and possibly *Prosopis*;
+candidate, not a result.
 
 Consequences worth holding onto: (a) you can *see* far more detail than you can
 *assign* — a feature narrower than ~10 m never gets a cell **purely** to itself;
@@ -237,17 +247,17 @@ in; `judgments.json` not yet revised. Session handoff lives in
 RUN=data/av-3.5K/intermediates/vlm_label_k88
 python .claude/skills/cluster-labeling/scripts/gen_exemplars.py $RUN \
   --seg data/av-3.5K/intermediates/clusters/k88_s42.tif \
-  --base data/av-3.5K/intermediates/esri_3.5k_roi_cog.tif \
+  --base data/av-3.5K/intermediates/esri_3.5k_roi_z19_cog.tif \
   --clusters 88 --exemplars 6
 python .claude/skills/cluster-labeling/scripts/gen_locator.py $RUN \
   --seg data/av-3.5K/intermediates/clusters/k88_s42.tif \
-  --base data/av-3.5K/intermediates/esri_3.5k_roi_cog.tif --center 79.8106 12.0058
+  --base data/av-3.5K/intermediates/esri_3.5k_roi_z19_cog.tif --center 79.8106 12.0058
 python .claude/skills/cluster-labeling/scripts/gen_overview.py $RUN \
   --seg data/av-3.5K/intermediates/clusters/k88_s42.tif \
-  --base data/av-3.5K/intermediates/esri_3.5k_roi_cog.tif
+  --base data/av-3.5K/intermediates/esri_3.5k_roi_z19_cog.tif
 python .claude/skills/cluster-labeling/scripts/gen_context.py $RUN \
   --seg data/av-3.5K/intermediates/clusters/k88_s42.tif \
-  --base data/av-3.5K/intermediates/esri_3.5k_roi_cog.tif --window-m 800
+  --base data/av-3.5K/intermediates/esri_3.5k_roi_z19_cog.tif --window-m 800
 # split raster for round 3 (flagged impure clusters partitioned by k22):
 python .claude/skills/cluster-labeling/scripts/gen_intersection.py \
   data/av-3.5K/intermediates/clusters/k88xk22_s42.tif \
@@ -264,6 +274,10 @@ python .claude/skills/cluster-labeling/scripts/gen_review_html.py $RUN \
 # round-3 (k88xk22) variant: --seg …/clusters/k88xk22_s42.tif plus
 #   --nbr-labels data/av-3.5K/intermediates/vlm_label_k88/cluster_to_label.json
 # (fallback labels for un-rejudged k88 parents in the neighbor context)
-# NOTE (cleanroom mac): alpha-bhu is absent so the uv project env can't build;
-# run engine scripts via  uv run --no-project --with rasterio,numpy python …
+# NOTE: the project env cannot run these -- pyproject declares rasterio/numpy but
+# not pillow or scipy, so a plain `uv run` dies on ModuleNotFoundError: PIL. Run
+# every one of them via
+#   uv run --no-project --with rasterio,numpy,pillow,scipy python …
+# (the engine SKILL.md calls this $UV; note that under zsh an unquoted $UV does
+# NOT word-split, so the alias fails there -- write the command out.)
 ```
