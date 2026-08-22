@@ -27,12 +27,18 @@ What this writes, per exemplar, to `crops/cNNN_eN_patch.jpg`:
 
   * window = the patch's own bounding box, padded, floored at --min-window-m so a
     one-pixel cell still gets something to sit in
-  * basemap at native resolution, upscaled to --out-px when the window is small
+  * basemap at native resolution, downscaled to --out-px when the window is
+    large and **never upscaled past native** -- a blown-up window carries texture
+    LANCZOS invented, and three readers independently judged that texture (T75)
   * the magenta boundary burned in, at a width that scales with the output
   * **no tint** -- the fill is what flattened crown texture and turned a coconut
     grove into "scrub"; the boundary alone answers "what am I labelling"
-  * a caption carrying the window size and the patch's achieved share of the
-    frame, so the reader can see how much of what it is looking at is the subject
+  * a scale bar, and **nothing else drawn on the imagery**. The numbers about the
+    crop -- share of frame, the cell's size in cluster pixels, the frame's true
+    pixel size -- go to `patch_metrics.json`, which `gen_round_cards.py` joins
+    onto each exemplar. They are data about the file, not marks on the evidence:
+    burned in they cost image area, fight the frame width at native resolution,
+    and cannot be corrected without re-rendering every JPEG
 
 This does NOT replace the existing crops. The 200 m marked view still answers
 *where in the landscape*, and `_ctx` at 800 m still answers *what surrounds it* --
@@ -97,7 +103,7 @@ def component_bounds(seg, center, cluster_id, search_m):
 
 
 def render(esri, seg, center, cluster_id, bounds, out_px, min_window_m, margin):
-    """-> (image, window_m, patch share of frame)."""
+    """-> (image, window_m, share of frame, upscale refused, (out_w, out_h))."""
     # The window follows the patch's aspect, it is not forced square. A square
     # frame around a linear feature is mostly not the feature: measured over 332
     # exemplars, the cells still under 10% of frame have median bbox aspect 2.73
@@ -128,15 +134,18 @@ def render(esri, seg, center, cluster_id, bounds, out_px, min_window_m, margin):
 
     win = from_bounds(*box, transform=esri.transform)
     nat_h, nat_w = max(1, int(round(win.height))), max(1, int(round(win.width)))
-    # Upscale a small window, downscale a large one -- either way the reader gets
-    # a consistent output size instead of a 60 px thumbnail for a small cell.
-    # The long side gets out_px; the short side keeps the window's proportions.
-    if win_w >= win_h:
-        out_w, out_h = out_px, max(1, int(round(out_px * win_h / win_w)))
-    else:
-        out_h, out_w = out_px, max(1, int(round(out_px * win_w / win_h)))
+    # Downscale a large window; NEVER upscale a small one. The previous rule gave
+    # every reader a consistent 768 px frame by blowing small windows up x3.3-x5.7,
+    # and all three D2 readers independently reported judging texture that the
+    # interpolator had invented -- one `uncertain` at 0.2 and several verdicts
+    # capped at 0.4-0.6. A smaller honest frame is worth more than a large soft
+    # one: the reader can see there is nothing there, which is the true finding.
+    scale = min(out_px / max(nat_w, nat_h), 1.0)
+    out_w = max(1, int(round(nat_w * scale)))
+    out_h = max(1, int(round(nat_h * scale)))
+    refused = (out_px / max(nat_w, nat_h)) if scale == 1.0 else 1.0
     rgb = esri.read([1, 2, 3], window=win, out_shape=(3, out_h, out_w),
-                    resampling=Resampling.lanczos if nat_h < out_h else Resampling.bilinear,
+                    resampling=Resampling.bilinear if scale < 1.0 else Resampling.nearest,
                     boundless=True, fill_value=0)
     rgb = np.transpose(rgb, (1, 2, 0)).astype(np.uint8)
 
@@ -146,30 +155,33 @@ def render(esri, seg, center, cluster_id, bounds, out_px, min_window_m, margin):
     patch = clusters == cluster_id
     share = float(patch.mean())
 
-    # Boundary width tracks the output size; `iterations=2` was tuned for a 339 px
-    # frame and becomes a hairline once the window is upscaled.
-    iters = max(2, out_px // 256)
+    # Boundary width tracks the frame actually written, not --out-px. Once small
+    # windows stopped being blown up to out_px the two came apart, and a 3 px
+    # magenta band on a 135 px frame would cover the cell it is pointing at.
+    iters = max(1, max(out_w, out_h) // 256)
     edge = ndimage.binary_dilation(patch, iterations=iters) & ~patch
 
     out = rgb.copy()
     out[edge] = [255, 0, 255]
     img = Image.fromarray(out)
 
-    # State the upscale factor. A 40 m window blown up to 768 px is ~6x beyond
-    # native and looks softer than it is informative; a reader that cannot see
-    # that is one misread away from the failure this whole script addresses --
-    # a view implying detail it does not carry.
-    zoom = out_w / max(1, nat_w)
-    zoom_txt = f" | x{zoom:.1f} upscale" if zoom > 1.2 else ""
+    # No caption burned into the frame. The numbers a reader needs about this crop
+    # -- share of frame, the cell's size on the cluster raster, the frame's true
+    # pixel size -- are DATA, and they ride in the card next to the filename
+    # (`patch_metrics.json` -> gen_round_cards.py). Drawn on the pixels they cost
+    # image area, force font-width arithmetic against the frame (at native the
+    # median frame is 288 px, narrower than the line of text), and cannot be
+    # corrected without re-rendering every JPEG.
+    #
+    # The scale bar stays: it is read visually, and it is a claim about these
+    # pixels rather than a fact about the file.
     draw = ImageDraw.Draw(img)
-    draw.text((4, 4), f"cluster {cluster_id} | PATCH {window_m:.0f}m | "
-                      f"cell = {share:.0%} of frame{zoom_txt}", fill=(255, 255, 255))
-    bar = int(out_w * 0.18)
+    bar = max(8, int(out_w * 0.18))
     metres = win_w * 0.18
     y = out_h - 14
     draw.rectangle([8, y, 8 + bar, y + 3], fill=(255, 255, 255))
     draw.text((8, y - 12), f"{metres:.0f} m", fill=(255, 255, 255))
-    return img, window_m, share
+    return img, window_m, share, refused, (out_w, out_h)
 
 
 def main() -> None:
@@ -180,7 +192,10 @@ def main() -> None:
     ap.add_argument("--base", type=Path, required=True)
     ap.add_argument("--results", default="results.jsonl")
     ap.add_argument("--clusters", default="", help="comma-separated ids; default all")
-    ap.add_argument("--out-px", type=int, default=768)
+    ap.add_argument("--out-px", type=int, default=768,
+                    help="CAP on the frame's long side, not a target: a larger window "
+                         "is downscaled to it, a smaller one is left at native. Crops "
+                         "are never upscaled, so a small cell yields a small frame")
     ap.add_argument("--min-window-m", type=float, default=40.0)
     ap.add_argument("--margin", type=float, default=0.35,
                     help="padding around the patch bbox, as a fraction of its larger side")
@@ -196,7 +211,7 @@ def main() -> None:
     if want:
         rows = [r for r in rows if r["cluster"] in want]
 
-    shares, misses, written = [], [], 0
+    shares, misses, written, refusals, metrics = [], [], 0, [], {}
     with rasterio.open(a.base) as esri, rasterio.open(a.seg) as seg:
         for r in rows:
             cid, ex = int(r["cluster"]), int(r["exemplar"])
@@ -207,10 +222,19 @@ def main() -> None:
             if bounds is None:
                 misses.append(f"c{cid}e{ex}")
                 continue
-            img, window_m, share = render(esri, seg, r["center"], cid, bounds,
-                                          a.out_px, a.min_window_m, a.margin)
+            img, window_m, share, refused, (ow, oh) = render(
+                esri, seg, r["center"], cid, bounds,
+                a.out_px, a.min_window_m, a.margin)
             img.save(out, quality=92)
             shares.append(share)
+            if refused > 1.2:
+                refusals.append(refused)
+            metrics[f"c{cid}e{ex}"] = {
+                "share_of_frame": round(share, 4),
+                "seg_px": r.get("size_px"),
+                "native_px": [ow, oh],
+                "window_m": round(window_m),
+            }
             written += 1
 
     print(f"wrote {written} patch crops to {crops}")
@@ -220,6 +244,21 @@ def main() -> None:
               f"p10 {np.percentile(s, 10):.1%}  p90 {np.percentile(s, 90):.1%}")
         print(f"under 10% of frame: {(s < 0.10).mean():.0%} "
               f"(the fixed 200 m crop's figure is 65%)")
+    if refusals:
+        # Reported, not silent: this is the count of crops that USED to be
+        # upscaled and now are not, i.e. how much invented texture went away.
+        rr = np.array(refusals)
+        print(f"upscale refused for {len(rr)} crops: median x{np.median(rr):.1f}, "
+              f"max x{rr.max():.1f} (previously rendered, now native)")
+    if metrics:
+        # The numbers travel as data, not as pixels. gen_round_cards.py joins this
+        # onto each exemplar so the reader reads them beside the filename.
+        mpath = a.run_dir / "patch_metrics.json"
+        prev = json.loads(mpath.read_text()) if mpath.exists() else {}
+        prev.update(metrics)
+        mpath.write_text(json.dumps(prev, indent=1, sort_keys=True))
+        print(f"metrics for {len(metrics)} crops -> {mpath.name} "
+              f"({len(prev)} total; joined into cards by gen_round_cards.py)")
     if misses:
         # Reported, never silent: a missing patch crop would send the reader back
         # to the 200 m frame for exactly the cells this script exists to serve.

@@ -57,15 +57,30 @@ For cluster id N (filenames zero-pad to 3 digits, e.g. `c007`):
   numbered exemplars on the whole-area basemap. Whether the cell is compact or
   dispersed matters: a dispersed cell's exemplars may legitimately differ from
   one another, and a "largest patch" exemplar can be unrepresentative.
-- For each exemplar, **decide what it is on `crops/cNNN_eN_patch.jpg`.** This is
-  the view that is about the cell: the window is sized to the patch itself, the
+- For each exemplar, **decide what it is on `crops/cNNN_eN_patch.jpg`.** This is the
+  view that is about the cell: the window is sized to the patch itself, the
   magenta boundary is burned in at full resolution, and there is no tint over the
-  interior, so texture and boundary are legible in the same image. Its caption
-  carries two numbers you must actually use — **the cell's share of the frame**
-  and, where the window was blown up past native resolution, **the upscale
-  factor**. A small share or a large upscale means the evidence is thin: lower
-  your confidence or say `uncertain`, rather than reading detail into an
-  interpolated image.
+  interior, so texture and boundary are legible in the same image. **Every pixel
+  in it is native** — the view is never blown up past the imagery's own
+  resolution, so texture you can see is texture that is there.
+- **Your card states what each patch crop actually is** — `share_of_frame`,
+  `seg_px` (the cell's size on the cluster raster, at 10 m per pixel),
+  `native_px` and `window_m`, per exemplar. Use them; they are not decoration.
+  `seg_px` is the hard limit on what any view can show, and **no zoom raises
+  it** — a cell of a few 10 m pixels is a few 10 m pixels.
+- **A small cell will look small, and that is the correct rendering.** Do not
+  treat it as a broken crop or go looking for a closer view: there isn't one.
+  Judge it anyway — read what you can from its shape, its boundary, its tone
+  against the matrix, and what it is contiguous with — and let your confidence
+  say how thin the evidence was. Small cells are not a nuisance in this task,
+  they are much of the task.
+- **What you must not do is read detail that is not there.** Three readers in a
+  previous round confidently read crown texture, spacing and shadow off frames
+  that had been blown up past the imagery's resolution, where every one of those
+  cues had been manufactured by the interpolator. The crops no longer upscale, so
+  what you see is real — but a 40 m frame at 0.3 m/px is 133 pixels, and a small
+  cell inside it will not resolve into crowns however hard you look. `uncertain`
+  is a real verdict and a low confidence is a real answer.
 - **Then place it.** `crops/cNNN_eN.jpg` is a fixed 200 m window with the patch
   marked — use it for *where the cell sits in the landscape*, not for what it is.
   In that frame the cell is a median **5.2%** of the image (65% of exemplars are

@@ -188,6 +188,14 @@ def main() -> None:
     for (cid, ex) in base:
         by_cell[cid].append(ex)
 
+    pm_path = a.run_dir / "patch_metrics.json"
+    patch_metrics = json.loads(pm_path.read_text()) if pm_path.exists() else {}
+    if not patch_metrics:
+        # Said out loud: cards without these are cards whose reader cannot tell a
+        # 2-pixel cell from a 2000-pixel one, and that is the misread T75 is about.
+        print(f"NO PATCH METRICS at {pm_path.name} -- exemplars will carry no "
+              f"share/seg_px/native_px. Run gen_patch_crops.py first.")
+
     cards, skipped = [], []
     for cid in sorted(by_cell):
         if cid in frozen:
@@ -197,6 +205,12 @@ def main() -> None:
         for ex in sorted(by_cell[cid]):
             b = base[(cid, ex)]
             e: dict = {"e": ex}
+            # What the patch crop actually is, measured when it was rendered.
+            # These ride in the card rather than being burned into the JPEG: a
+            # reader needs them to calibrate confidence on a small cell, and text
+            # in the image costs area, fights the frame width, and cannot be
+            # corrected without re-rendering. Absent if the crops predate it.
+            e |= patch_metrics.get(f"c{cid}e{ex}", {})
             if not a.blind:
                 e |= {"prev_label": b["label"], "prev_conf": b["confidence"],
                       "prev_reasoning": b["reasoning"]}
