@@ -42,12 +42,19 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
 'PIL'`. Use:
 
 ```bash
-UV="uv run --no-project --with rasterio,numpy,pillow,scipy python"
+uv run --no-project --with rasterio,numpy,pillow,scipy python …
 ```
 
-Written here because it used to live only in a run directory's `HANDOFF.md` —
-gitignored, in no repo, and discarded with the run. The steps below show bare
-`python` for readability; every one of them means `$UV`.
+The steps below show bare `python` for readability; every one of them means that
+line. Written here because it used to live only in a run directory's `HANDOFF.md`
+— gitignored, in no repo, and discarded with the run.
+
+**Do not stash it in a shell variable and call `$UV script.py`.** This harness's
+Bash tool runs **zsh**, which does not word-split an unquoted parameter
+expansion, so `$UV` is looked up as one long command name and the step dies with
+`command not found: uv run --no-project …`. It reads like a missing `uv` rather
+than a shell difference, and it fails identically on every step. Write the
+command out, or use `${=UV}` if you must have the alias.
 
 1. **Render exemplar crops** (light tint by default):
    ```
