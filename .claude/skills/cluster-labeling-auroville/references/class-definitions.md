@@ -327,7 +327,9 @@ see. The definitions say what the class *is*, not that you may assign it.
   **orchards**, fruits…)" and is fallow's *sibling*, not its parent. A rested
   cashew or casuarina block stays with its orchard class while the trees stand;
   once they are gone the ground is grass, scrub or barren **by cover** — never
-  fallow. (This is the rule behind the first three "Not this" entries below.)
+  fallow. (This is the rule behind the first two "Not this" entries below; the
+  woody-but-not-agricultural ones after them are excluded by the forest/agriculture
+  split, not by this rule.)
 - **Not this — the standing systematic failure.** Fallow became the default for
   any smooth green or tan patch with nothing obviously growing, inheriting the
   role `grazing_land` and then `maintained_grass` played before it. Before
