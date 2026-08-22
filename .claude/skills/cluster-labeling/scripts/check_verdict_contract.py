@@ -314,8 +314,20 @@ def main():
             not_checked("SOURCES",
                         f"none of the {len(a.sources)} named source(s) exists, so no",
                         "consumer was read at all.")
+        elif src_failed:
+            state["SOURCES"] = "FAILED"
+        elif src_absent:
+            # T49: one good source and one typo'd one used to print `SOURCES: OK`.
+            # The per-file NOT CHECKED line was already there, but the arm summary
+            # -- the line a person quotes -- folded "could not read" into "read,
+            # fine". Partial coverage is not coverage: same rule as the no-sources
+            # and none-exist branches above.
+            not_checked("SOURCES",
+                        f"{src_absent} of {len(a.sources)} named source(s) could not be",
+                        "read, so this arm covers only the ones that exist. A consumer",
+                        "that restates the field list would pass unnoticed in the gap.")
         else:
-            state["SOURCES"] = "FAILED" if src_failed else "OK"
+            state["SOURCES"] = "OK"
 
     # ---- ASSIGNABLE
     print("\nASSIGNABLE")
