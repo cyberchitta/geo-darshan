@@ -36,6 +36,19 @@ downloading/embedding/clustering here.
 Let `AOI`, `SEG` (cluster raster), `BASE` (basemap), `CENTER` (lon lat landmark)
 come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
 
+**The rendering scripts need an environment this project does not declare.**
+`pyproject.toml` has rasterio/numpy/shapely but NOT pillow or scipy, so a plain
+`uv run` on any of steps 1–2c dies on `ModuleNotFoundError: No module named
+'PIL'`. Use:
+
+```bash
+UV="uv run --no-project --with rasterio,numpy,pillow,scipy python"
+```
+
+Written here because it used to live only in a run directory's `HANDOFF.md` —
+gitignored, in no repo, and discarded with the run. The steps below show bare
+`python` for readability; every one of them means `$UV`.
+
 1. **Render exemplar crops** (light tint by default):
    ```
    python .claude/skills/cluster-labeling/scripts/gen_exemplars.py RUN_DIR \
