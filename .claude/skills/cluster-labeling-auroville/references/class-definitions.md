@@ -558,6 +558,13 @@ grasslands**.
   grazing"); NRSC 4.0 is a **cover** class that merely carries "grazing" in its
   name. Retiring it left semi-natural grass with nowhere to go, and the gap was
   being absorbed by `fallow`, `sparse_scrub` and `bare_ground` in turn.
+- **A finer cell would not have fixed this, and that was checked.** When three
+  classes fit one patch, the tempting read is that the patch is heterogeneous and
+  wants splitting. On the seven exemplars that raised it, `mixed` was **null on six**
+  — the readers saw *one* cover, not several, and said so: `sparse_scrub` "is always
+  satisfiable on the same pixels". Classes that describe the same square metre are
+  not separated by making the square metre smaller. Splitting was separately
+  measured and rejected on cost (T20/T22, 2026-08-21); this is the other reason.
 - **Definition.** NRSC 4.0 *Grass / Grazing Land*: "areas of natural grass along
   with other vegetation, predominantly grass-like plants (Monocots) and
   non-grass-like herbs… includes natural/semi-natural grass/grazing lands of …
