@@ -55,6 +55,36 @@ def load_geo(run: Path) -> dict[int, str]:
     return geo
 
 
+def load_inventory(run: Path, results: str) -> dict[tuple[int, int], dict]:
+    """(cluster, exemplar) -> no label at all, straight off the rendered exemplars.
+
+    The FIRST round in a fresh run dir has no previous verdict of any kind, and
+    `load_baseline` below derives the card inventory from exactly those. That is
+    right for a re-judge and wrong for a first read: it returns {} and the script
+    writes a cards file with zero cards, reporting `cards: 0 cells` and exiting 0
+    — a silent no-op that reads as success. Nothing caught it for four rounds
+    because every one of them re-judged a run dir that already had judgments.
+
+    So a fresh round takes its inventory from `results.jsonl`, which is what
+    gen_exemplars.py rendered and therefore what actually exists on disk. The
+    labels are None, and that is the fact: there is no baseline for a first
+    round, and `baseline.json` should say so rather than fabricate one.
+    """
+    inv: dict[tuple[int, int], dict] = {}
+    p = run / results
+    if not p.exists():
+        return inv
+    with p.open() as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            r = json.loads(line)
+            inv[(r["cluster"], r["exemplar"])] = {
+                "label": None, "confidence": None, "reasoning": "",
+                "source": f"{results} (first round — no previous label)"}
+    return inv
+
+
 def load_baseline(run: Path, initial: str, prev_glob: str) -> dict[tuple[int, int], dict]:
     """(cluster, exemplar) -> the label it carries entering this round."""
     base: dict[tuple[int, int], dict] = {}
@@ -181,6 +211,9 @@ def main() -> None:
     ap.add_argument("--baseline", default="baseline.json")
     ap.add_argument("--initial", default="judgments.json")
     ap.add_argument("--prev-verdicts", default="rejudge_batch_*.json")
+    ap.add_argument("--results", default="results.jsonl",
+                    help="rendered exemplars; the card inventory for a first "
+                         "round, when no previous verdict exists to derive it from")
     ap.add_argument("--blind", action=argparse.BooleanOptionalAction, default=True)
     ap.add_argument("--hierarchy", type=Path,
                     help="AOI land-cover.json; without it the blind check reports "
@@ -201,6 +234,23 @@ def main() -> None:
 
     geo = load_geo(run)
     base = load_baseline(run, a.initial, a.prev_verdicts)
+    first_round = not base
+    if first_round:
+        base = load_inventory(run, a.results)
+        if not base:
+            raise SystemExit(
+                f"NO INVENTORY: neither {a.initial}, nor {a.prev_verdicts}, nor "
+                f"{a.results} exists in {run}. There is nothing to card. Render "
+                f"the exemplars first (gen_exemplars.py).")
+        # Not a warning -- it changes what `--no-blind` can mean. Said out loud so
+        # a zero-baseline round cannot be mistaken for one whose baseline was read.
+        print(f"FIRST ROUND: no previous verdicts in {run.name}; inventory taken "
+              f"from {a.results} and every baseline label is null.")
+        if not a.blind:
+            raise SystemExit(
+                "--no-blind on a first round: there is no previous label to put "
+                "on the cards, so the flag would produce prev_label=null on every "
+                "exemplar and a non-blind round that is blind in fact. Drop it.")
 
     by_cell: dict[int, list[int]] = defaultdict(list)
     for (cid, ex) in base:
@@ -296,8 +346,11 @@ def main() -> None:
         (run / name).write_text(json.dumps(sub, indent=1))
         batch_out.append((name, len(sub), sum(len(c["exemplars"]) for c in sub), sorted(missing)))
     (run / a.baseline).write_text(json.dumps(
-        {"run": run.name, "blind": a.blind,
-         "note": "label per exemplar entering this round; what the round is diffed against",
+        {"run": run.name, "blind": a.blind, "first_round": first_round,
+         "note": ("first round: no label enters, every record is null and there is "
+                  "nothing to diff against"
+                  if first_round else
+                  "label per exemplar entering this round; what the round is diffed against"),
          "records": [{"cluster": c, "exemplar": e, **v} for (c, e), v in sorted(base.items())]},
         indent=1))
 

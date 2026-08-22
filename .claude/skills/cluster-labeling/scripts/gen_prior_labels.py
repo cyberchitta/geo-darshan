@@ -65,6 +65,10 @@ def main() -> None:
     ap.add_argument("--authoritative", nargs="*", default=[],
                     help="prior classes trusted enough to freeze (dotted path prefix)")
     ap.add_argument("--freeze-share", type=float, default=0.5)
+    ap.add_argument("--frozen-out", default="frozen_water.json",
+                    help="where the frozen cells are written; the name is what "
+                         "gen_round_cards.py reads, water being the only class "
+                         "any AOI pack has yet declared authoritative")
     ap.add_argument("--top", type=int, default=4)
     ap.add_argument("--nodata-share", type=float, default=0.5,
                     help="a cell whose old_dist is at least this much unmapped raw "
@@ -115,11 +119,18 @@ def main() -> None:
                 n_ring += 1
 
         for cls in args.authoritative:
-            share = sum(s for lbl, s in dist.items()
-                        if lbl == cls or lbl.startswith(cls + "."))
+            members = {lbl: s for lbl, s in dist.items()
+                       if lbl == cls or lbl.startswith(cls + ".")}
+            share = sum(members.values())
             if share >= args.freeze_share:
-                rec["freeze"] = {"label": cls, "share": round(share, 3)}
-                frozen[int(cid)] = rec["freeze"]
+                # `frozen_to` is the dominant LEAF, not the authoritative prefix:
+                # freezing means inheriting what the prior map actually says, and
+                # "water" is not a label anything downstream can write.
+                leaf = max(members.items(), key=lambda t: t[1])[0]
+                rec["freeze"] = {"label": cls, "share": round(share, 3),
+                                 "frozen_to": leaf}
+                frozen[int(cid)] = {"cluster": int(cid), "share": round(share, 3),
+                                    "px": total, "frozen_to": leaf}
                 break
         out[int(cid)] = rec
 
@@ -130,9 +141,19 @@ def main() -> None:
           f"code): {n_ring} cells, each given old_dist_ring over a "
           f"{args.ring_px}px ring")
     if args.authoritative:
-        print(f"freeze candidates (>= {args.freeze_share} of an authoritative class): {len(frozen)}")
+        # WRITE the freeze, don't just announce it. For three rounds this printed
+        # candidates and stopped: `gen_round_cards.py` skips cells listed in
+        # frozen_water.json, that file had no generator, and the one on disk was
+        # hand-made -- so a run whose operator did not know that carded the very
+        # cells the AOI pack says must never be re-judged (a dry-season tank reads
+        # as bare ground, and one duly came back `fallow`). Found 2026-08-22.
+        fdest = args.run_dir / args.frozen_out
+        fdest.write_text(json.dumps(
+            [frozen[c] for c in sorted(frozen)], indent=1))
+        print(f"freeze candidates (>= {args.freeze_share} of an authoritative class): "
+              f"{len(frozen)} -> {fdest}")
         for cid, f in sorted(frozen.items(), key=lambda t: -t[1]["share"]):
-            print(f"  c{cid}: {f['label']} {f['share']:.2f}")
+            print(f"  c{cid}: {f['frozen_to']} {f['share']:.2f}")
 
 
 if __name__ == "__main__":

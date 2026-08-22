@@ -73,10 +73,21 @@ gitignored, in no repo, and discarded with the run. The steps below show bare
    burned in, no tint, captioned with the cell's share of the frame and any
    upscale factor.
 
-   **Not optional, and not a nicety.** In the fixed 200 m crop the cell is a
-   median 5.2% of the frame and 65% of exemplars sit under 10% — so the image a
-   reader judges is ~95% not the thing being judged. Measured over the same 332
-   exemplars, this view takes the median to 20.7% and the under-10% share to 2%.
+   **Not optional, and not a nicety.** The fixed 200 m crop is mostly not the
+   thing being judged, and the patch crop is what fixes that:
+
+   | exemplar set | 200 m crop: median share, under-10% | patch crop: median share, under-10% |
+   |---|---|---|
+   | 332, over 120 cells (2026-08-21) | 5.2%, 65% | 20.7%, 2% |
+   | 488, over 172 cells (2026-08-22) | 17.6%, 38% | 23.5%, 1% |
+
+   **Re-measure per run; do not quote these.** The 200 m column moved by a factor
+   of three between two runs of the same segmentation, and **why is not
+   established** — it is not exemplars-per-cell, which was the obvious candidate
+   and is wrong: the 2026-08-21 set is already 3 per cell, and restricting it to
+   the first three changes neither figure. What the two rows do agree on is the
+   direction and the size of the fix: the patch view takes the share of exemplars
+   whose cell is a sliver of its own frame from 65% to 2%, and from 38% to 1%.
    Readers worked this out on their own before it existed: three of them spent 25
    resize, 21 crop and 6 composite calls per pass rebuilding it by hand, which
    inflated transcripts past the point where they could be resumed **and left
@@ -119,8 +130,25 @@ gitignored, in no repo, and discarded with the run. The steps below show bare
    ```
    → `RUN_DIR/prior_labels.json` — per cell, the distribution of prior-map classes
    over its pixels, plus freeze candidates for the classes the AOI pack names as
-   reliable. Feed the distribution to the readers as evidence and hold the frozen
-   cells out of judging entirely.
+   reliable — **and `RUN_DIR/frozen_water.json`, which is the freeze actually
+   taking effect**: `gen_round_cards.py` skips the cells listed there, and until
+   2026-08-22 this script only *printed* the candidates while that file had no
+   generator at all. A run whose operator did not know to hand-write it carded the
+   very cells the AOI pack says must never be re-judged. Feed the distribution to
+   the readers as evidence and hold the frozen cells out of judging entirely.
+
+2e. **Geography lines** — `geo.txt`, the per-exemplar compass sector, distance
+   from `CENTER`, and cell size that ride on every card:
+   ```
+   python .claude/skills/cluster-labeling/scripts/gen_geo.py RUN_DIR \
+     --center LON LAT --seg SEG [--mapping SEG_mapping.json]
+   ```
+   **Not optional.** `cluster-reader.md` tells the reader outright that each
+   exemplar comes with a direction and distance; without this the cards carry
+   `geo: ""` and the reader is promised an input it does not have. `--mapping` is
+   `gen_intersection.py`'s parentage JSON when the segmentation is an intersection
+   raster — it supplies the `from k88 cN` clause, which is the same ambiguity
+   `corrections.md` has to name its segmentation for.
 
 3. **Judge.** For each cluster read its exemplar crops, its context crops **and**
    its locator map, plus the AOI pack's reference example crops. Apply the AOI
@@ -175,6 +203,12 @@ gitignored, in no repo, and discarded with the run. The steps below show bare
              args: {runDir: RUN_DIR, cards: 'cards.json', blind: true,
                     batchPrefix: 'batch', batches: [[...ids...], ...]}})
    ```
+   **A first round in a fresh run dir takes its card inventory from
+   `results.jsonl`**, since there are no previous verdicts to derive it from.
+   `gen_round_cards.py` does that on its own and says `FIRST ROUND:` when it does;
+   before 2026-08-22 it returned zero cards and exited 0, a silent no-op that
+   reads as success and that four re-judge rounds never hit.
+
    **Generate the cards with the same batches first** — the workflow hands reader
    *i* `cards_bN.json`, not the whole file:
    ```
@@ -464,6 +498,12 @@ better than it found it. Two grades of learning, two speeds:
   recorded** (a ledger written before gate.py stored them cannot be checked, and
   that is not the same as clean). Run it before trusting any ledger you did not
   just write; it reports and never re-stamps.
+- `scripts/gen_geo.py` — `geo.txt`: per-exemplar compass sector + distance from the
+  AOI centre, the cell's size in cluster pixels, and its parent cell on an
+  intersection raster. Written 2026-08-22 because nothing in this skill wrote the
+  file the cards read and the reader was promised — the one on disk had been cut
+  by the deleted `vlm_label_prototype.py`. Calibrated against that file: it
+  reproduces its lines byte-for-byte.
 - `scripts/gen_locator.py` — per-cluster locator maps.
 - `scripts/gen_overview.py` — whole-area basemap overview + label choropleth (macro-QA).
 - `scripts/gen_context.py` — mid-scale context crop per exemplar (same centre, wider
