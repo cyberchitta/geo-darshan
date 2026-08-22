@@ -148,13 +148,16 @@ For cluster id N (filenames zero-pad to 3 digits, e.g. `c007`):
   is a real verdict and a low confidence is a real answer.
 - **Then place it.** `crops/cNNN_eN.jpg` is a fixed 200 m window with the patch
   marked — use it for *where the cell sits in the landscape*, not for what it is.
-  In that frame the cell is a median **5.2%** of the image (65% of exemplars are
-  under 10%), so a call made from it is mostly a call about everything except the
-  cell.
-- `crops/cNNN_eN_raw.jpg` — untinted and sharper, but carrying **no boundary at
-  all**, so it cannot tell you which pixels are the cell's. Use it only to check
-  texture inside a boundary you have already fixed from the patch view; never to
-  choose a label on its own.
+  In that frame the cell is a median **17.6%** of the image and **38%** of
+  exemplars are under 10% of it (measured over the current run's 488 exemplars,
+  2026-08-22), so a call made from it is largely a call about everything except
+  the cell. Both figures are re-measured per run and have moved by a factor of
+  three between runs; treat them as the scale of the problem, not as constants.
+- **There is no separate untinted close view, and you are not missing one.** The
+  patch crop above is the untinted full-resolution view — that is what it is for.
+  A `_raw.jpg` existed in a retired run, produced by a per-run script that is not
+  part of this pipeline; it carried no boundary at all, so it could not say which
+  pixels were the cell's, and the patch crop replaced it by carrying both.
 - **If `_patch.jpg` is missing for an exemplar, say so in your notes and judge
   from the marked 200 m crop**, at reduced confidence. Do not build a better view
   yourself — an image only you have seen makes your verdict incomparable with
