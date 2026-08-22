@@ -286,7 +286,9 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
   keep on the first pass, when nothing exists to cross-tab against. After that, a reader
   citing a sector while `old_map` sits on the card has reached past the signal for its own
   lossy summary — and they will, unless the AOI pack says outright which one outranks.
-  A nodata cell falls back to the prior map's *neighbours*, not to the sector.
+  A nodata cell falls back to the prior map's *neighbours*, not to the sector —
+  `gen_prior_labels.py` supplies that as `old_dist_ring` and the card carries it
+  as `old_map_ring`, for those cells only.
 - **Light tint only.** A heavy patch fill flattens canopy/crown texture and
   causes misreads (it turned a coconut grove into "scrub"). Renderer default is
   12% yellow + magenta outline. Upscale small (~170 px) crops ~4× before reading.

@@ -222,6 +222,21 @@ def main() -> None:
             "exemplars": exemplars,
             "old_map": prior.get(str(cid), {}).get("old_dist", {}),
         }
+        # A cell whose own cross-tab is mostly unmapped code has no positional
+        # evidence, and the reader is told to fall back to the prior map's
+        # neighbours. Carry that fallback: without it the instruction named an
+        # input the card did not supply. Present ONLY for those cells -- the
+        # surroundings must not become a default where the cell speaks for itself.
+        pr_rec = prior.get(str(cid), {})
+        if "old_dist_ring" in pr_rec:
+            card["old_map_ring"] = pr_rec["old_dist_ring"]
+            card["old_map_note"] = (
+                f"this cell's own prior-map cross-tab is {pr_rec['own_dist_uninformative']:.0%} "
+                f"unmapped code, i.e. no positional evidence for the cell itself; "
+                f"old_map_ring is the prior map in a ring around it "
+                f"({pr_rec['ring_px']} px). Weigh it below what you can see in the "
+                f"crops, and do not treat it as this cell's label.")
+
         if not a.blind:
             v = c2l.get(str(cid), {})
             card |= {"current_vote": v.get("label"), "agreement": v.get("agreement"),

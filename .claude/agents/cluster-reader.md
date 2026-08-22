@@ -146,7 +146,13 @@ Use it at three levels of authority, and do not confuse them:
      past the signal for its own summary.
    - A near-empty or nodata distribution means there is **no positional evidence
      for that cell**, not a licence to fall back on the sector. Judge the crops,
-     or fall back to the prior map's *neighbours*.
+     or use **`old_map_ring`** — the prior map's distribution in a ring around the
+     cell, which your card carries whenever the cell's own cross-tab is mostly
+     unmapped code (`old_map_note` says so, and by how much). It is one rank
+     weaker again than `old_map`: it describes the neighbourhood, not the cell,
+     so it can suggest what is plausible here and can never be the label on its
+     own. If the card has no `old_map_ring`, the cell has an `old_map` worth
+     reading — use that.
 3. **Split signal** — a cell straddling two prior classes (say 30% water, 70%
    plantation) is impure along a real boundary such as a shoreline. Say so in your
    reasoning; it is a carve-out candidate, not a single label.

@@ -167,7 +167,9 @@ at conf 0.45, on a cell whose `old_map` was 99.8% casuarina).
 
 Nor are they the fallback for a nodata cell (c185 is 99.6% nodata). The old map is
 spatially continuous, so what surrounds a nodata cell's pixels says more than the
-sector does. Read the neighbours, not the compass.
+sector does. Read the neighbours, not the compass — and the neighbours are now an
+input rather than an instruction: cards for such cells carry `old_map_ring`.
+On k88xk22 that is 13 of 191 cells, six of them over 98% unmapped.
 
 Kept below for provenance — how the classes came to be drawn, and what to expect
 when auditing the old map's own geography:
