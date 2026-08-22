@@ -127,8 +127,14 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
    `a20a78f` and cannot be regenerated; the round brief in `RUN_DIR` is what
    readers read.)*
 
-3a. **Pick the harness — and know what the choice forecloses.** Two paths, and
-   the difference is not cosmetic:
+3a. **Pick the harness — and know what the choice forecloses.**
+   **`Workflow` is the default path (ruled 2026-08-22).** `Agent` is for the
+   occasional debrief round, when the process itself is what is under test — not
+   for ordinary labeling throughput. Do not re-litigate this per round; the cost
+   of the choice is the debrief, and a debrief is worth a round of its own rather
+   than a tax on every round.
+
+   Two paths, and the difference is not cosmetic:
 
    | | `Workflow` + `scripts/round_workflow.js` | `Agent` + `SendMessage` |
    |---|---|---|
