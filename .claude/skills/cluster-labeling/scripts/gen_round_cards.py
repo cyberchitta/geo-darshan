@@ -84,6 +84,24 @@ def read_json(p: Path, default):
 LABEL_BEARING = {"prev_label", "prev_conf", "prev_reasoning", "current_vote",
                  "cover", "label", "alternative", "voted_label"}
 
+# What a neighbour record may still say to a BLIND reader: which neighbour, how
+# much boundary they share, and the pair crop. Everything else in those records is
+# a previous pass's *judgement* -- its label, the neighbour's label, either
+# confidence, whether a past round called them the same cover, and a note that
+# argues the call. A blind reader that sees any of it is no longer forming an
+# independent verdict, which is the whole point of the pass.
+#
+# Detecting this was not enough (2026-08-22): the leak was caught and the cards
+# were written anyway, so every blind run aborted with the bad file already on
+# disk. Redact at build time, then re-check, then write.
+BLIND_SAFE_NBR_FLAG = {"cluster", "nbr", "share"}
+BLIND_SAFE_NBR_VERDICT = {"cluster", "nbr", "img"}
+
+
+def redact_nbr(rec: dict, keep: set) -> dict:
+    """A neighbour record with every judgement removed."""
+    return {k: v for k, v in rec.items() if k in keep}
+
 
 def _class_names(hierarchy: Path) -> set:
     """Every dotted path and leaf name in the AOI hierarchy."""
@@ -242,10 +260,22 @@ def main() -> None:
             card |= {"current_vote": v.get("label"), "agreement": v.get("agreement"),
                      "conf": v.get("confidence")}
         if cid in nbr_flags:
-            card["nbr_flag"] = nbr_flags[cid]
+            f = nbr_flags[cid]
+            card["nbr_flag"] = (redact_nbr(f, BLIND_SAFE_NBR_FLAG) if a.blind else f)
         if cid in nbr_verd:
-            card["nbr_pair_verdict"] = nbr_verd[cid]
+            card["nbr_pair_verdict"] = [
+                redact_nbr(r, BLIND_SAFE_NBR_VERDICT) if a.blind else r
+                for r in nbr_verd[cid]]
         cards.append(card)
+
+    # Check, THEN write. The reverse order shipped a leaked cards.json and relied
+    # on the exit code to stop anyone using it -- which works only for a caller
+    # that reads exit codes, and leaves the bad file on disk regardless.
+    leaked = blind_leak(cards, a.hierarchy, a.blind)
+    if a.blind and leaked:
+        raise SystemExit("BLIND VIOLATED: a previous verdict reached the cards "
+                         "and they were NOT written. Redaction missed a field -- "
+                         "add it to BLIND_SAFE_* or LABEL_BEARING above.")
 
     (run / a.out).write_text(json.dumps(cards, indent=1))
 
@@ -275,7 +305,6 @@ def main() -> None:
     for v in base.values():
         src[v["source"]] += 1
     n_ex = sum(len(c["exemplars"]) for c in cards)
-    leaked = blind_leak(cards, a.hierarchy, a.blind)
     print(f"blind={a.blind}")
     print(f"cards:    {len(cards)} cells, {n_ex} exemplars -> {a.out}")
     print(f"baseline: {len(base)} exemplar labels -> {a.baseline}")
@@ -287,9 +316,8 @@ def main() -> None:
         # for not covering it.
         warn = f"  MISSING (frozen or absent): {missing}" if missing else ""
         print(f"batch:    {n_cells} cells, {n_exs} exemplars -> {name}{warn}")
-    print(f"prev_label present on cards: {'YES -- NOT BLIND' if leaked else 'no'}")
-    if a.blind and leaked:
-        raise SystemExit("BLIND VIOLATED: prev_label leaked onto the cards")
+    print(f"previous verdict present on cards: "
+          f"{'YES -- NOT BLIND' if leaked else 'no'}")
 
 
 if __name__ == "__main__":
