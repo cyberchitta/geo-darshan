@@ -190,6 +190,12 @@ say in prose what the contract should have stated:**
   cell), and not a share of the whole cluster (which this exemplar only samples).
   A cell that is 70% orchard and 30% scrub gives `dominant_share: 0.7`.
 
+**`mixed` is binding on the forest-blank convention — ruled 2026-08-22.** For a
+cell that would take a forest class *only* via the forest-blank rule, `parts[0]`
+decides: if the non-forest part leads, the label is the non-forest part. This is
+the one place the channel overrides a convention. Everywhere else `mixed` stays
+descriptive, and a label that disagrees with it is not thereby wrong.
+
 **`level` and abstention.** `level` records the depth of a label you *committed*
 to, so a record with `label: "uncertain"` takes `level: null`. Do not put
 `interior` there as the least-wrong option: it makes an abstention indistinguishable

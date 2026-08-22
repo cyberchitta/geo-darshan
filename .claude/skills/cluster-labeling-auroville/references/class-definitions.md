@@ -95,6 +95,12 @@ scrub, tree_lines, or trees riding along on another cover.
   from Copernicus Small Woody Features: **≤ 30 m wide, ≥ 30 m long**.
 - **Diagnostic.** A continuous woody ribbon tracking a road, tank margin, canal
   or field bund. ~50 px wide in the imagery; ~3 cells on the cluster grid.
+- **Contiguity with a block — ruled 2026-08-22.** A ribbon touching or grading
+  into a forest block is still `tree_lines` **unless it matches the block** — same
+  age class *and* same species character. A distinct planting running along a
+  block's edge stays a line; a ribbon that is merely the block's own margin is part
+  of the block. Where age and species cannot be told apart at this resolution, say
+  so and cap confidence — do not default either way.
 - **Requires.** Linearity *and* a linear host feature to follow — road, canal,
   tank margin, or **field/tank bund**. Woody, not grass. **Judge the width of the
   woody ribbon, not of the landform it follows:** a tank foreshore or a hollow may
@@ -232,7 +238,14 @@ crest -> `forest.tree_lines`. Bare compacted crest ->
 ### `agriculture.field_crops.rice_paddies`
 - **Diagnostic.** Small level parcels with water-retaining bunds, often a wet or
   mirror-like surface; strong rectangular tessellation; near tanks/canals.
-- **Requires.** Bunded level parcels. Wetness is confirmatory, not required.
+- **Requires — ruled 2026-08-22.** Bunded level parcels **and** evidence of
+  current or recent rice use: standing water, a mirror surface, a green or stubble
+  crop, puddled soil. *(The previous line — "wetness is confirmatory, not
+  required" — is **withdrawn**. It let a dry bunded parcel satisfy this class and
+  `fallow` in full at once, with nothing in either entry to break the tie.)*
+- **A dry bunded parcel with no crop is `fallow`,** not this. Its bunds are
+  cultivation evidence lying inside the outline, so the parcel's form *supports*
+  the fallow call rather than competing with it.
 
 ### `agriculture.field_crops.dryland_crops`
 - **Definition.** Rainfed groundnut, millets (NRSC kharif/rabi cropland).
@@ -296,8 +309,25 @@ see. The definitions say what the class *is*, not that you may assign it.
   cultivation** but temporarily rested, **un-cropped for one or more season but
   not less than one year**.
 - **Requires — BOTH:** (1) positive evidence of *cultivation* — field geometry,
-  bunds, plough lines, straight boundaries shared with active parcels; and
-  (2) absence of standing crop. Cultivation evidence is not optional.
+  bunds, plough lines, or a straight boundary the outline itself **shares** with
+  an active parcel; and (2) absence of standing crop. Cultivation evidence is not
+  optional.
+- **Where that evidence must lie — ruled 2026-08-22.** Inside the outline, or on
+  its edge. A boundary the cell *shares* with a worked parcel counts: the cell's
+  own edge is then cultivated geometry. A worked parcel merely *near* the cell,
+  sharing no boundary with it, does **not** — that is the neighbour's history, not
+  this cell's. Cultivation visible only by looking outside the outline never makes
+  the cell fallow.
+- **Fallow is a cropland state — NRSC 2.3, ruled 2026-08-22.** "An agricultural
+  system with an alternation between a **cropping** period of several years and a
+  fallow period… lands taken up for cultivation but temporarily allowed to rest,
+  un-cropped for one or more season, but not less than one year." A **tree crop**
+  between harvests, or left unmanaged, is **not fallow**: NRSC 2.2 *Plantations*
+  covers "horticultural plantation (like coconut, arecanut, citrus fruits,
+  **orchards**, fruits…)" and is fallow's *sibling*, not its parent. A rested
+  cashew or casuarina block stays with its orchard class while the trees stand;
+  once they are gone the ground is grass, scrub or barren **by cover** — never
+  fallow. (This is the rule behind the first three "Not this" entries below.)
 - **Not this — the standing systematic failure.** Fallow became the default for
   any smooth green or tan patch with nothing obviously growing, inheriting the
   role `grazing_land` and then `maintained_grass` played before it. Before
@@ -320,6 +350,28 @@ medium 50–79%, high ≥80%). **Footprint size is never a criterion.** NRSC's o
 50K classes — *Built-up Compact*, *Built-up Sparse*, *Built-up Vegetated/Open* —
 map onto our three almost exactly, which is good external validation of the split.
 
+**How the subtypes are ordered — ruled 2026-08-22.** By artificial fraction,
+always. The matrix names the subtype *within* the 20–50% band and nowhere else.
+
+| artificial fraction | class |
+|---|---|
+| ≥ ~50% | `dense_built` — matrix irrelevant, closed canopy included |
+| ~20–50%, matrix canopy | `forest_built` |
+| ~20–50%, matrix open ground | `sparse_built` |
+| below ~20%, and not enclosed (below) | not a built class — label the matrix cover |
+
+A closed canopy matrix does **not** hold a cell in `forest_built` once the
+artificial fraction reaches ~50%. NRSC and CORINE both order on sealed fraction.
+
+**When the family applies at all — ruled 2026-08-22.** NRSC 1.0 Built-up is a
+**land-use** class ("lands used for human settlement"), and its Level-3 *Built up
+– Vegetated / **Open** area* covers the open and vegetated ground inside a
+settlement. A cell lying **wholly inside a settlement's footprint** therefore
+belongs here whatever its own artificial fraction: a service yard, forecourt or
+common opening is settlement land, not degraded land. The fraction table orders
+the **subtype once the family applies**; the ~20% floor governs cells at the
+settlement's edge or outside it, never enclosed ones.
+
 FAO LCCS explains why the three-way felt arbitrary before: LCCS composes classes
 from **independent classifiers**, so *built density* and *matrix life-form* are
 two orthogonal axes that our flat list collapses. Apply them in order.
@@ -337,8 +389,14 @@ two orthogonal axes that our flat list collapses. Apply them in order.
 - **Requires.** Artificial fraction ~20–50%, and the matrix is **canopy** — roofs
   peeking through trees. NRSC *Built-up Vegetated/Open*. The default Auroville
   community-in-greenbelt pattern.
-- **Note.** Below ~20% artificial it is not a built class at all: label the matrix
-  cover and let the buildings ride along.
+- **Note — floor kept, ruled 2026-08-22.** Below ~20% artificial, **and not
+  enclosed by a settlement** (see the family preamble), it is not a built class at
+  all: label the matrix cover and let the buildings ride along. In the Tamil
+  homestead pattern that matrix is usually homestead trees, so the cell is
+  `forest.scattered_trees` — whose FSI definition names homesteads explicitly —
+  not a built class made thin. Where the cell is too small to estimate a fraction,
+  use `no_class_fits` and say so rather than guessing which side of the floor it
+  falls.
 
 ### ~~`built_environment.infrastructure`~~ — RETIRED
 Structural duplicate of the top-level `infrastructure.*` family. **Removed from
@@ -378,32 +436,49 @@ Wastelands Atlas family. NRSC 5.0: degraded land, currently underutilised,
 deteriorating for lack of soil/water management or natural causes.
 
 ### `degraded_barren.bare_ground`
-- **Definition.** NRSC Level II *Barren rocky*; Wastelands Atlas *barren rocky /
-  stony waste / sheet rock*. Flat, smooth, compacted bare laterite.
-- **Requires.** A bare mineral surface with **none** of the three sibling
-  triggers: no visible channel dissection (→ `eroded_land`), no extraction scars
-  or stockpiles (→ `quarries`), no foundations, trenches or machinery
-  (→ `construction_sites`).
+- **Definition.** NRSC 5.5 *Barren Rocky / Stony Waste*: "rock exposures of
+  varying lithology often barren and **devoid of soil and vegetation cover**."
+- **Requires — corrected 2026-08-22.** A bare mineral surface with **none** of the
+  three sibling triggers: no visible channel dissection (→ `eroded_land`), no
+  extraction scars or stockpiles (→ `quarries`), no foundations, trenches or
+  machinery (→ `construction_sites`).
+- **Bare *soil* is not this class.** The previous wording — "flat, smooth,
+  compacted bare laterite" — had widened this past its own citation into bare
+  soil, which is why it kept surfacing as the plausible alternative on vegetated
+  cells. Thin soil with sparse or absent scrub is Wastelands *open scrub*
+  (`sparse_scrub`); ground held by grass or herbs is `grassland.grazing_land`.
+  Reserve this leaf for rock: laterite duricrust, sheet rock, stony waste.
+- **Absorbs `compacted_corridor` (merged 2026-08-22).** Trafficked and graded bare
+  surfaces come here when they are genuinely bare mineral ground — but see the
+  next line first.
+- **Not this:** trodden bare ground **inside a settlement** → `built_environment`
+  (see its containment rule). NRSC 5.0 Wastelands means degraded or underutilised
+  land, and an actively used yard or forecourt is neither.
 - **Diagnostic.** Orange-red laterite, undissected micro-relief, no branching
-  gully shadows. This is the honest leaf for a bare `degraded_barren` cell that is
-  neither gullied nor trafficked.
+  gully shadows.
 - **Not this:** bare *because graded or trafficked* → `compacted_corridor`.
 
-### `degraded_barren.compacted_corridor`
-- **Definition.** Anthropogenic bare surfaces — track corridors, graded
-  embankments, cleared service strips. Bare through **traffic and grading**, not
-  through erosion: degraded in appearance, but not degraded *land*.
-- **Requires.** A corridor form (elongate, following a track, edge or alignment)
-  **and** a compacted or graded surface texture.
-- **Not this:** a made carriageway → `infrastructure.roads` (at 10 m these are
-  *surfaces*, not roads); natural bare laterite with no corridor form →
-  `bare_ground`.
-- **⚠ On probation.** Separability from `bare_ground` is **predicted, not
-  demonstrated** — both are bare red laterite and the difference is *cause*, not
-  colour, which may not survive into the embedding. Evidence at adoption: 9
-  exemplars across 8 clusters, none holding both types — consistent with
-  separation, far short of showing it. If these cells scatter into `bare_ground`
-  instead of clustering, that is the answer and the node should merge back.
+### ~~`degraded_barren.compacted_corridor`~~ — MERGED INTO `bare_ground`
+**Merged 2026-08-22 on the maintainer's ruling. Never emit; use `bare_ground`, or
+`built_environment` where the bare ground is inside a settlement.**
+
+It was adopted on probation with its own retirement condition written in: *"If
+these cells scatter into `bare_ground` instead of clustering, that is the answer
+and the node should merge back."* **That condition is met, three ways:**
+
+1. **It never won a cell.** 0 cluster votes out of 125, against 13 exemplar reads
+   across 8 clusters — read often, never decisive. (`infrastructure.roads`, for
+   scale, carries 1.)
+2. **The demonstration was attempted and failed** (D2 readers, 2026-08-22). On
+   c149e0 and c149e2 the only usable discriminator was corridor *geometry*, while
+   the entry required geometry **and** a compacted surface texture. Cause is not
+   observable from imagery — exactly as the probation note predicted.
+3. **Its remaining slot was near-empty anyway.** A lane is sub-cell at 10 m and a
+   made carriageway goes to `infrastructure.roads`, so the class could only ever
+   describe a corridor wide enough to fill a cell yet not an engineered road.
+
+Tombstone kept so the deletion is not mistaken for the finding going missing, and
+so the 13 existing reads stay resolvable.
 
 ### `degraded_barren.eroded_land`
 - **Definition.** Wastelands Atlas *Gullied / Ravinous Land* — terrain deformation
@@ -444,6 +519,12 @@ eroded or subjected to excessive aridity with scrubs dominating". **Scrub Forest
 per NRSC, part of the **forest**, not fallow and not barren. That is the answer
 for a "bare clearing amid canopy" that no other label fits.
 
+**But the convention has a ceiling — ruled 2026-08-22.** It holds only while the
+forest is still the *dominant* part of the outline. If you report `mixed` and the
+opening leads — `parts[0]` is the opening, so `dominant_share` is its share and
+not the canopy's — **the label follows the opening**. A cell that is more clearing
+than canopy is not a forest blank; it is a clearing with trees at its edge.
+
 ### `scrubland.dense_scrub`
 - **Diagnostic.** Continuous shrub cover, crowns merging, no tree-height canopy,
   no planting geometry.
@@ -470,10 +551,26 @@ NRSC 4.0: natural or semi-natural grass and grass-like herbs, **including manmad
 grasslands**.
 
 ### `grassland.grazing_land`
-- **RETIRED FOR THIS AOI — never emit.** Auroville has no land used exclusively
-  for grazing; herds move over public and common land, so grazing is not a cover
-  class here. It was the *first* smooth-green catch-all; its retirement is what
-  pushed the default onto `maintained_grass` and then `fallow`.
+- **ASSIGNABLE — restored 2026-08-22 on the maintainer's ruling.** It had been
+  retired as a *land-use* class ("Auroville has no land used exclusively for
+  grazing"); NRSC 4.0 is a **cover** class that merely carries "grazing" in its
+  name. Retiring it left semi-natural grass with nowhere to go, and the gap was
+  being absorbed by `fallow`, `sparse_scrub` and `bare_ground` in turn.
+- **Definition.** NRSC 4.0 *Grass / Grazing Land*: "areas of natural grass along
+  with other vegetation, predominantly grass-like plants (Monocots) and
+  non-grass-like herbs… includes natural/semi-natural grass/grazing lands of …
+  tropical zones, desertic areas and **manmade grasslands**."
+- **The AOI's NRSC leaf is Tropical.** NRSC splits grassland *climatically* —
+  Alpine/Sub-Alpine, Temperate/Sub Tropical, Tropical/Desertic — and nowhere by
+  use or management. Do not invent a split below it.
+- **Requires.** Herbaceous cover — grass or non-grass herbs — holding the outline,
+  with woody clumps present but **not dominating**. Once scrub dominates the
+  landscape it is `scrubland.*` (NRSC 5.3).
+- **Not this:** **Lantana** — NRSC classifies it explicitly as scrub, not grass.
+- **The catch-all warning stands.** This was the *first* smooth-green catch-all
+  and its restoration does not make it a default. Cultivation geometry inside the
+  outline → `fallow`. Scrub dominating → `scrubland`. Rock exposure →
+  `bare_ground`. Grass or herb cover, and nothing else, → here.
 
 ### `grassland.maintained_grass`
 - **Definition.** Managed/mown grass — gardens, lawns, campus grounds.
@@ -482,6 +579,9 @@ grasslands**.
 - **Not this:** away from the centre, a smooth light-green patch is far more likely
   young `planted_forest`, harvested `casuarina`, or `fallow`. Decide by matrix and
   context, never by "it's green and smooth".
+- *Below NRSC's leaf: ours.* NRSC 4.0 already includes manmade grasslands, so this
+  is a management split we make **inside** the standard's class rather than a class
+  of its own — the same convention as the species split under `plantations`.
 
 ---
 

@@ -102,7 +102,9 @@
       "_description": "Flat, smooth, undissected bare laterite - no channel dissection, no extraction, no construction activity. NRSC Level II 'Barren rocky'; NRSC wasteland stratum 'barren rocky / stony waste / sheet rock'."
     },
     "compacted_corridor": {
-      "_description": "Anthropogenic bare surfaces - track corridors, graded embankments, cleared service strips. Bare through traffic and grading rather than erosion; a surface, not a made road."
+      "_description": "Anthropogenic bare surfaces - track corridors, graded embankments, cleared service strips. Bare through traffic and grading rather than erosion; a surface, not a made road.",
+      "_status": "not-assignable",
+      "_why": "Merged into bare_ground 2026-08-22 on the maintainer's ruling. 0 cluster votes out of 125 despite 13 exemplar reads; the probation note's own retirement condition was met. Node kept so existing reads stay resolvable."
     },
     "eroded_land": {
       "_description": "Severely eroded areas"
@@ -130,10 +132,7 @@
   },
   "grassland": {
     "grazing_land": {
-      "_description": "Livestock grazing areas",
-      "_status": "not-assignable",
-      "_why": "Retired earlier as a catch-all that absorbed any smooth open ground. Previously 'retired' in prose only while remaining pickable here - two verdicts still carry it.",
-      "_unlock": "Positive grazing evidence (stock, tracks, enclosure) distinguishable from mown or fallow ground"
+      "_description": "NRSC 4.0 Grass/Grazing - natural and semi-natural grass and herb cover, including manmade grasslands"
     },
     "maintained_grass": {
       "_description": "Managed grassland"

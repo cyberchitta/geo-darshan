@@ -147,8 +147,12 @@ These are the local facts the standards can't carry:
   canopy sits in a forest matrix and isn't a clear orchard grid, lean here.
 - **Mango exists but was under-labelled in the old map** — actively hunt it at
   finer k (large dense rounded dark crowns, wide regular spacing).
-- **Large roofs in a green matrix are still `forest_built`**, not `dense_built` —
-  built subtypes go by artificial *fraction*, never building size (k88xk22 c2).
+- **Building size never decides a built subtype — artificial *fraction* does**
+  (k88xk22 c2). Large roofs in a green matrix are `forest_built` only while the
+  artificial fraction stays under ~50%; at or above it the cell is `dense_built`
+  however closed the canopy. *(Ruled 2026-08-22. The earlier form of this note
+  asserted the matrix while citing the fraction, and was quoted as settled
+  guidance on the very cell it decided wrongly.)*
 
 
 ## Geography priors (direction from Matrimandir) — PROVENANCE, not an input
