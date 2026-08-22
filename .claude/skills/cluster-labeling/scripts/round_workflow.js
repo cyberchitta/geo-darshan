@@ -39,6 +39,14 @@ const cardsFor = i => CARDS_PER_BATCH
   : CARDS
 const BRIEF = A.brief
 const PREFIX = A.batchPrefix || 'batch'
+// Verdict files are `${PREFIX}_${i}.json`; the Verify phase later writes
+// `${PREFIX}_verify_${i}.json` BESIDE them. A `${PREFIX}_*.json` glob matches both,
+// so the contract gate would grade verify records -- which carry none of the verdict
+// fields -- against the verdict contract. On the d3 run it passed only because the
+// gate ran at 16:06 and Verify wrote at 16:13; re-running the same documented command
+// afterwards reports RECORDS: FAILED over 96 records instead of 48. Ordering luck is
+// not a guard. `_[0-9]*` keeps batch indices (including >=10) and excludes `_verify_`.
+const VERDICT_GLOB = `${PREFIX}_[0-9]*.json`
 const batches = A.batches
 const HIERARCHY = A.hierarchy
 const SELF = '.claude/skills/cluster-labeling/scripts/round_workflow.js'
@@ -88,7 +96,7 @@ const VERIFY = {
 }
 
 phase('Read')
-log(`reading ${batches.flat().length} cards across ${batches.length} readers -> ${PREFIX}_*.json`)
+log(`reading ${batches.flat().length} cards across ${batches.length} readers -> ${VERDICT_GLOB}`)
 
 const read = await parallel(batches.map((ids, i) => () =>
   agent(
@@ -144,7 +152,7 @@ Do not fix anything, do not edit any file — this is a measurement.
 From the repo root (/Users/cyberchitta/GitHub/geo-darshan):
 
     uv run --no-project python .claude/skills/cluster-labeling/scripts/check_verdict_contract.py \\
-      ${RUN} --verdicts '${PREFIX}_*.json' --sources ${SELF} ${RUN}/${BRIEF} \\
+      ${RUN} --verdicts '${VERDICT_GLOB}' --sources ${SELF} ${RUN}/${BRIEF} \\
       --hierarchy ${HIERARCHY} --strict
 
 Set \`passed\` true only if it exits 0.
@@ -188,7 +196,7 @@ const verified = await parallel(batches.map((ids, i) => () =>
 Run dir: \`${RUN}\` (repo root /Users/cyberchitta/GitHub/geo-darshan).
 Round brief: \`${RUN}/${BRIEF}\`.
 
-Read \`${RUN}/${PREFIX}_*.json\` and filter to clusters ${ids.join(', ')}.
+Read \`${RUN}/${VERDICT_GLOB}\` and filter to clusters ${ids.join(', ')}.
 Check **every** verdict for those clusters, not only ones that look surprising.
 
 For each, read the exemplar's crops yourself (\`crops/cNNN_eN*\`, cluster
