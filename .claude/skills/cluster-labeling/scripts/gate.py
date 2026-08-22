@@ -162,8 +162,14 @@ def load_verify(paths):
 
 
 def defs_version(paths):
+    # Sort as strings, never as Paths. gate.py passes Path objects (--defs is
+    # type=Path) while check_defs_drift.py passes the strings it read back out of
+    # the ledger, and the two orders differ: Path sorts component-wise, so
+    # `cluster-labeling/` lands after `cluster-labeling-auroville/`, while a byte
+    # sort puts it before ('-' < '/'). Same files, different order, different
+    # hash -- the guard called a ledger DRIFTED seconds after the gate stamped it.
     h = hashlib.sha256()
-    for p in sorted(paths):
+    for p in sorted(paths, key=str):
         h.update(Path(p).read_bytes())
     return h.hexdigest()[:12]
 
