@@ -24,7 +24,7 @@ one.
 | `cluster` | yes | key | integer cluster id |
 | `exemplar` | yes | key | integer exemplar index within the cluster |
 | `label` | yes | verdict | dotted class path, or `uncertain` |
-| `level` | yes | verdict | `leaf` or `interior` — which depth you committed to |
+| `level` | yes | verdict | `leaf` or `interior` — which depth you committed to. **`null` when `label` is `uncertain`**, because nothing was committed |
 | `confidence` | yes | verdict | 0–1 |
 | `alternative` | yes | verdict | second-best dotted path, or null |
 | `reasoning` | yes | verdict | one sentence on the **visual evidence** |
@@ -32,7 +32,7 @@ one.
 | `change_reason` | yes | round | when `changed`, the definition or correction that drove it; `""` otherwise |
 | `represents_cluster` | yes | verdict | `typical`, `atypical`, or `unsure` — is this fragment like the rest of its cluster, judged from the locator and context crops? |
 | `no_class_fits` | yes | **channel** | null, or `{describes, nearest, why_it_fails}` |
-| `mixed` | yes | **channel** | null, or `{describes, parts[], dominant_share}` |
+| `mixed` | yes | **channel** | null, or `{describes, parts[], dominant_share}` — see below for what `dominant_share` is a share *of* |
 
 ## The flips summary — a different object, also enumerated here
 
@@ -179,6 +179,22 @@ and they are not substitutes for each other or for `uncertain`.
 Guard against over-firing (c): flag it only when the parts share **no sensible
 common ancestor**. Cashew beside coconut is an orchard. Orchard beside scrub is a
 mixed cell.
+
+**`mixed` in detail — both fields below were ambiguous enough that readers had to
+say in prose what the contract should have stated:**
+
+- `parts` — the classes present, **ordered largest first**. That ordering is what
+  makes the next field mean anything.
+- `dominant_share` — the share of **the marked cell in this exemplar's patch view**
+  held by `parts[0]`. Not a share of the image frame (most of which is not the
+  cell), and not a share of the whole cluster (which this exemplar only samples).
+  A cell that is 70% orchard and 30% scrub gives `dominant_share: 0.7`.
+
+**`level` and abstention.** `level` records the depth of a label you *committed*
+to, so a record with `label: "uncertain"` takes `level: null`. Do not put
+`interior` there as the least-wrong option: it makes an abstention indistinguishable
+from a deliberate interior-level call, and every tally of interior-level verdicts
+then silently counts abstentions among them.
 
 ## For a round brief
 

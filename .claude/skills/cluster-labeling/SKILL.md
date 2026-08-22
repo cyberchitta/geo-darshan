@@ -214,8 +214,14 @@ come from the AOI pack. Pick a `RUN_DIR` per round (e.g. `…/vlm_label_k88/`).
    neighbor is wrong at that spot as the small cell — the verdict names which.
 
 6. **Corrections loop.** Keep an append-only `RUN_DIR/corrections.md` (one section
-   per cluster, geo direction in the header, `- fb:` lines). Record user feedback,
-   revise `judgments.json`, re-run steps 4–5. Route durable learnings to the right
+   per cluster, geo direction in the header, `- fb:` lines). **State at the top
+   which segmentation's ids the file uses, and repeat it on every section header.**
+   A run at `kA x kB` shares an id range with its parent raster — a child cell
+   keeps its parent's id where it is that parent's largest remainder — so a bare
+   `c34` is ambiguous by number and resolvable only from content. Two readers hit
+   this and resolved it by inference; a wrong resolution applies another cell's
+   ground truth silently, and nothing downstream can detect it. Record user
+   feedback, revise `judgments.json`, re-run steps 4–5. Route durable learnings to the right
    sink: AOI-specific (signature/geography/reference/label policy) → the AOI pack;
    methodology that would hold for any AOI → this skill (see Self-improvement).
 

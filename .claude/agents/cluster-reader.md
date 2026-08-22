@@ -24,7 +24,10 @@ anything, read, in this order:
    example crops table. **Read the reference crops it lists** to calibrate your
    eye before your first verdict.
 3. The run dir's **`corrections.md`** if present — the expert's own feedback.
-   Every `- fb:` line is **ground truth** and outranks your own read.
+   Every `- fb:` line is **ground truth** and outranks your own read. Its header
+   states which segmentation's ids it uses; ids can be ambiguous by number between
+   a run and its parent raster. **If that statement is missing, say so and do not
+   guess** — applying one cell's ground truth to another is invisible once done.
 4. The run dir's **`overview_basemap.jpg`** — once, for regional layout and how
    cover types are arranged across the area.
 5. The **verdict record contract** —
