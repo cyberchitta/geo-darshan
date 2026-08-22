@@ -1,7 +1,7 @@
 # The reader debrief — single source of truth
 
 **This file is the only place the debrief's fields and its question template are
-written.** A miner, an orchestrator, or a round brief **points here and does not
+written.** A miner or an orchestrator **points here and does not
 restate them** — the same rule, and the same reason, as `verdict-record.md`.
 `check_verdict_contract.py --contract` validates against this file:
 

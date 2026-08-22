@@ -1,8 +1,8 @@
 # The verdict record — single source of truth
 
 **This table is the only place the fields of a verdict record are enumerated.**
-Everything else — the round brief, a workflow's task prompt, a miner, the gate —
-**points here and does not restate it.** `check_verdict_contract.py` enforces
+Everything else — a workflow's task prompt, a miner, the gate, the reader's own
+agent definition — **points here and does not restate it.** `check_verdict_contract.py` enforces
 that: it parses this table and fails if a written record is missing a field, and
 warns if any consumer re-enumerates a list of its own.
 
@@ -202,8 +202,14 @@ to, so a record with `label: "uncertain"` takes `level: null`. Do not put
 from a deliberate interior-level call, and every tally of interior-level verdicts
 then silently counts abstentions among them.
 
-## For a round brief
+## For what is particular to a round
 
-A round brief adds what is **particular to the round** — why the pass exists, what
-new evidence is available, which cards. It should explain a channel's *judgement*
-freely. It must not restate this field list.
+Round briefs were deleted on 2026-08-22 (worklist T91). What is particular to a
+round now reaches the reader through `round_workflow.js`'s task prompt — run dir,
+cards file, and whether the pass is blind — and nothing else needs to.
+
+The rule that stood here survives the file it was written for, and applies to
+whatever carries round-specific text: it may explain a channel's *judgement*
+freely, and it must not restate this field list. **A brief was the last thing to
+break that rule**, which is the incident recorded at the top of this file; do not
+reintroduce one to hold text that belongs in the reader definition.

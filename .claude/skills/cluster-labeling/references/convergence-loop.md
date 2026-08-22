@@ -277,8 +277,10 @@ further files determined reader behaviour while being invisible to the stamp, so
 looked comparable when they were not.** Widened 2026-08-17 to also hash the AOI
 pack `SKILL.md`, the reader agent's definition, the round brief, the corrections
 log, and the swarm harness — and again 2026-08-21 to the verdict record contract,
-making eight (see below). Expect the stamp to move more often — that is the
-point, not a regression.
+making eight. **Seven since 2026-08-22**, when the round brief was deleted rather
+than excused (see below); the live list is in the engine `SKILL.md` under
+`gate.py`, and this file deliberately does not carry a second copy. Expect the
+stamp to move more often — that is the point, not a regression.
 
 **The gap is narrowed, not closed.** Anything a reader reads that is not in the
 hash still drifts silently. Test it the same way each time: change one word of
@@ -295,6 +297,17 @@ invalidated by the move; the same fix costs a live stamp once a round is gated.
 The run cleared the rest: all seven prior inputs move the stamp, no entry is dead.
 The exact eight-file list and the before/after stamps live with the invocation, in
 the run dir's `HANDOFF.md`; this file deliberately does not carry a second copy.
+
+**Narrowed once, on 2026-08-22: the round brief was deleted, not excused** (T91).
+It was the only entry that differed between *any* two rounds — path, date, round
+number, wording — so it moved the stamp every round and **no two rounds could
+ever share one**, which is exactly what `compare_rounds.py` concurrence needs in
+order to compare them. The fix was not to drop a file a reader reads out of the
+hash: its one contract-bearing bit (is this pass blind?) moved into
+`round_workflow.js`, and what blind *obliges* moved into
+`.claude/agents/cluster-reader.md` — both already hashed. Nothing a reader reads
+left the hash; one file stopped existing. Seven entries now, listed in the engine
+`SKILL.md` under `gate.py`.
 
 **Do not fix this by hashing a generated prompt file.** That was tried and
 withdrawn: a `prompt.txt` emitted by a since-deleted generator had already drifted

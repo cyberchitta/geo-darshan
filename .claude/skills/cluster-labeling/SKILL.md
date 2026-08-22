@@ -136,9 +136,24 @@ gitignored, in no repo, and discarded with the run. The steps below show bare
    uv run --no-project python .claude/skills/cluster-labeling/scripts/check_verdict_contract.py \
      RUN_DIR --contract .claude/skills/cluster-labeling/references/verdict-record.md
    ```
-   *(There is no `prompt.txt`. Its generator went with the Gemini path in
-   `a20a78f` and cannot be regenerated; the round brief in `RUN_DIR` is what
-   readers read.)*
+   *(There is no `prompt.txt` and, since 2026-08-22, no round brief either.
+   `prompt.txt`'s generator went with the Gemini path in `a20a78f`; `BRIEF.md`
+   was deleted under worklist T91. **What readers read is their agent definition
+   plus the task prompt `round_workflow.js` builds** — run dir, cards file, and
+   `blind: true|false`. Every brief this pipeline wrote restated the reader's
+   standing guidance and drifted from it, and its genuinely per-round content was
+   warnings about renderer defects that are now fixed. Do not reintroduce one: a
+   rule written in a brief reaches a single round and is discarded with the run
+   dir, which is gitignored.)*
+
+   **`corrections.md` is FROZEN for the duration of a round** (worklist T95). It
+   is one of the files `defs_version` hashes and it is append-only, so a line
+   added while readers are running gives the batches that started after it a
+   *different stamp from the batches that started before* — one round, two
+   contracts, and the split is invisible in the output because every record still
+   carries a stamp that looks fine on its own. Queue expert feedback arriving
+   mid-round and append it after the last batch lands. The same hazard is why
+   nothing else in the `--defs` list may be edited mid-round.
 
 3a. **Pick the harness — and know what the choice forecloses.**
    **`Workflow` is the default path (ruled 2026-08-22).** `Agent` is for the
@@ -157,7 +172,7 @@ gitignored, in no repo, and discarded with the run. The steps below show bare
 
    ```
    Workflow({scriptPath: '.claude/skills/cluster-labeling/scripts/round_workflow.js',
-             args: {runDir: RUN_DIR, cards: 'cards.json', brief: 'BRIEF.md',
+             args: {runDir: RUN_DIR, cards: 'cards.json', blind: true,
                     batchPrefix: 'batch', batches: [[...ids...], ...]}})
    ```
    **Generate the cards with the same batches first** — the workflow hands reader
@@ -410,6 +425,34 @@ better than it found it. Two grades of learning, two speeds:
 - `scripts/gate.py` — ledger + settle gate: judgments (+ verify, prior, neighbour)
   → `ledger.json` with a state per cluster, stamped with `defs_version` **and the
   `--defs` paths that stamp was computed over**.
+
+  **`--defs` is these seven files, and the list lives here.** It was eight until
+  2026-08-22, when T91 deleted the round brief; the reason it is written down in
+  the skill is that the canonical list previously existed *only* in a run dir's
+  gitignored `HANDOFF.md`, so retiring that run would have retired the list —
+  the same trap that nearly took `$UV` with it.
+
+  | # | file |
+  |---|---|
+  | 1 | AOI pack `references/class-definitions.md` |
+  | 2 | AOI pack `references/land-cover.json` |
+  | 3 | AOI pack `SKILL.md` |
+  | 4 | `.claude/agents/cluster-reader.md` |
+  | 5 | `references/verdict-record.md` |
+  | 6 | `RUN_DIR/corrections.md` |
+  | 7 | `scripts/round_workflow.js` |
+
+  **Never quote a stamp value from prose** — it is stale the next time anyone
+  edits a reader-facing file, and the person it misleads is the one who trusted
+  the document. Recompute with `check_defs_drift.py`.
+
+  **Deliberately outside the hash**, by one test — *can it change a verdict
+  before that verdict is written?* `references/reader-debrief.md` (reaches a
+  reader only after its verdicts are on disk), the `overview_basemap.jpg` and
+  reference-crop **image bytes** (the table naming them is hashed via the pack
+  `SKILL.md`), and this engine `SKILL.md` (orchestrator-facing; absent from the
+  reader's standing list). If any of those starts reaching a reader before it
+  judges, this list is wrong again.
 - `scripts/human_verify.py` — the adjudication surface's export → a file
   `gate.py --verify` can read. **Exemplar rulings only**: a cluster-wide ruling is
   reported by id and left for the router, never folded in silently. Reports what it

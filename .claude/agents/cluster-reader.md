@@ -39,8 +39,49 @@ anything, read, in this order:
    absent key means "nobody could report it", a null value means "could and did
    not", and only the second is a finding about the ground.
 
-If a run-specific brief is named in your task, read that too; it carries what is
-particular to this round.
+**There is no round brief.** Your task prompt carries the whole of what is
+particular to this round: your run dir, your cards file, and whether the pass is
+blind. If a prompt names a brief file, it is from a retired round — say so rather
+than reading it; briefs restated this list and drifted from it, which is why they
+are gone.
+
+## When your task says the pass is BLIND
+
+An independent read is the second vote in a concurrence measurement, and it is
+only independent if it is uninformed by the first. Your cards carry no previous
+label. **Nothing is missing from your input.**
+
+- **Do not go looking for a prior verdict.** Not in a `judgments.json`, a
+  `batch_*.json` or `*_verify_*.json`, a `*_baseline.json`, a `ledger.json`, a
+  `cluster_to_label.json`, or any review page in the run dir. You have Read,
+  Grep and Glob, so nothing *stops* you — this is the rule that does. The cells
+  have usually been judged before, more than once; reading any of it defeats the
+  pass. The list is illustrative: the rule is that no earlier reader's answer
+  enters your judgement, whatever the file is called.
+- **If you catch yourself reasoning about what an earlier pass "probably said",
+  stop and judge the crop.**
+- **The two round fields have no content.** The contract marks them `round`; a
+  blind pass cannot ask what they ask, so they take their empty values. Write
+  them as the contract specifies — *could not ask* is a different fact from
+  *asked, and nothing changed*, and collapsing the two destroys the distinction
+  they exist for. The diff against an earlier round is computed afterwards from
+  your labels; it is not yours to report.
+- **A confident agreement is worth exactly as much as a confident disagreement.**
+  There is no direction to lean, and no credit for either.
+
+**The `old_map` distribution on your card is not an exception to any of this.**
+It is the pre-existing map being replaced — an independent observation from a
+different time, not an earlier reader's verdict. Weigh it as the prior-map
+section below directs.
+
+**Your lack of a shell is deliberate, not an oversight.** A view only you have
+seen makes your verdict incomparable with every other reader's, and comparability
+is precisely what a blind pass measures. Judge what you are given; if something
+you need is missing, say so in your notes rather than building it.
+
+If your task says the pass is **not** blind, your cards carry what an earlier pass
+concluded. Weigh it under "Do not anchor on a previous label" below; the two round
+fields then carry real answers rather than empty ones.
 
 **Some classes are marked NOT CURRENTLY ASSIGNABLE. Never emit one** — not as
 `label`, not as `alternative`. They keep their full definitions because the

@@ -1,7 +1,7 @@
 export const meta = {
   name: 'cluster-labeling-round',
   description: 'Run a labeling round: N blind readers over cluster cards, contract check, then adversarially verify EVERY exemplar',
-  whenToUse: 'A labeling or re-labeling round over a run dir that already has cards and crops. Pass runDir/cards/brief/batchPrefix/batches via args.',
+  whenToUse: 'A labeling or re-labeling round over a run dir that already has cards and crops. Pass runDir/cards/blind/batchPrefix/batches via args.',
   phases: [
     { title: 'Read', detail: 'cluster-reader agents, one batch of cards each' },
     { title: 'Contract', detail: 'verdict-record contract check before anything consumes the verdicts' },
@@ -18,7 +18,18 @@ export const meta = {
 // args: {
 //   runDir:      repo-relative run directory
 //   cards:       cards filename inside runDir
-//   brief:       round brief filename inside runDir
+//   blind:       is this an independent read? (default true). Replaces the
+//                per-round BRIEF.md, deleted 2026-08-22 (worklist T91). Every
+//                brief this pipeline ever wrote restated the reader's standing
+//                guidance -- how to judge a card, the label policy, the output
+//                schema -- and that copy is how two of them drifted apart. What
+//                was genuinely per-round was warnings about renderer defects
+//                that are now fixed. What survived is this one boolean, plus a
+//                run dir and cards file the prompts below already name.
+//                The obligations of a blind pass live in
+//                `.claude/agents/cluster-reader.md`, read by every round and in
+//                defs_version's hash; a brief reached one round and was
+//                discarded with the run dir.
 //   batchPrefix: verdict files are `${batchPrefix}_${i}.json`
 //   batches:     array of arrays of cluster ids, one per reader
 //   hierarchy:   repo-relative land-cover.json -- the AOI pack's. Required: it
@@ -37,7 +48,14 @@ const CARDS_PER_BATCH = A.cardsPerBatch !== false
 const cardsFor = i => CARDS_PER_BATCH
   ? `${CARDS.replace(/\.json$/, '')}_b${i}.json`
   : CARDS
-const BRIEF = A.brief
+const BLIND = A.blind !== false
+// One line into the prompt, not a paragraph. What a blind pass obliges a reader
+// to do is in the reader definition; restating it here would recreate the brief
+// in a new location, and this file is in defs_version's hash where a restatement
+// drifts silently against the definition it copied.
+const BLIND_LINE = BLIND
+  ? 'This pass is BLIND: an independent read. Your cards carry no previous label — nothing is missing from your input. Your agent definition states what that obliges you to do; it applies in full.'
+  : 'This pass is NOT blind: your cards carry the previous label and its reasoning. Weigh it as your agent definition directs.'
 const PREFIX = A.batchPrefix || 'batch'
 // Verdict files are `${PREFIX}_${i}.json`; the Verify phase later writes
 // `${PREFIX}_verify_${i}.json` BESIDE them. A `${PREFIX}_*.json` glob matches both,
@@ -103,7 +121,7 @@ const read = await parallel(batches.map((ids, i) => () =>
     `Judge Auroville cluster cells ${ids.join(', ')}.
 
 Run dir: \`${RUN}\` (repo root /Users/cyberchitta/GitHub/geo-darshan).
-Round brief: \`${RUN}/${BRIEF}\` — read it after your standing reading list.
+${BLIND_LINE}
 Your input cards: \`${RUN}/${cardsFor(i)}\` — already filtered to your cells,
 so judge every card in it. If that file is missing, say so and stop rather than
 reaching for another one; a reader silently judging the wrong cells is worse than
@@ -152,7 +170,7 @@ Do not fix anything, do not edit any file — this is a measurement.
 From the repo root (/Users/cyberchitta/GitHub/geo-darshan):
 
     uv run --no-project python .claude/skills/cluster-labeling/scripts/check_verdict_contract.py \\
-      ${RUN} --verdicts '${VERDICT_GLOB}' --sources ${SELF} ${RUN}/${BRIEF} \\
+      ${RUN} --verdicts '${VERDICT_GLOB}' --sources ${SELF} \\
       --hierarchy ${HIERARCHY} --strict
 
 Set \`passed\` true only if it exits 0.
@@ -194,7 +212,6 @@ const verified = await parallel(batches.map((ids, i) => () =>
     `ADVERSARIAL CHECK. Another analyst judged these land-cover cells. Your job is to try to REFUTE each verdict by looking at the imagery yourself.
 
 Run dir: \`${RUN}\` (repo root /Users/cyberchitta/GitHub/geo-darshan).
-Round brief: \`${RUN}/${BRIEF}\`.
 
 Read \`${RUN}/${VERDICT_GLOB}\` and filter to clusters ${ids.join(', ')}.
 Check **every** verdict for those clusters, not only ones that look surprising.
