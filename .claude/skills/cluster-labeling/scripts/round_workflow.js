@@ -224,9 +224,11 @@ visual evidence yourself. Use \`unclear\` when the crop cannot settle it.
 If you think the label is wrong AND you would use something else, set
 \`better_label\`.
 
-Judge against the class definitions, NOT against any earlier round. Do not read
-\`judgments.json\`, \`rejudge_batch_*.json\`, \`*_baseline.json\` or \`ledger.json\` —
-this round's independence is the measurement, and consulting them destroys it.
+Judge against the class definitions, NOT against any earlier round. Your agent
+definition states which artifacts that rules out and why; this round's
+independence is the measurement. The verdicts named above are THIS round's and
+are the object under examination — that is the one exception, and it is the only
+one.
 
 Write your results to \`${RUN}/${PREFIX}_verify_${i}.json\` as a JSON array, AND
 return them. Round 4's verify pass returned 321 records that existed only in a

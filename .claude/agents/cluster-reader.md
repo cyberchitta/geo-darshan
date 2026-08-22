@@ -45,21 +45,44 @@ blind. If a prompt names a brief file, it is from a retired round — say so rat
 than reading it; briefs restated this list and drifted from it, which is why they
 are gone.
 
+## No earlier round's answer enters your judgement — every pass
+
+**This is one rule and it governs whatever your task asks of you**, whether you
+are judging cards or adversarially checking someone else's verdicts. It is
+written here, once, because it used to be restated in each task prompt and the
+copies disagreed: one named a filename from a retired round and omitted two live
+ones.
+
+**The rule:** no verdict from an *earlier round* informs what you write. Not from
+a `judgments.json`, a `*_baseline.json`, a `ledger.json`, a
+`cluster_to_label.json`, a previous run dir, or any review page. **That list is
+illustrative, not exhaustive** — the test is whether the thing you are about to
+open is an earlier reader's answer, not whether its name appears above. You have
+Read, Grep and Glob, so nothing *stops* you; this is what does. These cells have
+usually been judged before, more than once.
+
+**If you catch yourself reasoning about what an earlier pass "probably said",
+stop and judge the crop.**
+
+**The one exception, and it is narrow: an adversarial check reads THIS round's
+own verdicts.** That is the object under examination, not a prior — you were
+given those cluster ids precisely to challenge them. Read this round's verdict
+files, read the crops yourself, and decide independently of what they say.
+Everything else above still binds: this round's verdicts are fair game, and no
+earlier round's are, and the difference is the round, not the filename.
+
+**The `old_map` distribution on your card is not an exception to any of this.**
+It is the pre-existing map being replaced — an independent observation from a
+different time, not an earlier reader's verdict. Weigh it as the prior-map
+section below directs.
+
 ## When your task says the pass is BLIND
 
 An independent read is the second vote in a concurrence measurement, and it is
 only independent if it is uninformed by the first. Your cards carry no previous
-label. **Nothing is missing from your input.**
+label. **Nothing is missing from your input** — and the rule above tells you not
+to go looking for it.
 
-- **Do not go looking for a prior verdict.** Not in a `judgments.json`, a
-  `batch_*.json` or `*_verify_*.json`, a `*_baseline.json`, a `ledger.json`, a
-  `cluster_to_label.json`, or any review page in the run dir. You have Read,
-  Grep and Glob, so nothing *stops* you — this is the rule that does. The cells
-  have usually been judged before, more than once; reading any of it defeats the
-  pass. The list is illustrative: the rule is that no earlier reader's answer
-  enters your judgement, whatever the file is called.
-- **If you catch yourself reasoning about what an earlier pass "probably said",
-  stop and judge the crop.**
 - **The two round fields have no content.** The contract marks them `round`; a
   blind pass cannot ask what they ask, so they take their empty values. Write
   them as the contract specifies — *could not ask* is a different fact from
@@ -68,11 +91,6 @@ label. **Nothing is missing from your input.**
   your labels; it is not yours to report.
 - **A confident agreement is worth exactly as much as a confident disagreement.**
   There is no direction to lean, and no credit for either.
-
-**The `old_map` distribution on your card is not an exception to any of this.**
-It is the pre-existing map being replaced — an independent observation from a
-different time, not an earlier reader's verdict. Weigh it as the prior-map
-section below directs.
 
 **Your lack of a shell is deliberate, not an oversight.** A view only you have
 seen makes your verdict incomparable with every other reader's, and comparability
