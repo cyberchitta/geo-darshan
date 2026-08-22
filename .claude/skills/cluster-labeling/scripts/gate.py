@@ -22,7 +22,7 @@ Disagreement triage
   ("eroded_land vs degraded_barren" retreats; "fallow vs cashew" splits.)
 
 Usage
-  gate.py RUN_DIR --judgments judgments.json --hierarchy land-cover.json
+  gate.py RUN_DIR --judgments 'ROUND_[0-9]*.json' ... --hierarchy land-cover.json
           [--verify FILE ...] [--apply-verified]
           [--prior prior_labels.json] [--nbr nbr_flags.json]
           [--restrict cards.json] [--defs FILE ...]
@@ -98,7 +98,7 @@ def triage(labels, retreat_min_depth):
 VERDICT_KEYS = ("verdict", "verify")
 
 
-def verify_files(paths):
+def verify_files(paths, flag="--verify"):
     """Expand --verify into real files. round_workflow.js writes one per batch
     (`${PREFIX}_verify_${i}.json`), so a single-path --verify forced somebody to
     hand-merge them first -- which is how round 4's verify pass came to exist only
@@ -109,8 +109,47 @@ def verify_files(paths):
         p = str(p)
         hits = sorted(glob.glob(p))
         if not hits:
-            sys.exit(f"--verify {p}: no such file")
+            sys.exit(f"{flag} {p}: no such file")
         out.extend(hits)
+    return out
+
+
+def load_judgments(paths):
+    """-> the round's verdict records, concatenated across every --judgments file.
+
+    T5. A round's readers write one array per batch (`${PREFIX}_${i}.json`) and
+    NOTHING merges them into a `judgments.json`. While this took a single path,
+    the only file with that name was whatever an older round had left in the run
+    dir -- so every gate run reached for it. On k88xk22 that is round 3's output:
+    sessions 22 and 23 both paired round-4 verify records with round-3 labels.
+    c130 reads `uncertain` there and `built_environment` in `r4_batch_5.json`,
+    and the gate saw the former. Nothing errored and the summary looked right,
+    which is why it survived two sessions. Point this at the round's own files.
+    """
+    out, seen = [], {}
+    for path in verify_files(paths, "--judgments"):
+        d = json.loads(Path(path).read_text())
+        rows = d
+        if isinstance(d, dict):
+            for k in ("judgments", "verdicts", "results"):
+                if k in d:
+                    rows = d[k]
+                    break
+            else:
+                sys.exit(f"--judgments {path}: dict with no `judgments`, `verdicts` "
+                         f"or `results` array.")
+        for r in rows:
+            key = (r.get("cluster"), r.get("exemplar"))
+            if key in seen:
+                # Overlapping inputs silently double-weight a cluster's vote, and
+                # the summary still looks right -- the same shape as the bug this
+                # function exists to close. Refuse instead.
+                sys.exit(f"--judgments: c{key[0]}e{key[1]} appears in both "
+                         f"{seen[key]} and {Path(path).name}. Overlapping inputs "
+                         f"would double-count that exemplar in the vote. Pass each "
+                         f"batch once.")
+            seen[key] = Path(path).name
+            out.append(r)
     return out
 
 
@@ -315,7 +354,11 @@ def main():
     # a perfectly sensible summary -- criteria move, nothing errors, and the
     # numbers describe a state no round ever produced. Check the file's provenance
     # before quoting a ledger built on it.
-    ap.add_argument("--judgments", type=Path, required=True)
+    ap.add_argument("--judgments", type=Path, nargs="+", required=True,
+                    help="the round's OWN verdict file(s); globs accepted. Readers "
+                         "write one array per batch and nothing merges them, so point "
+                         "this at those files -- not at a judgments.json an earlier "
+                         "round left in the run dir. See load_judgments (T5).")
     ap.add_argument("--hierarchy", type=Path)
     ap.add_argument("--verify", type=Path, nargs="*", default=[],
                     help="verify files: flips-shaped or verify-result-shaped, "
@@ -338,7 +381,7 @@ def main():
     ap.add_argument("--out", default="ledger.json")
     a = ap.parse_args()
 
-    judgments = json.loads(a.judgments.read_text())
+    judgments = load_judgments(a.judgments)
     verify = load_verify(a.verify)
     hierarchy = json.loads(a.hierarchy.read_text()) if a.hierarchy else None
     prior = json.loads(a.prior.read_text()) if a.prior else {}
